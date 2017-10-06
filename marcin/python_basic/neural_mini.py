@@ -15,13 +15,48 @@ class NeuralNetwork2:
         self.biases = [None, None]
 
         # hidden layer
-        self.weights[0] = np.random.randn(shape[0], shape[1])
-        self.biases[0] = np.random.randn(1, shape[1])
+        self.weights_hidden = np.random.randn(shape[0], shape[1])
+        self.biases_hidden = np.random.randn(1, shape[1])
 
         # output layer
-        self.weights[1] = np.random.randn(shape[1], shape[2])
-        self.biases[1] = np.random.randn(1, shape[2])
+        self.weights_output = np.random.randn(shape[1], shape[2])
+        self.biases_output = np.random.randn(1, shape[2])
 
+    def get_weights(self, layer):
+        if layer == 0:
+            return self.weights_hidden
+        elif layer == 1:
+            return self.weights_output
+        else:
+            raise ValueError('Only layers 0 and 1 are supported')
+
+    def get_biases(self, layer):
+        if layer == 0:
+            return self.biases_hidden
+        elif layer == 1:
+            return self.biases_output
+        else:
+            raise ValueError('Only layers 0 and 1 are supported')
+        
+    def set_weights(self, layer, value):
+        if layer == 0:
+            assert self.weights_hidden.shape == value.shape
+            self.weights_hidden = value
+        elif layer == 1:
+            assert self.weights_output.shape == value.shape
+            self.weights_output = value
+        else:
+            raise ValueError('Only layers 0 and 1 are supported')
+
+    def set_biases(self, layer, value):
+        if layer == 0:
+            assert self.biases_hidden.shape == value.shape
+            self.biases_hidden = value
+        elif layer == 1:
+            assert self.biases_output.shape == value.shape
+            self.biases_output = value
+        else:
+            raise ValueError('Only layers 0 and 1 are supported')
 
 
     def fun_sigmoid(self, x, deriv=False):
@@ -32,13 +67,13 @@ class NeuralNetwork2:
     def forward(self, data):
 
         # hidden layer
-        temp = np.dot(data, self.weights[0])
-        inputs_hidden = np.add(temp, self.biases[0])
+        temp = np.dot(data, self.weights_hidden)
+        inputs_hidden = np.add(temp, self.biases_hidden)
         outputs_hidden = self.fun_sigmoid(inputs_hidden)
 
         # output layer
-        temp = np.dot(outputs_hidden, self.weights[1])
-        inputs_output =  np.add(temp, self.biases[1])
+        temp = np.dot(outputs_hidden, self.weights_output)
+        inputs_output =  np.add(temp, self.biases_output)
         outputs_output = self.fun_sigmoid(inputs_output)
 
         return outputs_output
@@ -46,13 +81,13 @@ class NeuralNetwork2:
     def backward(self, data, labels):
         
         # forward hidden layer
-        temp = np.dot(data, self.weights[0])
-        inputs_hidden = np.add(temp, self.biases[0])
+        temp = np.dot(data, self.weights_hidden)
+        inputs_hidden = np.add(temp, self.biases_hidden)
         outputs_hidden = self.fun_sigmoid(inputs_hidden)
 
         # forward output layer
-        temp = np.dot(outputs_hidden, self.weights[1])
-        inputs_output =  np.add(temp, self.biases[1])
+        temp = np.dot(outputs_hidden, self.weights_output)
+        inputs_output =  np.add(temp, self.biases_output)
         outputs_output = self.fun_sigmoid(inputs_output)
 
         temp = (outputs_output - labels)
@@ -62,7 +97,7 @@ class NeuralNetwork2:
         d_biases_output = error_term_out
 
 
-        temp = np.dot(error_term_out, self.weights[1].T)
+        temp = np.dot(error_term_out, self.weights_output.T)
         error_term_hid = temp * self.fun_sigmoid(inputs_hidden, deriv=True)
 
         d_weights_hidden = np.dot(data.T, error_term_hid)
@@ -94,10 +129,10 @@ class NeuralNetwork2:
 
         del_b, del_w = self.backward(data, labels)
 
-        self.weights[0] = (1 - eta * (lmbda / n)) * self.weights[0] - (eta / len(batch)) * del_w[0]
-        self.weights[1] = (1 - eta * (lmbda / n)) * self.weights[1] - (eta / len(batch)) * del_w[1]
-        self.biases[0] += -eta / len(batch) * del_b[0]
-        self.biases[1] += -eta / len(batch) * del_b[1]
+        self.weights_hidden = (1 - eta * (lmbda / n)) * self.weights_hidden - (eta / len(batch)) * del_w[0]
+        self.weights_output = (1 - eta * (lmbda / n)) * self.weights_output - (eta / len(batch)) * del_w[1]
+        self.biases_hidden += -eta / len(batch) * del_b[0]
+        self.biases_output += -eta / len(batch) * del_b[1]
 
 
     def train_SGD(self, data, batch_size, eta, callback=None):

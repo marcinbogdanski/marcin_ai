@@ -35,6 +35,19 @@ class Network(object):
         self.weights = [np.random.randn(y, x)
                         for x, y in zip(sizes[:-1], sizes[1:])]
 
+    def set_weights(self, layer, value):
+        assert self.weights[layer].shape == value.shape
+        self.weights[layer] = value
+
+    def set_biases(self, layer, value):
+        assert self.biases[layer].shape == value.shape
+        self.biases[layer] = value
+
+    def get_weights(self, layer):
+        return self.weights[layer]
+
+    def get_biases(self, layer):
+        return self.biases[layer]
                         
     def vis_2D(self, layer_nb, neuron_nb, first = False):
         px = np.linspace(0, 1, 50)

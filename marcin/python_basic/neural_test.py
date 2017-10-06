@@ -50,6 +50,7 @@ class NeuralTest(unittest.TestCase):
         elif IMPLEMENTATION == 'mini':
             self.nn = neural_mini.NeuralNetwork2( (2, 3, 1) )
         elif IMPLEMENTATION == 'tensor':
+            neural_tf.reset_default_graph()
             self.nn = neural_tf.NeuralNetworkTF( (2, 3, 1) )
         elif IMPLEMENTATION == 'reference':
             self.nn = nndl.Network( (2, 3, 1) )  # reference neural network
@@ -65,25 +66,26 @@ class NeuralTest(unittest.TestCase):
             raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
         
         # Make sure shapes match before asigning weights into neural network
-        if IMPLEMENTATION in ['neural', 'mini', 'reference']:
-            self.assertEqual( self.nn.weights[0].shape, weights_0.shape )
-            self.assertEqual( self.nn.biases[0].shape, biases_0.shape )
-            self.assertEqual( self.nn.weights[1].shape, weights_1.shape )
-            self.assertEqual( self.nn.biases[1].shape, biases_1.shape )
-            
-            self.nn.weights[0] = weights_0
-            self.nn.biases[0] = biases_0
-            self.nn.weights[1] = weights_1
-            self.nn.biases[1] = biases_1
-        elif IMPLEMENTATION == 'tensor':
-            nn_weights_0 = self.nn.get_weights(0)
-            self.assertEqual( weights_0.shape, weights_0.shape )
+        nn_weights_0 = self.nn.get_weights(0)
+        nn_biases_0 = self.nn.get_biases(0)
+        nn_weights_1 = self.nn.get_weights(1)
+        nn_biases_1 = self.nn.get_biases(1)
 
-            self.nn.set_weights(0, weights_0)
-        else:
-            raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
-        
-        
+        self.assertEqual( nn_weights_0.shape, weights_0.shape )
+        self.assertEqual( nn_biases_0.shape, biases_0.shape )
+        self.assertEqual( nn_weights_1.shape, weights_1.shape )
+        self.assertEqual( nn_biases_1.shape, biases_1.shape )
+
+        self.nn.set_weights(0, weights_0)
+        self.nn.set_biases(0, biases_0)
+        self.nn.set_weights(1, weights_1)
+        self.nn.set_biases(1, biases_1)
+    
+    def tearDown(self):
+        if IMPLEMENTATION == 'tensor':
+            self.nn.close_tf_session()
+        elif IMPLEMENTATION in ['neural', 'mini', 'reference']:
+            pass
     
     def test_fun_sigmoid(self):
 
@@ -91,16 +93,28 @@ class NeuralTest(unittest.TestCase):
             res1 = self.nn.fun_sigmoid( -1 )
             res2 = self.nn.fun_sigmoid( 0 )
             res3 = self.nn.fun_sigmoid( 1 )
+            res4 = self.nn.fun_sigmoid( -1, deriv=True )
+            res5 = self.nn.fun_sigmoid( 0, deriv=True )
+            res6 = self.nn.fun_sigmoid( 1, deriv=True )
         elif IMPLEMENTATION == 'reference':
             res1 = nndl.sigmoid( -1 )
             res2 = nndl.sigmoid( 0 )
             res3 = nndl.sigmoid( 1 )
+            res4 = nndl.sigmoid_prime( -1 )
+            res5 = nndl.sigmoid_prime( 0 )
+            res6 = nndl.sigmoid_prime( 1 )
         else:
             raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
         
-        self.assertEqual( res1, 0.2689414213699951 )
-        self.assertEqual( res2, 0.5 )
-        self.assertEqual( res3, 0.7310585786300049 )
+        self.assertAlmostEqual( res1, 0.2689414213699951, places=6 )
+        self.assertAlmostEqual( res2, 0.5, places=6 )
+        self.assertAlmostEqual( res3, 0.7310585786300049, places=6 )
+
+        self.assertAlmostEqual( res4, 0.19661193324148185, places=6 )
+        self.assertAlmostEqual( res5, 0.25, places=6 )
+        self.assertAlmostEqual( res6, 0.19661193324148185, places=6 )
+
+
         
     def test_train_SGD(self):
     
@@ -126,8 +140,10 @@ class NeuralTest(unittest.TestCase):
         
         if IMPLEMENTATION in ['neural', 'mini']:
             res, count = self.nn.evaluate(self.data_vec)
-        else:
+        elif IMPLEMENTATION == 'reference':
             res = self.nn.eval_err(self.data_vec)
+        else:
+            raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
                 
         self.assertAlmostEqual( res, 0.0061221348573361678 )
         
@@ -135,16 +151,16 @@ class NeuralTest(unittest.TestCase):
                 
         if IMPLEMENTATION in ['neural', 'mini']:
             self.nn.train_batch(self.data_vec, eta=0.3)
-            weights_0 = self.nn.weights[0]
-            biases_0 = self.nn.biases[0]
-            weights_1 = self.nn.weights[1]
-            biases_1 = self.nn.biases[1]
+            weights_0 = self.nn.get_weights(0)
+            biases_0 = self.nn.get_biases(0)
+            weights_1 = self.nn.get_weights(1)
+            biases_1 = self.nn.get_biases(1)
         elif IMPLEMENTATION == 'reference':
             self.nn.update_mini_batch(self.data_vec, eta=0.3)
-            weights_0 = self.nn.weights[0].T
-            biases_0 = self.nn.biases[0].T
-            weights_1 = self.nn.weights[1].T
-            biases_1 = self.nn.biases[1].T
+            weights_0 = self.nn.get_weights(0).T
+            biases_0 = self.nn.get_biases(0).T
+            weights_1 = self.nn.get_weights(1).T
+            biases_1 = self.nn.get_biases(1).T
         else:
             raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
                 
@@ -219,22 +235,26 @@ class NeuralTest(unittest.TestCase):
         
         self.assertIsInstance( res, np.ndarray )
         self.assertEqual( res.shape, (1, 1) )
-        self.assertAlmostEqual( res[0][0], 0.977165764059 )
+        self.assertAlmostEqual( res[0][0], 0.977165764059, places=6 )
         
         
         if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
-            data = np.array( [0.1, 0.9] )
+            data = np.array( [[0.1, 0.9]] )
             res = self.nn.forward(data)
             self.assertIsInstance( res, np.ndarray )
             self.assertEqual( res.shape, (1, 1) )
-            self.assertAlmostEqual( res[0][0], 0.977165764059 )
+            self.assertAlmostEqual( res[0][0], 0.977165764059, places=6 )
             
             data = np.array( [[0.1, 0.9], [0.9, 0.1]] )
             res = self.nn.forward(data)
             self.assertIsInstance( res, np.ndarray )
             self.assertEqual( res.shape, (2, 1) )
-            self.assertAlmostEqual( res[0][0], 0.977165764059 )
-            self.assertAlmostEqual( res[1][0], 0.976049023220 )
+            self.assertAlmostEqual( res[0][0], 0.977165764059, places=6 )
+            self.assertAlmostEqual( res[1][0], 0.976049023220, places=6 )
+        elif IMPLEMENTATION == 'reference':
+            pass # skip this test
+        else:
+            raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
 
 if __name__ == '__main__':
     unittest.main()

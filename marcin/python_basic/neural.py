@@ -72,12 +72,12 @@ class NeuralNetwork(object):
         #init first layer
         shape = self.weights[0].shape
         self.weights[0] = np.random.normal(0, 1 / np.sqrt(self.num_inputs), shape)
-        assert( shape == self.weights[0].shape )
+        assert shape == self.weights[0].shape
         
         for l in range(1, self.num_layers):
             shape = self.weights[l].shape
             self.weights[l] = np.random.normal(0, 1 / np.sqrt(self.layers[l - 1]), shape)
-            assert( shape == self.weights[l].shape )
+            assert shape == self.weights[l].shape
             
     def init_relu(self, layers):
         self.init_norm(layers)
@@ -85,13 +85,27 @@ class NeuralNetwork(object):
         #init first layer
         shape = self.weights[0].shape
         self.weights[0] = np.random.normal(0, 2 / np.sqrt(self.num_inputs), shape)
-        assert( shape == self.weights[0].shape )
+        assert shape == self.weights[0].shape
         
         for l in range(1, self.num_layers):
             shape = self.weights[l].shape
             self.weights[l] = np.random.normal(0, 2 / np.sqrt(self.layers[l - 1]), shape)
-            assert( shape == self.weights[l].shape )
-                
+            assert shape == self.weights[l].shape
+    
+    def set_weights(self, layer, value):
+        assert self.weights[layer].shape == value.shape
+        self.weights[layer] = value
+
+    def set_biases(self, layer, value):
+        assert self.biases[layer].shape == value.shape
+        self.biases[layer] = value
+
+    def get_weights(self, layer):
+        return self.weights[layer]
+
+    def get_biases(self, layer):
+        return self.biases[layer]
+
     def fun_sigmoid(self, x, deriv=False):
         if deriv:
             return np.multiply(self.fun_sigmoid(x), (1 - self.fun_sigmoid(x)))
@@ -129,14 +143,13 @@ class NeuralNetwork(object):
             raise
             data = np.asarray(data)  # convert matrix to array
 
-        assert( data.shape == (2,) or
-                data.shape[1] == expected_length )
+        assert data.shape == (2,) or data.shape[1] == expected_length
         return data
         
     def _check_weight_shapes(self):
         for i in range(self.num_layers):
             # Make sure we didn't mess up something when multiplying matrices
-            assert( self.weights[i].shape == self.shapes[i] )
+            assert self.weights[i].shape == self.shapes[i]
     
 
     def forward(self, data):
