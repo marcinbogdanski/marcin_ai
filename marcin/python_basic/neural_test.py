@@ -9,8 +9,8 @@ import backprop_nndl as nndl  # ground truth
 
 
 #IMPLEMENTATION = 'neural'
-IMPLEMENTATION = 'neural_mini'
-#IMPLEMENTATION = 'tensor'
+#IMPLEMENTATION = 'mini'
+IMPLEMENTATION = 'tensor'
 #IMPLEMENTATION = 'reference'
 
 print('IMPLEMENTATION:', IMPLEMENTATION)
@@ -47,7 +47,7 @@ class NeuralTest(unittest.TestCase):
                         
         if IMPLEMENTATION == 'neural':
             self.nn = neural.NeuralNetwork( (2, 3, 1), init='norm' )
-        elif IMPLEMENTATION == 'neural_mini':
+        elif IMPLEMENTATION == 'mini':
             self.nn = neural_mini.NeuralNetwork2( (2, 3, 1) )
         elif IMPLEMENTATION == 'tensor':
             self.nn = neural_tf.NeuralNetworkTF( (2, 3, 1) )
@@ -65,22 +65,29 @@ class NeuralTest(unittest.TestCase):
             raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
         
         # Make sure shapes match before asigning weights into neural network
-        self.assertEqual( self.nn.weights[0].shape, weights_0.shape )
-        self.assertEqual( self.nn.biases[0].shape, biases_0.shape )
-        self.assertEqual( self.nn.weights[1].shape, weights_1.shape )
-        self.assertEqual( self.nn.biases[1].shape, biases_1.shape )
-        
-        self.nn.weights[0] = weights_0
-        self.nn.biases[0] = biases_0
-        self.nn.weights[1] = weights_1
-        self.nn.biases[1] = biases_1
-        
+        if IMPLEMENTATION in ['neural', 'mini', 'reference']:
+            self.assertEqual( self.nn.weights[0].shape, weights_0.shape )
+            self.assertEqual( self.nn.biases[0].shape, biases_0.shape )
+            self.assertEqual( self.nn.weights[1].shape, weights_1.shape )
+            self.assertEqual( self.nn.biases[1].shape, biases_1.shape )
+            
+            self.nn.weights[0] = weights_0
+            self.nn.biases[0] = biases_0
+            self.nn.weights[1] = weights_1
+            self.nn.biases[1] = biases_1
+        elif IMPLEMENTATION == 'tensor':
+            nn_weights_0 = self.nn.get_weights(0)
+            self.assertEqual( weights_0.shape, weights_0.shape )
+
+            self.nn.set_weights(0, weights_0)
+        else:
+            raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
         
         
     
     def test_fun_sigmoid(self):
 
-        if IMPLEMENTATION in ['neural', 'neural_mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
             res1 = self.nn.fun_sigmoid( -1 )
             res2 = self.nn.fun_sigmoid( 0 )
             res3 = self.nn.fun_sigmoid( 1 )
@@ -98,7 +105,7 @@ class NeuralTest(unittest.TestCase):
     def test_train_SGD(self):
     
         for i in range(1000):
-            if IMPLEMENTATION in ['neural', 'neural_mini']:
+            if IMPLEMENTATION in ['neural', 'mini']:
                 self.nn.train_SGD(self.data_vec, 
                                   batch_size=2, eta=5.0)
             elif IMPLEMENTATION == 'reference':
@@ -117,7 +124,7 @@ class NeuralTest(unittest.TestCase):
             #    print(i, res)
                     
         
-        if IMPLEMENTATION in ['neural', 'neural_mini']:
+        if IMPLEMENTATION in ['neural', 'mini']:
             res, count = self.nn.evaluate(self.data_vec)
         else:
             res = self.nn.eval_err(self.data_vec)
@@ -126,7 +133,7 @@ class NeuralTest(unittest.TestCase):
         
     def test_train_batch(self):
                 
-        if IMPLEMENTATION in ['neural', 'neural_mini']:
+        if IMPLEMENTATION in ['neural', 'mini']:
             self.nn.train_batch(self.data_vec, eta=0.3)
             weights_0 = self.nn.weights[0]
             biases_0 = self.nn.biases[0]
@@ -161,7 +168,7 @@ class NeuralTest(unittest.TestCase):
         data = self.data_vec[1][0]
         label = self.data_vec[1][1]
                 
-        if IMPLEMENTATION in ['neural', 'neural_mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
             res_b, res_w = self.nn.backward( data, label )
         elif IMPLEMENTATION == 'reference':
             res_b, res_w = self.nn.backprop( data, label )  # reference impl.
@@ -200,7 +207,7 @@ class NeuralTest(unittest.TestCase):
         
     def test_forward(self):
 
-        if IMPLEMENTATION in ['neural', 'neural_mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
             data = np.array( [[0.1, 0.9]] )
             res = self.nn.forward(data)
         elif IMPLEMENTATION == 'reference':
@@ -215,7 +222,7 @@ class NeuralTest(unittest.TestCase):
         self.assertAlmostEqual( res[0][0], 0.977165764059 )
         
         
-        if IMPLEMENTATION in ['neural', 'neural_mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
             data = np.array( [0.1, 0.9] )
             res = self.nn.forward(data)
             self.assertIsInstance( res, np.ndarray )
