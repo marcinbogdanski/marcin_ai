@@ -109,7 +109,6 @@ class NeuralTest(unittest.TestCase):
         self.assertAlmostEqual( res1, 0.2689414213699951, places=6 )
         self.assertAlmostEqual( res2, 0.5, places=6 )
         self.assertAlmostEqual( res3, 0.7310585786300049, places=6 )
-
         self.assertAlmostEqual( res4, 0.19661193324148185, places=6 )
         self.assertAlmostEqual( res5, 0.25, places=6 )
         self.assertAlmostEqual( res6, 0.19661193324148185, places=6 )

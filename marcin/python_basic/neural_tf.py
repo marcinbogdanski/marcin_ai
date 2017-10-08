@@ -74,16 +74,37 @@ class NeuralNetworkTF(object):
         with tf.name_scope(scope_output):
             temp = tf.matmul(self.output_from_hidden, self.weights_output)
             self.inputs_to_output = tf.add(temp, self.biases_output)
-            self.outputs_from_output = tf.sigmoid(self.inputs_to_output)
+            self.outputs_from_output = tf.sigmoid(self.inputs_to_output,
+                name='output')
 
         #
         #   Backward pass
         #
-        self.data_targets = tf.placeholder(tf.float32, [None, None], name='data_targets')
+        self.data_targets = tf.placeholder(tf.float32, [None, None],
+                                           name='data_targets')
         with tf.name_scope(scope_output):
-            temp = tf.subtract(self.outputs_from_output, self.data_targets)
-            sig_der = tf.multiply(tf.sigmoid(self.inputs_to_hidden),
-                1 - tf.sigmoid(self.inputs_to_hidden))
+            with tf.name_scope('output_grad'):
+                temp = tf.subtract(self.outputs_from_output, self.data_targets)
+                sig_der = tf.multiply(tf.sigmoid(self.inputs_to_output),
+                    1 - tf.sigmoid(self.inputs_to_output))
+                err_term_out = tf.multiply(temp, sig_der)
+                self.delta_weights_output = \
+                    tf.matmul(tf.transpose(self.output_from_hidden),
+                    err_term_out, name='delta_weights_output');
+                self.delta_biases_output = \
+                    tf.identity(err_term_out, name='delta_biases_output')
+
+            with tf.name_scope('hidden_grad'):
+                temp = tf.matmul(err_term_out, 
+                    tf.transpose(self.weights_output))
+                sig_der = tf.multiply(tf.sigmoid(self.inputs_to_hidden),
+                    1 - tf.sigmoid(self.inputs_to_hidden))
+                err_term_hid = tf.multiply(temp, sig_der)
+                self.delta_weights_hidden = \
+                    tf.matmul(tf.transpose(self.data_in),
+                    err_term_hid, name='delta_weights_hidden')
+                self.delta_biases_hidden = \
+                    tf.identity(err_term_hid, name='delta_biases_hidden')
 
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
@@ -133,10 +154,21 @@ class NeuralNetworkTF(object):
         else:
             out = self.sess.run(self.sig_out, feed_dict={self.sig_in: x})
 
-        print(out)
         return out[0]
 
 
     def forward(self, data):
         return self.sess.run(self.outputs_from_output,
                              feed_dict={self.data_in: data})
+
+    def backward(self, data, labels):
+        delta_weights_output, delta_biases_output, \
+        delta_weights_hidden, delta_biases_hidden = self.sess.run(
+            [self.delta_weights_output, self.delta_biases_output,
+            self.delta_weights_hidden, self.delta_biases_hidden],
+            feed_dict={self.data_in: data, self.data_targets: labels});
+
+        res_w = [delta_weights_hidden, delta_weights_output]
+        res_b = [delta_biases_hidden, delta_biases_output]
+
+        return res_b, res_w
