@@ -82,6 +82,12 @@ class NeuralNetworkTF(object):
         #
         self.data_targets = tf.placeholder(tf.float32, [None, None],
                                            name='data_targets')
+        # Learning rate
+        self.eta = tf.placeholder(tf.float32, [])
+        # Length of data input (for batch learning)
+        self.data_in_len = tf.cast(tf.shape(self.data_in)[0], tf.float32)
+        # Factor applying learning rate
+        self.factor = tf.divide(-1 * self.eta, self.data_in_len)
         with tf.name_scope(scope_output):
             with tf.name_scope('output_grad'):
                 temp = tf.subtract(self.outputs_from_output, self.data_targets)
@@ -92,19 +98,42 @@ class NeuralNetworkTF(object):
                     tf.matmul(tf.transpose(self.output_from_hidden),
                     err_term_out, name='delta_weights_output');
                 self.delta_biases_output = \
-                    tf.identity(err_term_out, name='delta_biases_output')
+                    tf.reduce_sum(err_term_out, axis=0,
+                        keep_dims=True, name='delta_biases_output')
+
+                self.update_weights_output = \
+                    tf.assign_add(self.weights_output, 
+                        self.delta_weights_output * self.factor,
+                        name='update_weights_output')
+                self.update_biases_output = \
+                    tf.assign_add(self.biases_output,
+                        self.delta_biases_output * self.factor,
+                        name='update_biases_output')
 
             with tf.name_scope('hidden_grad'):
                 temp = tf.matmul(err_term_out, 
                     tf.transpose(self.weights_output))
-                sig_der = tf.multiply(tf.sigmoid(self.inputs_to_hidden),
+                self.sig_der_hid = tf.multiply(tf.sigmoid(self.inputs_to_hidden),
                     1 - tf.sigmoid(self.inputs_to_hidden))
-                err_term_hid = tf.multiply(temp, sig_der)
+                err_term_hid = tf.multiply(temp, self.sig_der_hid)
                 self.delta_weights_hidden = \
                     tf.matmul(tf.transpose(self.data_in),
                     err_term_hid, name='delta_weights_hidden')
                 self.delta_biases_hidden = \
-                    tf.identity(err_term_hid, name='delta_biases_hidden')
+                    tf.reduce_sum(err_term_hid, axis=0,
+                        keep_dims=True, name='delta_biases_hidden')
+
+                self.update_weights_hidden = \
+                    tf.assign_add(self.weights_hidden, 
+                        self.delta_weights_hidden * self.factor,
+                        name='update_weights_hidden')
+                self.update_biases_hidden = \
+                    tf.assign_add(self.biases_hidden,
+                        self.delta_biases_hidden * self.factor,
+                        name='update_biases_hidden')
+
+
+
 
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
@@ -161,14 +190,80 @@ class NeuralNetworkTF(object):
         return self.sess.run(self.outputs_from_output,
                              feed_dict={self.data_in: data})
 
-    def backward(self, data, labels):
-        delta_weights_output, delta_biases_output, \
-        delta_weights_hidden, delta_biases_hidden = self.sess.run(
-            [self.delta_weights_output, self.delta_biases_output,
-            self.delta_weights_hidden, self.delta_biases_hidden],
-            feed_dict={self.data_in: data, self.data_targets: labels});
+    def backward(self, data, labels, eta=0.0, apply_deltas=True):
+        lenn = self.sess.run(self.data_in_len, 
+            feed_dict={self.data_in: data, self.data_targets: labels})
+
+        if apply_deltas == False:
+            # Just run backprop, do not apply delta-weight
+            delta_weights_output, delta_biases_output, \
+            delta_weights_hidden, delta_biases_hidden = self.sess.run(
+                [self.delta_weights_output, self.delta_biases_output,
+                self.delta_weights_hidden, self.delta_biases_hidden],
+                feed_dict={self.data_in: data, self.data_targets: labels});
+        else:
+            delta_weights_output, delta_biases_output, \
+            delta_weights_hidden, delta_biases_hidden, \
+            _, _, _, _ = self.sess.run(
+                [self.delta_weights_output, self.delta_biases_output,
+                self.delta_weights_hidden, self.delta_biases_hidden,
+                self.update_weights_output, self.update_biases_output,
+                self.update_weights_hidden, self.update_biases_hidden],
+                feed_dict={self.data_in: data,
+                           self.data_targets: labels,
+                           self.eta: eta});
 
         res_w = [delta_weights_hidden, delta_weights_output]
         res_b = [delta_biases_hidden, delta_biases_output]
 
         return res_b, res_w
+
+    def apply_deltas(self, eta):
+        assert self
+
+    def train_batch(self, batch, eta):
+        if(len(batch)) == 0:
+            return
+
+        data = []
+        labels = []
+        for b in batch:
+            data.append(b[0][0])
+            labels.append(b[1][0])
+
+        data = np.array(data)
+        labels = np.array(labels)
+
+        del_b, del_w = self.backward(data, labels, eta)
+
+        return del_b, del_w
+
+        #self.weights_hidden += -eta / len(batch) * del_w[0]
+        #self.weights_output += -eta / len(batch) * del_w[1]
+        #self.biases_hidden += -eta / len(batch) * del_b[0]
+        #self.biases_output += -eta / len(batch) * del_b[1]
+
+        #self.writer = tf.summary.FileWriter('logdir', self.sess.graph)
+        #self.writer.flush()  # necessary?
+
+    def train_SGD(self, data, batch_size, eta, callback=None):
+        temp_shuffled = data[:]
+        np.random.shuffle(temp_shuffled)
+
+        for k in range(0, len(temp_shuffled), batch_size):
+            data_batch = temp_shuffled[k:k + batch_size]
+            del_b, del_w = self.train_batch(data_batch, eta)
+
+            if callback is not None:
+                callback(self)
+
+    def evaluate(self, data):
+        total_error = 0
+        count = 0
+        for x, y in data:
+            out = self.forward(x)
+            total_error += np.sum(np.square(out - y))
+            if np.argmax(out) == np.argmax(y):
+                count += 1
+
+        return total_error, count

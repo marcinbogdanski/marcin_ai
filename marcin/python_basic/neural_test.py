@@ -118,7 +118,7 @@ class NeuralTest(unittest.TestCase):
     def test_train_SGD(self):
     
         for i in range(1000):
-            if IMPLEMENTATION in ['neural', 'mini']:
+            if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
                 self.nn.train_SGD(self.data_vec, 
                                   batch_size=2, eta=5.0)
             elif IMPLEMENTATION == 'reference':
@@ -137,18 +137,20 @@ class NeuralTest(unittest.TestCase):
             #    print(i, res)
                     
         
-        if IMPLEMENTATION in ['neural', 'mini']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
             res, count = self.nn.evaluate(self.data_vec)
         elif IMPLEMENTATION == 'reference':
             res = self.nn.eval_err(self.data_vec)
         else:
             raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
                 
-        self.assertAlmostEqual( res, 0.0061221348573361678 )
+        # Due to undeterministic math using TF
+        # we have to lower expected accuracy to 3 decimal places
+        self.assertAlmostEqual( res, 0.0061221348573361678, places=3 )
         
     def test_train_batch(self):
                 
-        if IMPLEMENTATION in ['neural', 'mini']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
             self.nn.train_batch(self.data_vec, eta=0.3)
             weights_0 = self.nn.get_weights(0)
             biases_0 = self.nn.get_biases(0)
@@ -173,10 +175,10 @@ class NeuralTest(unittest.TestCase):
         self.assertAlmostEqual( weights_1[1][0], float('1.09754407') )
         self.assertAlmostEqual( weights_1[2][0], float('1.19725437') )
         
-        self.assertAlmostEqual( biases_0[0][0], float('0.29918931') )
-        self.assertAlmostEqual( biases_0[0][1], float('0.59926552') )
-        self.assertAlmostEqual( biases_0[0][2], float('0.89939032') )
-        self.assertAlmostEqual( biases_1[0][0], float('1.29659672') )
+        self.assertAlmostEqual( biases_0[0][0], float('0.29918931'), places=6 )
+        self.assertAlmostEqual( biases_0[0][1], float('0.59926552'), places=6 )
+        self.assertAlmostEqual( biases_0[0][2], float('0.89939032'), places=6 )
+        self.assertAlmostEqual( biases_1[0][0], float('1.29659672'), places=6 )
         
     def test_backward(self):
         

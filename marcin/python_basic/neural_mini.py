@@ -113,7 +113,7 @@ class NeuralNetwork2:
 
         return res_b, res_w
 
-    def train_batch(self, batch, eta, lmbda=0.0, n=1):
+    def train_batch(self, batch, eta):
         if(len(batch)) == 0:
             return
 
@@ -129,8 +129,8 @@ class NeuralNetwork2:
 
         del_b, del_w = self.backward(data, labels)
 
-        self.weights_hidden = (1 - eta * (lmbda / n)) * self.weights_hidden - (eta / len(batch)) * del_w[0]
-        self.weights_output = (1 - eta * (lmbda / n)) * self.weights_output - (eta / len(batch)) * del_w[1]
+        self.weights_hidden += -eta / len(batch) * del_w[0]
+        self.weights_output += -eta / len(batch) * del_w[1]
         self.biases_hidden += -eta / len(batch) * del_b[0]
         self.biases_output += -eta / len(batch) * del_b[1]
 
