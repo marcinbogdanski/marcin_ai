@@ -43,6 +43,7 @@ class Feeder:
 
         self._num_examples = len(features)
         self._epochs_completed = 0
+        self._batches_completed = 0
         self._index_in_epoch = 0
 
     @property
@@ -61,9 +62,14 @@ class Feeder:
     def epochs_completed(self):
         return self._epochs_completed
 
+    @property
+    def batches_completed(self):
+        return self._batches_completed
+
 
     def next_batch(self, batch_size, shuffle=True):
         """Return the next `batch_size` examples from this data set."""
+        self._batches_completed += 1
 
         start = self._index_in_epoch
         # Shuffle for the first epoch
