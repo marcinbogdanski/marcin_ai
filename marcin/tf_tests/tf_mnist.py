@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import sklearn
+import time
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,6 +24,12 @@ def load_mnist(test=False):
     tar = mnist.target.astype(np.int32)
     targets = eye[tar]
 
+    # Shuffle data
+    perm0 = np.arange(len(data))
+    np.random.shuffle(perm0)
+    data = data[perm0]
+    targets = targets[perm0]
+
     train = dxfd.Feeder(data[0:55000], targets[0:55000])
     valid = dxfd.Feeder(data[55000:65000], targets[55000:65000])
     test  = dxfd.Feeder(data[65000:70000], targets[65000:70000])
@@ -43,47 +50,70 @@ def show_pics(feeder, start, num, cols=10):
     plt.show()
 
 
+# Explore data
 train, valid, test = load_mnist()
-
-show_pics(train, start=0, num=25, cols=5)
-
-exit(0)
+# show_pics(train, start=0, num=25, cols=5)
 
 
+batches = 1000
+batch_size = 100
+learning_rate = 0.5
 
-ff = dxfd.Feeder()
 
-pdb.set_trace()
+data = tf.placeholder(tf.float32, [None, 784])
+labels = tf.placeholder(tf.float32, [None, 10])
 
-exit(0)
+weights = tf.get_variable('weights', [784, 10],
+    initializer=tf.truncated_normal_initializer(mean=0.0, stddev=1.0/784))
+biases = tf.get_variable('biases', [10],
+    initializer=tf.zeros_initializer())
+logits = tf.add(tf.matmul(data, weights), biases, name='logits')
 
-from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
-features = mnist.train.images
-labels = mnist.train.labels
 
-A = tf.constant([[1, 2], [3, 4]], name='A')
-b = tf.placeholder(tf.int32, [2], name = 'B')  # scalar
-C = tf.add(A, b, name='C')
+cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+   labels=labels, logits=logits)
+loss = tf.reduce_mean(cross_entropy)
 
-features_placeholder = tf.placeholder(features.dtype, features.shape)
-labels_placeholder = tf.placeholder(labels.dtype, labels.shape)
 
-dataset = tf.contrib.data.Dataset.from_tensor_slices((features_placeholder, labels_placeholder))
+optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
-iterator = dataset.make_initializable_iterator()
-
+is_correct = \
+    tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1),
+        name='is_correct')
+accuracy = tf.reduce_mean(tf.cast(is_correct, tf.float32), name='accuracy')
 
 
 
 with tf.Session() as sess:
-
-    sess.run(iterator.initializer, feed_dict={features_placeholder: features,
-                                          labels_placeholder: labels})
-
+    sess.run(tf.global_variables_initializer())
     writer = tf.summary.FileWriter('logdir', sess.graph)
     writer.flush()
 
-    feed_dict = {b: [0, 1]}
-    res = sess.run(C, feed_dict=feed_dict)
+    while True:
+        if train.batches_completed >= batches:
+            break
+
+        in_data, in_labels = train.next_batch(batch_size)
+        acc, ll, _ = sess.run([accuracy, loss, optimizer],
+            feed_dict={data: in_data,
+                        labels: in_labels})
+
+        if train.batches_completed % 100 == 0:
+            valid_acc, valid_loss = sess.run([accuracy, loss],
+                feed_dict={data: valid.features,
+                           labels: valid.labels})
+            
+            print('epoch: ', train.epochs_completed, '   ',
+                  'batch:', train.batches_completed, '   ',
+                  'valid_acc', valid_acc)
+
+
+    
+    acc, ll, _ = sess.run([accuracy, loss, optimizer],
+            feed_dict={data: test.features,
+                        labels: test.labels})
+    print('Final accuracy:', acc)
+
+
+    
