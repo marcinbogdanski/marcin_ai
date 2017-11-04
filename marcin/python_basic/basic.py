@@ -3,52 +3,81 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import pdb
 
-import sys, os, importlib
-sys.path.append(os.getcwd())
 
-import backprop_marcin
-import neural
+def sigmoid(x, deriv=False):
+    if deriv:
+        return np.multiply(sigmoid(x), (1 - sigmoid(x)))
+    return 1 / (1 + np.exp(-x))
 
-import backprop_nndl as nndl
+def vis_2D(weights, biases, first=False):
+    px = np.linspace(0, 1, 50)
+    py = np.linspace(0, 1, 50)
+    pz = np.zeros((len(px), len(px)))
+    
+    for i in range(len(px)):
+        for j in range(len(py)):
+            x = [[ px[i], px[j] ]]
+            result = sigmoid(np.dot(x, weights) + biases)
+            pz[i, j] = result[0, 0]
+   
+    if first:
+        plt.figure()
+    else:
+        plt.clf()
 
-        
+    extent = [px[0], px[-1], py[0], py[-1]]
+    plt.imshow(pz.T, extent=extent, origin='lower')
 
- 
-
+    if first:
+        plt.colorbar()
+    
+    # plt.show()
+    plt.pause(0.01)
 
 def test_and():
-    X = np.array( ((0, 0), (0, 1), (1, 0), (1, 1)) )
-    labels = np.array( (0, 0, 0, 1) )
+    X = np.array([[0, 0], 
+                  [0, 1], 
+                  [1, 0], 
+                  [1, 1]], dtype=np.float32)
+    labels = np.array([[0], 
+                       [0], 
+                       [0], 
+                       [1]], dtype=np.float32)
     
-    weights = np.array( (0.5, 1.5) )
-    biases = np.array( -0.75 )
-    
-    #weights = np.random.rand(2) * 2 - 1
-    #biases = np.random.rand(1) * 2 - 1
+    # weights = np.array([[0.5], 
+    #                     [1.5]])
+    # biases = np.array([[-0.75]])
+    weights = np.array([[ 0.5 ], 
+                        [ 1.5 ]], dtype=np.float32)
+    biases = np.array([[ -0.75 ]], dtype=np.float32)
                         
     print('X:', X)
     print('labels:', labels)
     print('weights:', weights)
     print('biases:', biases)
+
+    
    
-    vis2D(weights, biases, True)
+    vis_2D(weights, biases, True)
+
     
     learn_rate = 0.1
     
     for i in range(1000):
         for i in range(len(X)):
-            x = X[i]
-            y = tanh(np.dot(x, weights) + biases)
-            err_p = y - labels[i]
-            sig_p = tanh(np.dot(x, weights) + biases, True)
-            delta_w = -learn_rate * err_p * sig_p * x
+            x = X[i:i+1]
+            y = sigmoid(np.dot(x, weights) + biases)
+            err_p = y - labels[i:i+1]
+            sig_p = sigmoid(np.dot(x, weights) + biases, True)
+            delta_w = -learn_rate * err_p * np.dot(x.T, sig_p)
             
             weights += delta_w
             biases += -learn_rate * err_p * sig_p
     
-        vis2D(weights, biases)
-        total_err = np.sum(np.square(tanh(np.dot(X, weights) + biases) - labels))
+        vis_2D(weights, biases)
+        total_err = np.sum(np.square(sigmoid(np.dot(X, weights) + biases) - labels))
         print('total_err:', total_err, weights, biases)
     
 def test_and_nn(seed=None):
@@ -292,14 +321,14 @@ def main():
     #plt.plot(X, Y)
     #plt.show()
     
-    #test_and()
+    test_and()
     
     #test_and_nn()
     #test_and_nndl()
     
     #test_and_or_nn()
     
-    test_circ_nn()
+    #test_circ_nn()
     #test_circ_load_nn()
     #test_circ_nndl()
     
