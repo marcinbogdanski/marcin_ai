@@ -43,11 +43,11 @@ def backward(inputs, targets, learning_rate):
     err_p = y - targets
     sig_p = sigmoid(np.dot(inputs, weights) + biases, True)
 
-    d_weights = -learning_rate * np.dot(inputs.T, err_p * sig_p) 
-    d_biasess = -learning_rate * np.sum(err_p * sig_p, keepdims=True)
+    d_weights = np.dot(inputs.T, err_p * sig_p) 
+    d_biasess = np.sum(err_p * sig_p, keepdims=True)
 
-    weights += d_weights / len(inputs)
-    biases += d_biasess / len(inputs)
+    weights += -learning_rate * d_weights / len(inputs)
+    biases += -learning_rate * d_biasess / len(inputs)
 
 def map_input():
     """Runs NN on 2D input space (for plotting)"""
