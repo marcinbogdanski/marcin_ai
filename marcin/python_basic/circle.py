@@ -3,28 +3,43 @@ import matplotlib.pyplot as plt
 import pickle
 import pdb
 
-inputs = np.array([[0, 0],  # 1st training example,
-                   [0, 1],  # 2nd training example
-                   [1, 0],  # and so on...
-                   [1, 1]], dtype=np.float32)
+inputs = np.array([[0.0, 0.0],  # 1st training example,
+                   [0.0, 0.5],  # 2nd training example,
+                   [0.0, 1.0],  # and so on
+                   [0.5, 1.0],
+                   [1.0, 1.0],
+                   [1.0, 0.5],
+                   [1.0, 0.0],
+                   [0.5, 0.0],
+                   [0.4, 0.4],
+                   [0.4, 0.6],
+                   [0.6, 0.4],
+                   [0.6, 0.6]], dtype=np.float32)
 
 targets = np.array([[0],    # Target for 1st example,
                     [0],    # ...
                     [0], 
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [0],
+                    [1],
+                    [1],
+                    [1],
                     [1]], dtype=np.float32)
+
 
 learning_rate = 0.5
 
 
 
 # Initial weights and biases
-weights = np.array([[ -0.1 ], 
-                    [ -0.1 ]], dtype=np.float32)
-biases = np.array([[ 0.1 ]], dtype=np.float32)
+weights_hidden = np.random.randn(2, 2) * 0.1
+biases_hidden = np.array([[ 0.1, 0.1 ]], dtype=np.float32)
 
-weights = np.array([[ -2.0 ], 
-                    [ -2.0 ]], dtype=np.float32)
-biases = np.array([[ 0.1 ]], dtype=np.float32)
+weights_output = np.random.randn(2, 1) * 0.1
+biases_output = np.array([[ 0.1 ]], dtype=np.float32)
 
 def sigmoid(x, deriv=False):
     if deriv:
@@ -32,8 +47,13 @@ def sigmoid(x, deriv=False):
     return 1 / (1 + np.exp(-x))
 
 def forward(inputs):
-    global weights, biases
-    return sigmoid(np.dot(inputs, weights) + biases)
+    global weights_hidden, biases_hidden, weights_output, biases_output
+
+    layer_1 = sigmoid(np.dot(inputs, weights_hidden) + biases_hidden)
+
+    output_layer = sigmoid(np.dot(layer_1, weights_output) + biases_output)
+
+    return output_layer
 
 def backward(inputs, targets, learning_rate):
     global weights, biases

@@ -17,11 +17,7 @@ learning_rate = 0.5
 
 
 
-# Initial weights and biases
-weights = np.array([[ -0.1 ], 
-                    [ -0.1 ]], dtype=np.float32)
-biases = np.array([[ 0.1 ]], dtype=np.float32)
-
+# Initial weights and biases (really bad initial weights)
 weights = np.array([[ -2.0 ], 
                     [ -2.0 ]], dtype=np.float32)
 biases = np.array([[ 0.1 ]], dtype=np.float32)
@@ -38,13 +34,14 @@ def forward(inputs):
 def backward(inputs, targets, learning_rate):
     global weights, biases
     
-    y = forward(inputs)
+    z = np.dot(inputs, weights) + biases
+    y = sigmoid(z)
     
-    err_p = y - targets
-    sig_p = sigmoid(np.dot(inputs, weights) + biases, True)
+    err_d = y - targets
+    sig_d = sigmoid(z, True)
 
-    d_weights = np.dot(inputs.T, err_p * sig_p) 
-    d_biasess = np.sum(err_p * sig_p, keepdims=True)
+    d_weights = np.dot(inputs.T, err_d * sig_d) 
+    d_biasess = np.sum(err_d * sig_d, keepdims=True)
 
     weights += -learning_rate * d_weights / len(inputs)
     biases += -learning_rate * d_biasess / len(inputs)
