@@ -79,15 +79,7 @@ class GridWorld:
                 else:
                     st.actions.append(Action('E', prob=0.25, reward=-1, target=self.world[x+1][y]))
 
-    def print_v(self, heading):
-        print(heading)
-        for x in range(self.size_x):
-            for y in range(self.size_y):
-                st = self.world[x][y]
-                print('{0: .2f}  '.format(st.v), end='')
-            print()
-
-    def eval_v_step(self):
+    def policy_eval_step(self):
         for x in range(self.size_x):
             for y in range(self.size_y):
                 st = self.world[x][y]
@@ -101,7 +93,7 @@ class GridWorld:
                 st.v = st.v_temp                  
 
 
-    def impr_v_step(self):
+    def policy_iter_step(self):
         for x in range(self.size_x):
             for y in range(self.size_y):
                 st = self.world[x][y]
@@ -122,34 +114,58 @@ class GridWorld:
                     else:
                         a.prob = 0
 
-    def plot_world(self):
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.set_xlim([-1,self.size_x])
-        ax.set_ylim([-1,self.size_y])
+    def value_iter_step(self):
+        for x in range(self.size_x):
+            for y in range(self.size_y):
+                st = self.world[x][y]
+
+                max_v = float('-inf')
+                for a in st.actions:
+                    temp_v = a.reward + discount * a.target.v
+                    if temp_v > max_v:
+                        max_v = temp_v
+
+                st.v = max_v
+
+    def print_v(self, heading):
+        print(heading)
+        for x in range(self.size_x):
+            for y in range(self.size_y):
+                st = self.world[x][y]
+                print('{0: .2f}  '.format(st.v), end='')
+            print()
+
+    def plot_world(self, axis, title):
+        axis.set_title(title)
+        axis.set_xlim([-1,self.size_x])
+        axis.set_ylim([-1,self.size_y])
         
         for x in range(self.size_x):
             for y in range(self.size_y):
                 st = self.world[x][y]
 
                 
-                ax.add_patch(
+                axis.add_patch(
                     patches.Rectangle(
                         (st.x-0.5, st.y-0.5), 1, 1, fill=False))
 
                 if st.is_terminal:
-                    ax.add_patch(
+                    axis.add_patch(
                         patches.Rectangle(
                             (st.x-0.5, st.y-0.5), 1, 1, alpha=0.3))
 
-                ax.text(st.x-0.45, st.y+0.3, 
-                    '[{0},{1}]'.format(st.x, st.y),
+                # axis.text(st.x-0.45, st.y+0.3, 
+                #     '[{0},{1}]'.format(st.x, st.y),
+                #     color='lightgrey',
+                #     fontsize=6)
+
+                axis.text(st.x-0.45, st.y+0.3,
+                    '{0:.2f}'.format((st.v)), 
+                    color='red',
+                    horizontalalignment='left',
                     fontsize=6)
 
                 
-
-                #print(st)
-                #pdb.set_trace()
 
                 max_prob_actions = []
                 max_prob = 0
@@ -165,43 +181,52 @@ class GridWorld:
 
                 for a in max_prob_actions:
                     if a.name == 'N':
-                        ax.arrow(st.x, st.y, 0, 0.3, 
+                        axis.arrow(st.x, st.y, 0, 0.3, 
                             head_width=0.05, head_length=0.1, fc='k', ec='k')
                     elif a.name == 'S':
-                        ax.arrow(st.x, st.y, 0, -0.3, 
+                        axis.arrow(st.x, st.y, 0, -0.3, 
                             head_width=0.05, head_length=0.1, fc='k', ec='k')
                     elif a.name == 'W':
-                        ax.arrow(st.x, st.y, -0.3, 0, 
+                        axis.arrow(st.x, st.y, -0.3, 0, 
                             head_width=0.05, head_length=0.1, fc='k', ec='k')
                     elif a.name == 'E':
-                        ax.arrow(st.x, st.y, 0.3, 0, 
+                        axis.arrow(st.x, st.y, 0.3, 0, 
                             head_width=0.05, head_length=0.1, fc='k', ec='k')
         
-        plt.show()
+        
     
 world = GridWorld(4, 4, terminal_st=[(0,0),(3,3)])
 
-# for x in range(len(world)):
-#     for y in range(len(world[x])):
-#         st = world[x][y]
-#         print(x, y, st.id)
-#         for a in st.actions:
-#             print('  ', a.target.id)
-
 discount = 1
 
+fig = plt.figure('Value Iteration')
+ax0 = fig.add_subplot(231)
+ax1 = fig.add_subplot(232)
+ax2 = fig.add_subplot(233)
+ax3 = fig.add_subplot(234)
+ax4 = fig.add_subplot(235)
+ax5 = fig.add_subplot(236)
 
-world.print_v('values k=0:')
+world.plot_world(ax0, 'k=0')
 
-for k in range(1,11):
+for k in range(1,201):
 
-    world.eval_v_step()
+    #world.policy_eval_step()
+    world.value_iter_step()
+    world.policy_iter_step()
 
-    world.print_v('values k=' + str(k))
+    # world.print_v('values k=' + str(k))
 
-world.impr_v_step()
-world.plot_world()
+    if k == 1: world.plot_world(ax1, 'k='+str(k))
+    elif k == 2: world.plot_world(ax2, 'k='+str(k))
+    elif k == 3: world.plot_world(ax3, 'k='+str(k))
+    elif k == 10: world.plot_world(ax4, 'k='+str(k))
+    elif k == 200: world.plot_world(ax5, 'k='+str(k))
 
+world.policy_iter_step()
+
+
+plt.show()
 
 # Time to create 200x200 world: 0.5614066123962402
 # Time to evaluate 10x times:   1.351165533065796
