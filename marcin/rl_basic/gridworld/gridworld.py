@@ -149,7 +149,7 @@ class GridworldEnv:
         self._player_cell = new_cell
 
         obs = (new_cell.x, new_cell.y)
-        reward = new_cell.reward
+        reward = curr_cell.reward
         done = self._finished
 
         return (obs, reward, done)
@@ -165,8 +165,8 @@ class GridworldEnv:
 
     def plot_world(self, axis, title, V=None, Q=None, 
         trajectory=None,
-        plot_transitions=True, 
-        plot_rewards=True):
+        plot_transitions=False, 
+        plot_rewards=False):
         axis.clear()
         axis.set_title(title)
         axis.set_xlim([-1,self.size_x])
@@ -212,7 +212,9 @@ class GridworldEnv:
                         st = trajectory[i-1]
                         en = trajectory[i]
                         axis.arrow(st[0]+0.15, st[1]+0.15,
-                            en[0]-st[0], en[1]-st[1], fc='blue', ec='blue')
+                            en[0]-st[0], en[1]-st[1], 
+                            head_width=0.05, head_length=0.1,
+                            fc='blue', ec='blue')
 
                 ########################################
                 # Plot transitions
@@ -250,7 +252,7 @@ class GridworldEnv:
                 ########################################
                 # Plot action-value funciton
                 # Text drawn on-top-of arrows
-                Q_as_arrows = True
+                Q_as_arrows = False
                 if Q is not None and Q_as_arrows == False:
                     axis.text(cell.x, cell.y+0.25,  # North
                         '{0:.2f}'.format(Q[cell.x, cell.y, 0]), 
