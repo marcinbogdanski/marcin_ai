@@ -24,6 +24,10 @@ size_y = 6
 env = GridworldEnv(size_x, size_y)
 agent = GridworldAgent(size_x, size_y)
 
+env.make_start(0, 0)
+env.make_goal(5, 0)
+
+
 fig = plt.figure('Value Iteration')
 ax0 = fig.add_subplot(111)
 
@@ -32,6 +36,8 @@ QQ[0, 0, 0] = 1
 QQ[0, 0, 1] = 0.25
 QQ[0, 0, 2] = 0.5
 
-env.plot_world(ax0, 'k=0', Q=QQ)
+VV = np.zeros([size_x, size_y])
+
+env.plot_world(ax0, 'k=0', plot_transitions=True, plot_rewards=True)
 
 plt.show()
