@@ -10,10 +10,10 @@ class Cell:
         self.y = y
         self.reward = reward
         self.transitions = {}
-        self.start_cells = set()
-
+        
         self.type = 'default'
 
+        self._is_terminal = False
 
         # For painting:
         self._text_symbol = None
@@ -24,7 +24,6 @@ class Cell:
 
     def make_start(self):
         self.type = 'start'
-        self.start_cells.add(self)
 
         self._paint_color = 'black'
         self._text_symbol = 'S'
@@ -32,6 +31,8 @@ class Cell:
     def make_goal(self):
         self.type = 'goal'
         self.reward = 0
+
+        self._is_terminal = True
 
         self._paint_color = 'green'
         self._text_symbol = 'G'
@@ -43,14 +44,20 @@ class Cell:
         self._text_symbol  ='W'
 
 
+
 class GridworldEnv:
     def __init__(self, size_x, size_y):
         """
         Indexed from bottm left, like on math graphs
         """
+        self.t_step = 0
         self.size_x = size_x
         self.size_y = size_y
         self._grid = np.empty( [size_x, size_y], dtype=Cell)
+        self._start_cells = []
+
+        self._player_cell = None
+        self._finished = False
 
         for x in range(size_x):
             for y in range(size_y):
@@ -88,6 +95,9 @@ class GridworldEnv:
         cell = self._grid[x, y]
         cell.make_start()
 
+        if cell not in self._start_cells:
+            self._start_cells.append(cell)
+
     def make_goal(self, x, y):
         cell = self._grid[x, y]
         cell.make_goal()
@@ -118,6 +128,32 @@ class GridworldEnv:
             cell_E = self._grid[x-1, y]
             cell_E.transitions[1] = cell_E
 
+    def reset(self):
+        self.t_step = 0
+        rnd_idx = np.random.randint(0, len(self._start_cells))
+        cell = self._start_cells[rnd_idx]
+        self._player_cell = cell
+        self._finished = False
+
+        obs = (cell.x, cell.y)
+
+        return obs
+
+    def step(self, action):
+        self.t_step += 1
+        curr_cell = self._player_cell
+        new_cell = curr_cell.transitions[action]
+        self.player_cell = new_cell
+        self._finished = new_cell._is_terminal
+
+        self._player_cell = new_cell
+
+        obs = (new_cell.x, new_cell.y)
+        reward = new_cell.reward
+        done = self._finished
+
+        return (obs, reward, done)
+
 
     def print_v(self, heading):
         print(heading)
@@ -127,8 +163,11 @@ class GridworldEnv:
                 print('{0: .2f}  '.format(st.v), end='')
             print()
 
-    def plot_world(self, axis, title, V=None, Q=None,
-        plot_transitions=False, plot_rewards=False):
+    def plot_world(self, axis, title, V=None, Q=None, 
+        trajectory=None,
+        plot_transitions=True, 
+        plot_rewards=True):
+        axis.clear()
         axis.set_title(title)
         axis.set_xlim([-1,self.size_x])
         axis.set_ylim([-1,self.size_y])
@@ -138,10 +177,22 @@ class GridworldEnv:
             for y in range(self.size_y):
                 cell = self._grid[x, y]
 
-                axis.add_patch(
-                    patches.Rectangle(
-                        (cell.x-0.5, cell.y-0.5), 1, 1, fill=False))
-                
+                ########################################
+                # Draw square borders,
+                # player occupied cell has bold border
+                if self._player_cell is not None and cell == self._player_cell:
+                    axis.add_patch(
+                        patches.Rectangle(
+                            (cell.x-0.5, cell.y-0.5), 1, 1, 
+                            fill=False, linewidth=3))
+                else:
+                    axis.add_patch(
+                        patches.Rectangle(
+                            (cell.x-0.5, cell.y-0.5), 1, 1, fill=False))
+                                   
+                ########################################
+                # Cell type
+                # Top-left corder reserved for letter indicating cell type
                 if cell._paint_color is not None:
                     axis.add_patch(
                         patches.Rectangle(
@@ -153,6 +204,15 @@ class GridworldEnv:
                         cell._text_symbol,
                         color=cell._paint_color,
                         fontsize=10)
+
+                ########################################
+                # Plot trajectory
+                if trajectory is not None:
+                    for i in range(1, len(trajectory)):
+                        st = trajectory[i-1]
+                        en = trajectory[i]
+                        axis.arrow(st[0]+0.15, st[1]+0.15,
+                            en[0]-st[0], en[1]-st[1], fc='blue', ec='blue')
 
                 ########################################
                 # Plot transitions
@@ -167,6 +227,7 @@ class GridworldEnv:
 
                 ########################################
                 # Plot rewards
+                # Top-right cornder reserved for rewards
                 if plot_rewards:
                     axis.text(cell.x+0.4, cell.y+0.2, 
                         '{0:d}'.format(round(cell.reward)),
@@ -177,15 +238,18 @@ class GridworldEnv:
 
                 ########################################
                 # Plot state-value function
+                # Bottom-left reserved for state-value function
                 if V is not None:
-                    axis.text(cell.x-0.45, cell.y+0.3,
+                    axis.text(cell.x-0.45, cell.y-0.3,
                         '{0:.2f}'.format(V[cell.x, cell.y]), 
                         color='red',
                         horizontalalignment='left',
                         fontsize=6)
+               
 
                 ########################################
                 # Plot action-value funciton
+                # Text drawn on-top-of arrows
                 Q_as_arrows = True
                 if Q is not None and Q_as_arrows == False:
                     axis.text(cell.x, cell.y+0.25,  # North
