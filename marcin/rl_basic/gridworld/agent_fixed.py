@@ -78,7 +78,7 @@ class GridworldAgent:
             self.trajectory[-1].action = prev_action
 
         self.trajectory.append(
-            HistoryData(t_step, obs, reward, done))
+            HistoryData(t_step, observation, reward, done))
 
     def get_trajectory(self):
         result = []
