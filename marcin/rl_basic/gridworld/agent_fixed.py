@@ -37,7 +37,7 @@ class GridworldAgent:
         return np.random.randint(0, 4)
         # return 1
 
-    def eval_td(self):
+    def eval_V_td(self):
         # Shortcuts for more compact notation:
         V = self.V              # State values array, shape: [size_x, size_y]
         St = self.trajectory[-2].observation    # previous state tuple (x, y)
@@ -46,7 +46,7 @@ class GridworldAgent:
 
         V[St] = V[St] + self.step*(Rt_1 + self.disc*V[St_1] - V[St])
 
-    def eval_mc(self):
+    def eval_V_mc(self):
         # Shortcuts for more compact notation:
         V = self.V             # State values array, shape: [size_x, size_y]
 

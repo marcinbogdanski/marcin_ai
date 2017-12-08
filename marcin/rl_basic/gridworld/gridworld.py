@@ -140,6 +140,9 @@ class GridworldEnv:
         return obs
 
     def step(self, action):
+
+        # TODO: if in terminal state, then stop incrementing time step?
+
         self.t_step += 1
         curr_cell = self._player_cell
         new_cell = curr_cell.transitions[action]
