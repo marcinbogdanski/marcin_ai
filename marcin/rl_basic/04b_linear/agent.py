@@ -68,6 +68,8 @@ class Agent:
     def eval_td_online(self):
         self.eval_td_t(len(self.trajectory)-2)  # Eval next-to last state
 
+
+
     def eval_mc_t(self, t):
         """MC update state-values for single state in trajectory
 

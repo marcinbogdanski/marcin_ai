@@ -12,7 +12,10 @@ class LinearEnv:
               -1        0         0         0           0         1
     """
 
-    GROUND_TRUTH = [0, 1/6, 2/6, 3/6, 4/6, 5/6, 0]  # Actual state-values
+    GROUND_TRUTH = {
+        5: [0, -2/3, -1/3, 0, 1/3, 2/3, 0],  # Actual state-values
+        19: [0] * 21
+    }
 
     def __init__(self, size):
         self._max_left = 1          # last valid non-terminal state to the left
@@ -42,7 +45,7 @@ class LinearEnv:
             reward = +1
             self._done = True
         elif self._state < self._max_left:
-            reward = 0
+            reward = -1
             self._done = True
         else:
             reward = 0
