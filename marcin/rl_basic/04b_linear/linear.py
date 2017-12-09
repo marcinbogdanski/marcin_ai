@@ -12,9 +12,12 @@ class LinearEnv:
               -1        0         0         0           0         1
     """
 
+    real_values_19 = np.arange(-20, 22, 2) / 20.0
+    real_values_19[0] = real_values_19[-1] = 0
+
     GROUND_TRUTH = {
         5: [0, -2/3, -1/3, 0, 1/3, 2/3, 0],  # Actual state-values
-        19: [0] * 21
+        19: real_values_19
     }
 
     def __init__(self, size):
