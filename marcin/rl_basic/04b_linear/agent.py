@@ -83,7 +83,7 @@ class Agent:
                 # Update state-value at time t
                 self.eval_td_t(t)
 
-    def calc_Gtn(self, t, n=float('inf')):
+    def calc_Gt(self, t, n=float('inf')):
         """Calculates return for state t, using n future steps.
         
         If n >= T (terminal state), then calculates full return for state t
@@ -127,7 +127,7 @@ class Agent:
         # Shortcuts for more compact notation:
         V = self.V              # State values array, shape: [size_x, size_y]
         St = self.trajectory[t].observation      # evaluated state tuple (x, y)
-        Gt = self.calc_Gtn(t, n)
+        Gt = self.calc_Gt(t, n=n)
 
         V[St] = V[St] + self.step*(Gt - V[St])
 
@@ -143,7 +143,7 @@ class Agent:
                 self.eval_nstep_t(t, n)
         
 
-    def eval_td_lambda_t(self, t, lmbda):
+    def eval_lambda_return_t(self, t, lmbda, V=None):
         """TD-Lambda update state-value for single state in trajectory
 
         This assumesss time steps from t+1 to terminating state
@@ -155,34 +155,23 @@ class Agent:
             Iterate trajectory from t=0 to t=T-1 and call for every t
         """
 
-        #self.print_trajectory()
-        #print('Calc TD_lambda for state: t = ', t)
+        if V is None:
+            V = self.V             # State values array, shape: [size_x, size_y]
 
         lambda_trunctuate = 1e-3   # discard if lmbda drops below this
         
         # Shortcuts for more compact notation:
-        V = self.V              # State values array, shape: [size_x, size_y]
+        
         St = self.trajectory[t].observation      # evaluated state tuple (x, y)
         Gt_lambda = 0           # weigthed averated return for current state
         
-        #print('Handle n loop:')
-
         T = len(self.trajectory)-1
-   
         max_n = T-t-1           # inclusive
 
-
-        #  just a trivial optimisation, Gt_lambda will be multiplied by
-        #  (1 - lmbda) later on, so if lmbda == 1, then no point doing the loop
         lmbda_iter = 1
         for n in range(1, max_n+1):
 
-            #print('  n = ', n)
-            #print('  lmbda_pow = ', n-1)
-            #print('  lmbda_iter = ', lmbda_iter)
-
-            Gtn = self.calc_Gtn(t, n)
-            #print('  Gtn = ', Gtn)
+            Gtn = self.calc_Gt(t, n=n)
             Gt_lambda += lmbda_iter * Gtn
             lmbda_iter *= lmbda
 
@@ -191,34 +180,69 @@ class Agent:
 
         Gt_lambda *= (1 - lmbda)
 
-        #print('Handle terminal state, T = ', T)
-        #print('  lmbda_pow = ', T-t-1)
-        #print('  lmbda_iter = ', lmbda_iter)
-
         if lmbda_iter >= lambda_trunctuate:
-            Gt_lambda += lmbda_iter * self.calc_Gtn(t)
-
-        #print('Gt_lambda = ', Gt_lambda)
+            Gt_lambda += lmbda_iter * self.calc_Gt(t)
 
         V[St] = V[St] + self.step*(Gt_lambda - V[St])
 
-    def eval_td_lambda_offline(self, lmbda):
+        return V
+
+    def eval_lambda_return_offline(self, lmbda, V=None):
+        if V is None:
+            V = self.V
+
         # Do TD-lambda update only if episode terminated
         if self.trajectory[-1].done:
 
             # Iterate all states in trajectory
             for t in range(0, len(self.trajectory)-1):
                 # Update state-value at time t
-                self.eval_td_lambda_t(t, lmbda)
+                self.eval_lambda_return_t(t, lmbda, V)
 
-        #if self._episode == 1:
-        #    print('LB V = ', np.round(self.V[len(self.V)//2-3:],2))
+        return V
 
-    def eval_mc_t(self, t):
-        """MC update state-values for single state in trajectory
+    def eval_td_lambda_offline(self, lmbda, V=None):
+        """TD(lambda) update for all states"""
+        
+        if V is None:
+            V = self.V
 
-        This assumes episode is completed and trajectory is present
-        from start to termination.
+        E = {}  # eligibility trace dictionary
+
+        # Do TD-lambda update only if episode terminated
+        if not self.trajectory[-1].done:
+            return
+
+        # Iterate all states apart from terminal state
+        max_t = len(self.trajectory)-2  # inclusive
+        for t in range(0, max_t+1):
+            St = self.trajectory[t].observation
+            E[St] = 0
+
+        # Iterate all states apart from terminal state
+        for t in range(0, max_t+1):
+            St = self.trajectory[t].observation  # current state xy
+            St_1 = self.trajectory[t+1].observation
+            Rt_1 = self.trajectory[t+1].reward
+
+            # Update eligibility traces
+            for s in E:
+                E[s] *= lmbda
+            E[St] += 1
+
+            ro_t = Rt_1 + self.disc * V[St_1] - V[St]
+            for s in E:
+                V[s] = V[s] + self.step * ro_t * E[s]
+
+        return V
+
+
+    def eval_mc_t(self, t, V=None):
+        """MC update for state-values for single state in trajectory
+
+        Note:
+            This assumes episode is completed and trajectory is present
+            from start to termination.
 
         For online updates:
             N/A
@@ -226,30 +250,47 @@ class Agent:
         For offline updates:
             Iterate trajectory from t=0 to t=T-1 and call for every t
 
+        Params:
+            t (int) - time step in trajectory,
+                      0 is initial state; T-1 is last non-terminal state
+            V (float arr) - optional,
+                    if passed, funciton will operate on this array
+                    if None, then function will operate on self.V
+
         """
 
-        # Shortcuts for more compact notation:
-        V = self.V             # State values array, shape: [size_x, size_y]
-        St = self.trajectory[t].observation  # current state (x, y)
-        Gt = 0                 # return for current state
+        if V is None:
+            V = self.V   # State values array, shape: [size_x, size_y]
 
-        # Iterate all states after this one
-        for j in range(t+1, len(self.trajectory)):
-            Rj = self.trajectory[j].reward   # reward at time j
-            Gt += self.disc**j * Rj          # add with discount
+        # Shortcuts for more compact notation:
+        St = self.trajectory[t].observation  # current state (x, y)
+        Gt = self.calc_Gt(t)                 # return for current state
 
         V[St] = V[St] + self.step*(Gt - V[St])
 
-        #print('MC V = ', np.round(V,2))
+    def eval_mc_offline(self, V=None):
+        """MC update for all statates. Call after episode terminates
 
-    def eval_mc_offline(self):
+        Note:
+            This updates V array "in place". True offline update should
+            update copy of V, then replace V with a copy at the end.
+            This function will yeild slightly different result.
+
+        Params:
+            V (float arr) - optional,
+                    if passed, funciton will operate on this array
+                    if None, then function will operate on self.V
+        """
+
+        if V is None:
+            V = self.V
+
         # Do MC update only if episode terminated
-        if self.trajectory[-1].done:
+        if not self.trajectory[-1].done:
+            raise ValueError('Cant do MC update on non-terminated episode')
 
-            # Iterate all states in trajectory
-            for t in range(0, len(self.trajectory)-1):
-                # Update state-value at time t
-                self.eval_mc_t(t)
+        # Iterate all states in trajectory, including terminal state
+        for t in range(0, len(self.trajectory)-1):
+            # Update state-value at time t
+            self.eval_mc_t(t, V)
 
-        #if self._episode == 1:
-        #    print('MC V = ', np.round(self.V[len(self.V)//2-3:],2))

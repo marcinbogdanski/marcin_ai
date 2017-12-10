@@ -40,17 +40,19 @@ def test_run(nb_episodes, world_size, method, step_size, n_steps=None, lmbda=Non
                         reward=reward,
                         done=done)
 
-            if method == 'TD-online':
+            if method == 'td-online':
                 agent.eval_td_online()
 
             if done:
-                if method == 'MC-offline':
+                if method == 'mc-offline':
                     agent.eval_mc_offline()
-                elif method == 'N-step-offline':
+                elif method == 'n-step-offline':
                     agent.eval_nstep_offline(n_steps)
-                elif method == 'TD-offline':
+                elif method == 'td-offline':
                     agent.eval_td_offline()
-                elif method == 'TD-lambda-offline':
+                elif method == 'lambda-return-offline':
+                    agent.eval_lambda_return_offline(lmbda)
+                elif method == 'td-lambda-offline':
                     agent.eval_td_lambda_offline(lmbda)
                 break
 
@@ -80,23 +82,23 @@ def test_MC_vs_TD():
 
     RSME_TD_15, final_V_TD_15 = multi_run(
         nb_runs=100, nb_episodes=100, world_size=world_size, 
-        method='TD-online', step_size=0.15)
+        method='td-online', step_size=0.15)
     RSME_TD_10, final_V_TD_10 = multi_run(
         nb_runs=100, nb_episodes=100, world_size=world_size, 
-        method='TD-online', step_size=0.10)
+        method='td-online', step_size=0.10)
     RSME_TD_05, final_V_TD_05 = multi_run(
         nb_runs=100, nb_episodes=100, world_size=world_size, 
-        method='TD-online', step_size=0.05)
+        method='td-online', step_size=0.05)
 
     RSME_MC_01, final_V_MC_01 = multi_run(
         nb_runs=100, nb_episodes=100, world_size=world_size, 
-        method='MC-offline', step_size=0.01)
+        method='mc-offline', step_size=0.01)
     RSME_MC_02, final_V_MC_02 = multi_run(
         nb_runs=100, nb_episodes=100, world_size=world_size, 
-        method='MC-offline', step_size=0.02)
+        method='mc-offline', step_size=0.02)
     RSME_MC_03, final_V_MC_03 = multi_run(
         nb_runs=100, nb_episodes=100, world_size=world_size, 
-        method='MC-offline', step_size=0.03)
+        method='mc-offline', step_size=0.03)
 
     RSME_TD_15_mean = np.mean(RSME_TD_15, 0)
     RSME_TD_10_mean = np.mean(RSME_TD_10, 0)
@@ -152,7 +154,7 @@ def test_n_step():
         for step_size in np.arange(0.1, 1.0, 0.1):
             RMSE, final_V = multi_run(
                 nb_runs=10, nb_episodes=10, world_size=world_size, 
-                method='N-step-offline', step_size=step_size, n_steps=n)
+                method='n-step-offline', step_size=step_size, n_steps=n)
 
             RMSE_ep_mean = np.mean(RMSE, axis=1)
             RMSE_run_mean = np.mean(RMSE_ep_mean)
@@ -177,7 +179,7 @@ def test_n_step():
     plt.grid()
     plt.show()
 
-def test_td_lambda():
+def test_lambda_return():
     """This replicates Stutton and Barto (2017), Example 12.3 Random Walk 19"""
     
     world_size = 19
@@ -191,8 +193,8 @@ def test_td_lambda():
         for step_size in np.arange(0.1, 1.1, 0.1):
             print('  step = ', step_size)
             RMSE, final_V = multi_run(
-                nb_runs=100, nb_episodes=10, world_size=world_size, 
-                method='TD-lambda-offline', step_size=step_size, lmbda=lmbda)
+                nb_runs=1, nb_episodes=10, world_size=world_size, 
+                method='lambda-return-offline', step_size=step_size, lmbda=lmbda)
 
             RMSE_ep_mean = np.mean(RMSE, axis=1)
             RMSE_run_mean = np.mean(RMSE_ep_mean)
@@ -219,46 +221,52 @@ def test_td_lambda():
 
 
 def test_single():
-    nb_runs = 10
-    nb_episodes = 10
+    nb_runs = 5
+    nb_episodes = 100
     world_size = 19
 
+    # Experiments tuned for world size 19
 
     test_A = {
-        'method':    'TD-offline',
-        'stepsize':  0.1,
+        'method':    'td-offline',
+        'stepsize':  0.15,
         'n_steps':   None,
         'lmbda':     None,
         'color':     'blue'
     }
 
+
     test_B = {
-        'method':    'MC-offline',
-        'stepsize':  0.05,
+        'method':    'mc-offline',
+        'stepsize':  0.01,
         'n_steps':   None,
         'lmbda':     None,
         'color':     'red'
     }
 
-    # test_C = {
-    #     'method':    'N-step-offline',
-    #     'stepsize':  0.05,
-    #     'n_steps':   8,
-    #     'lmbda':     None,
-    #     'color':     'green'
-    # }
-
-    test_D = {
-        'method':    'TD-lambda-offline',
+    test_C = {
+        'method':    'lambda-return-offline',
         'stepsize':  0.05,
         'n_steps':   None,
         'lmbda':     1,
-        'color':     'darkorange'
+        'color':     'orange'
     }
+
+    test_D = {
+        'method':    'td-lambda-offline',
+        'stepsize':  0.15,
+        'n_steps':   None,
+        'lmbda':     0.3,
+        'color':     'orange'
+    }
+
+
+
 
     tests = [test_A, test_B, test_D]
 
     for test in tests:
+        np.random.seed(0)
         print(test['method'])
         # test_A_RMSE, test_A_final_V = multi_run(
         #     nb_runs=10, nb_episodes=100, world_size=world_size, 
@@ -272,7 +280,7 @@ def test_single():
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
-    ax1.plot(LinearEnv.GROUND_TRUTH[world_size][1:-1], label='True V')
+    ax1.plot(LinearEnv.GROUND_TRUTH[world_size][1:-1], label='True V', color='black')
     
     for test in tests:
 
@@ -280,7 +288,7 @@ def test_single():
         for i in range(nb_runs):
             ax1.plot(test['final_V'][i][1:-1], label=label, color=test['color'], alpha=0.3)
     
-            ax2.plot(test['RMSE'][i][1:-1], label=label, color=test['color'], alpha=0.3)
+            ax2.plot(test['RMSE'][i], label=label, color=test['color'], alpha=0.3)
     
             label = None
 
@@ -293,10 +301,28 @@ def test_single():
     plt.grid()
     plt.show()
 
+
+def test_test():
+
+    RMSE, final_V = multi_run(
+            nb_runs=1, nb_episodes=1, world_size=19, 
+            method='lambda-return-offline', step_size=0.1, 
+            n_steps=None, lmbda=0.9)
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(121)
+    ax1.plot(LinearEnv.GROUND_TRUTH[19][1:-1], label='True V')
+    ax1.plot(final_V[0][1:-1])
+    ax2 = fig.add_subplot(122)
+    ax2.plot(RMSE[0])
+
+    plt.show()
+
+
 if __name__ == '__main__':
     #test_MC_vs_TD()
     #test_n_step()
-    test_td_lambda()
+    #test_lambda_return()
 
-    #test_single()
+    test_single()
     
