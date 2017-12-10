@@ -5,7 +5,7 @@ import pdb
 from linear import LinearEnv
 from agent import Agent
 
-def test_run(nb_episodes, world_size, method, step_size, n_steps=None):
+def test_run(nb_episodes, world_size, method, step_size, n_steps=None, lmbda=None):
     env = LinearEnv(world_size)  # 2x terminal states will be added internally
     agent = Agent(world_size+2, step_size=step_size)  # add 2x terminal states
 
@@ -46,10 +46,12 @@ def test_run(nb_episodes, world_size, method, step_size, n_steps=None):
             if done:
                 if method == 'MC-offline':
                     agent.eval_mc_offline()
-                elif method == 'n-step-offline':
+                elif method == 'N-step-offline':
                     agent.eval_nstep_offline(n_steps)
                 elif method == 'TD-offline':
                     agent.eval_td_offline()
+                elif method == 'TD-lambda-offline':
+                    agent.eval_td_lambda_offline(lmbda)
                 break
 
         rms = np.sqrt(np.sum(np.power(
@@ -58,12 +60,12 @@ def test_run(nb_episodes, world_size, method, step_size, n_steps=None):
 
     return RMSE, agent.V
 
-def multi_run(nb_runs, nb_episodes, world_size, method, step_size, n_steps=None):
+def multi_run(nb_runs, nb_episodes, world_size, method, step_size, n_steps=None, lmbda=None):
     multi_RMSE = []
     multi_final_V = []
 
     for run in range(nb_runs):
-        RMSE, final_V = test_run(nb_episodes, world_size, method, step_size, n_steps)
+        RMSE, final_V = test_run(nb_episodes, world_size, method, step_size, n_steps, lmbda)
 
         multi_RMSE.append(RMSE)
         multi_final_V.append(final_V)
@@ -149,8 +151,8 @@ def test_n_step():
 
         for step_size in np.arange(0.1, 1.0, 0.1):
             RMSE, final_V = multi_run(
-                nb_runs=100, nb_episodes=10, world_size=world_size, 
-                method='n-step-offline', step_size=step_size, n_steps=n)
+                nb_runs=10, nb_episodes=10, world_size=world_size, 
+                method='N-step-offline', step_size=step_size, n_steps=n)
 
             RMSE_ep_mean = np.mean(RMSE, axis=1)
             RMSE_run_mean = np.mean(RMSE_ep_mean)
@@ -160,17 +162,52 @@ def test_n_step():
 
         data[n] = temp
 
+    fig = plt.figure()
+    #ax = fig.add_subplot(131)
+    #ax.plot(LinearEnv.GROUND_TRUTH[world_size][1:-1], color='black')
+    #ax.plot(final_V[0][1:-1], label='TD')
+    
+    ax = fig.add_subplot(111)
 
-    #print(np.round(LinearEnv.GROUND_TRUTH[world_size], 4))
-    #print(np.round(agent.V, 4))
+    for key, value in data.items():
+        ax.plot(value.x, value.y, label=value.label)
 
+    plt.legend()
+
+    plt.grid()
+    plt.show()
+
+def test_td_lambda():
+    """This replicates Stutton and Barto (2017), Example 12.3 Random Walk 19"""
+    
+    world_size = 19
+    
+    data = {}
+
+    for lmbda in [0, 0.4, 0.8, 0.9, .95]:
+        print('lmbda = ', lmbda)
+        temp = Data(str(lmbda))
+
+        for step_size in np.arange(0.1, 1.1, 0.1):
+            print('  step = ', step_size)
+            RMSE, final_V = multi_run(
+                nb_runs=100, nb_episodes=10, world_size=world_size, 
+                method='TD-lambda-offline', step_size=step_size, lmbda=lmbda)
+
+            RMSE_ep_mean = np.mean(RMSE, axis=1)
+            RMSE_run_mean = np.mean(RMSE_ep_mean)
+
+            temp.x.append(step_size)
+            temp.y.append(RMSE_run_mean)
+
+        data[lmbda] = temp
 
     fig = plt.figure()
-    ax = fig.add_subplot(131)
-    ax.plot(LinearEnv.GROUND_TRUTH[world_size][1:-1], color='black')
-    ax.plot(final_V[0][1:-1], label='TD')
+    # ax = fig.add_subplot(131)
+    # ax.plot(LinearEnv.GROUND_TRUTH[world_size][1:-1], color='black')
+    # ax.plot(final_V[0][1:-1], label='TD')
     
-    ax = fig.add_subplot(132)
+    ax = fig.add_subplot(111)
 
     for key, value in data.items():
         ax.plot(value.x, value.y, label=value.label)
@@ -182,8 +219,8 @@ def test_n_step():
 
 
 def test_single():
-    nb_runs = 3
-    nb_episodes = 100
+    nb_runs = 10
+    nb_episodes = 10
     world_size = 19
 
 
@@ -191,33 +228,44 @@ def test_single():
         'method':    'TD-offline',
         'stepsize':  0.1,
         'n_steps':   None,
-        'color':     'orange'
+        'lmbda':     None,
+        'color':     'blue'
     }
 
     test_B = {
         'method':    'MC-offline',
-        'stepsize':  0.01,
+        'stepsize':  0.05,
         'n_steps':   None,
+        'lmbda':     None,
         'color':     'red'
     }
 
-    test_C = {
-        'method':    'n-step-offline',
+    # test_C = {
+    #     'method':    'N-step-offline',
+    #     'stepsize':  0.05,
+    #     'n_steps':   8,
+    #     'lmbda':     None,
+    #     'color':     'green'
+    # }
+
+    test_D = {
+        'method':    'TD-lambda-offline',
         'stepsize':  0.05,
-        'n_steps':   8,
-        'color':     'blue'
+        'n_steps':   None,
+        'lmbda':     1,
+        'color':     'darkorange'
     }
 
-    tests = [test_A, test_B, test_C]
+    tests = [test_A, test_B, test_D]
 
     for test in tests:
         print(test['method'])
         # test_A_RMSE, test_A_final_V = multi_run(
         #     nb_runs=10, nb_episodes=100, world_size=world_size, 
-        #     method='n-step-offline', step_size=0.2, n_steps=1)
+        #     method='N-step-offline', step_size=0.2, n_steps=1)
         test['RMSE'], test['final_V'] = multi_run(
             nb_runs=nb_runs, nb_episodes=nb_episodes, world_size=world_size, 
-            method=test['method'], step_size=test['stepsize'], n_steps=test['n_steps'])
+            method=test['method'], step_size=test['stepsize'], n_steps=test['n_steps'], lmbda=test['lmbda'])
 
 
     fig = plt.figure()
@@ -228,11 +276,14 @@ def test_single():
     
     for test in tests:
 
+        label = test['method']
         for i in range(nb_runs):
-            ax1.plot(test['final_V'][i][1:-1], label='', color=test['color'], alpha=0.3)
+            ax1.plot(test['final_V'][i][1:-1], label=label, color=test['color'], alpha=0.3)
     
-            ax2.plot(test['RMSE'][i][1:-1], label='', color=test['color'], alpha=0.3)
+            ax2.plot(test['RMSE'][i][1:-1], label=label, color=test['color'], alpha=0.3)
     
+            label = None
+
     #ax.plot(avg_RMS_TD_10, label='TD')
     #ax.plot(avg_RMS_n_step_10, label='n-step')
 
@@ -242,11 +293,10 @@ def test_single():
     plt.grid()
     plt.show()
 
-
-
 if __name__ == '__main__':
     #test_MC_vs_TD()
-    test_n_step()
+    #test_n_step()
+    test_td_lambda()
 
     #test_single()
     
