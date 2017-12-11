@@ -5,9 +5,13 @@ import pdb
 from linear import LinearEnv
 from agent import Agent
 
-def test_run(nb_episodes, world_size, method, step_size, n_steps=None, lmbda=None):
+def test_run(nb_episodes, world_size, method,
+            step_size, nb_steps=None, lmbda=None):
     env = LinearEnv(world_size)  # 2x terminal states will be added internally
-    agent = Agent(world_size+2, step_size=step_size)  # add 2x terminal states
+    agent = Agent(world_size+2,       # add 2x terminal states
+                step_size=step_size,
+                nb_steps=nb_steps,
+                lmbda=lmbda)  
 
     RMSE = []    # root mean-squared error
     for e in range(nb_episodes):
@@ -47,13 +51,13 @@ def test_run(nb_episodes, world_size, method, step_size, n_steps=None, lmbda=Non
                 if method == 'mc-offline':
                     agent.eval_mc_offline()
                 elif method == 'n-step-offline':
-                    agent.eval_nstep_offline(n_steps)
+                    agent.eval_nstep_offline()
                 elif method == 'td-offline':
                     agent.eval_td_offline()
                 elif method == 'lambda-return-offline':
-                    agent.eval_lambda_return_offline(lmbda)
+                    agent.eval_lambda_return_offline()
                 elif method == 'td-lambda-offline':
-                    agent.eval_td_lambda_offline(lmbda)
+                    agent.eval_td_lambda_offline()
                 break
 
         rms = np.sqrt(np.sum(np.power(
@@ -62,12 +66,14 @@ def test_run(nb_episodes, world_size, method, step_size, n_steps=None, lmbda=Non
 
     return RMSE, agent.V
 
-def multi_run(nb_runs, nb_episodes, world_size, method, step_size, n_steps=None, lmbda=None):
+def multi_run(nb_runs, nb_episodes, world_size, method,
+            step_size, nb_steps=None, lmbda=None):
     multi_RMSE = []
     multi_final_V = []
 
     for run in range(nb_runs):
-        RMSE, final_V = test_run(nb_episodes, world_size, method, step_size, n_steps, lmbda)
+        RMSE, final_V = test_run(nb_episodes, world_size, method, 
+                                 step_size, nb_steps, lmbda)
 
         multi_RMSE.append(RMSE)
         multi_final_V.append(final_V)
@@ -154,7 +160,7 @@ def test_n_step():
         for step_size in np.arange(0.1, 1.0, 0.1):
             RMSE, final_V = multi_run(
                 nb_runs=10, nb_episodes=10, world_size=world_size, 
-                method='n-step-offline', step_size=step_size, n_steps=n)
+                method='n-step-offline', step_size=step_size, nb_steps=n)
 
             RMSE_ep_mean = np.mean(RMSE, axis=1)
             RMSE_run_mean = np.mean(RMSE_ep_mean)
@@ -226,44 +232,44 @@ def test_single():
     world_size = 19
 
     # Experiments tuned for world size 19
-
-    test_A = {
+    td_offline = {
         'method':    'td-offline',
         'stepsize':  0.15,
-        'n_steps':   None,
+        'nb_steps':  None,
         'lmbda':     None,
         'color':     'blue'
     }
-
-
-    test_B = {
+    mc_offline = {
         'method':    'mc-offline',
         'stepsize':  0.01,
-        'n_steps':   None,
+        'nb_steps':  None,
         'lmbda':     None,
         'color':     'red'
     }
-
-    test_C = {
-        'method':    'lambda-return-offline',
-        'stepsize':  0.05,
-        'n_steps':   None,
-        'lmbda':     1,
-        'color':     'orange'
-    }
-
-    test_D = {
+    td_lambda_offline = {
         'method':    'td-lambda-offline',
         'stepsize':  0.15,
-        'n_steps':   None,
+        'nb_steps':  None,
         'lmbda':     0.3,
         'color':     'orange'
     }
+    tests = [td_offline, mc_offline, td_lambda_offline]
 
-
-
-
-    tests = [test_A, test_B, test_D]
+    td_offline = {
+        'method':    'td-offline',
+        'stepsize':  0.15,
+        'nb_steps':  None,
+        'lmbda':     None,
+        'color':     'blue'
+    }
+    td_online = {
+        'method':    'td-online',
+        'stepsize':  0.15,
+        'nb_steps':  None,
+        'lmbda':     None,
+        'color':     'red'
+    }
+    #tests = [td_offline, td_online]
 
     for test in tests:
         np.random.seed(0)
@@ -273,7 +279,7 @@ def test_single():
         #     method='N-step-offline', step_size=0.2, n_steps=1)
         test['RMSE'], test['final_V'] = multi_run(
             nb_runs=nb_runs, nb_episodes=nb_episodes, world_size=world_size, 
-            method=test['method'], step_size=test['stepsize'], n_steps=test['n_steps'], lmbda=test['lmbda'])
+            method=test['method'], step_size=test['stepsize'], nb_steps=test['nb_steps'], lmbda=test['lmbda'])
 
 
     fig = plt.figure()
@@ -307,7 +313,7 @@ def test_test():
     RMSE, final_V = multi_run(
             nb_runs=1, nb_episodes=1, world_size=19, 
             method='lambda-return-offline', step_size=0.1, 
-            n_steps=None, lmbda=0.9)
+            nb_steps=None, lmbda=0.9)
 
     fig = plt.figure()
     ax1 = fig.add_subplot(121)
