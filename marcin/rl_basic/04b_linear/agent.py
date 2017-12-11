@@ -29,11 +29,13 @@ class Agent:
         self._lmbda = lmbda          # param for lambda functions
 
         self._episode = 0
-        self._trajectory = []   # Agent saves history on it's way
+        self._trajectory = []        # Agent saves history on it's way
+        self.__eligibility_traces = {}   # for lambda funtions
 
     def reset(self):
         self._episode += 1
-        self._trajectory = []   # Agent saves history on it's way
+        self._trajectory = []        # Agent saves history on it's way
+        self._eligibility_traces = {}
 
     def pick_action(self, obs):
         # Randomly go left or right
@@ -84,7 +86,7 @@ class Agent:
         V[St] = V[St] + self._step_size * (Rt_1 + self._discount*V[St_1] - V[St])
 
     def eval_td_online(self):
-        self.eval_td_t(len(self._trajectory)-2)  # Eval next-to last state
+        self.eval_td_t(len(self._trajectory) - 2)  # Eval next-to last state
 
     def eval_td_offline(self, V=None):
         """ Do TD update for all states in trajectory
@@ -300,6 +302,50 @@ class Agent:
 
         return V
 
+    def eval_td_lambda_t(self, t, V=None):
+        """TD(lambda) update for particular state.0
+
+        Note:
+            Becouse this function builds eligibility trace dictionary in order,
+            it MUST be called in correct sequence, from t=0 to T=T-1.
+            It can be called only once per t-step
+
+        For online updates:
+            Call with t equal to previous time step
+
+        For offline updates:
+            Iterate trajectory from t=0 to t=T-1 and call for every t
+
+        Params:
+            t (int [t, T-1]) - time step in trajectory,
+                    0 is initial state; T-1 is last non-terminal state
+
+            V (float arr) - optional,
+                    if passed, funciton will operate on this array
+                    if None, then function will operate on self.V
+        """
+
+        if V is None:
+            V = self.V
+
+        E = self._eligibility_traces   # eligibility trace dictionary
+
+        St = self._trajectory[t].observation  # current state xy
+        St_1 = self._trajectory[t+1].observation
+        Rt_1 = self._trajectory[t+1].reward
+
+        if St not in E:
+            E[St] = 0
+
+        # Update eligibility traces
+        for s in E:
+            E[s] *= self._lmbda
+        E[St] += 1
+
+        ro_t = Rt_1 + self._discount * V[St_1] - V[St]
+        for s in E:
+            V[s] = V[s] + self._step_size * ro_t * E[s]
+
     def eval_td_lambda_offline(self, V=None):
         """TD(lambda) update for all states
 
@@ -312,10 +358,11 @@ class Agent:
             self._lmbda (float, [0, 1]) - param. for weighted average of returns
         """
 
+        if len(self._eligibility_traces) != 0:
+            raise ValueError('TD-lambda offline: eligiblity traces not empty?')
+
         if V is None:
             V = self.V
-
-        E = {}  # eligibility trace dictionary
 
         # Do offline update only if episode terminated
         if not self._trajectory[-1].done:
@@ -324,26 +371,13 @@ class Agent:
         # Iterate all states apart from terminal state
         max_t = len(self._trajectory)-2  # inclusive
         for t in range(0, max_t+1):
-            St = self._trajectory[t].observation
-            E[St] = 0
-
-        # Iterate all states apart from terminal state
-        for t in range(0, max_t+1):
-            St = self._trajectory[t].observation  # current state xy
-            St_1 = self._trajectory[t+1].observation
-            Rt_1 = self._trajectory[t+1].reward
-
-            # Update eligibility traces
-            for s in E:
-                E[s] *= self._lmbda
-            E[St] += 1
-
-            ro_t = Rt_1 + self._discount * V[St_1] - V[St]
-            for s in E:
-                V[s] = V[s] + self._step_size * ro_t * E[s]
+            self.eval_td_lambda_t(t, V=V)
 
         return V
 
+    def eval_td_lambda_online(self, V=None):
+        t = len(self._trajectory) - 2   # Previous time step
+        return self.eval_td_lambda_t(t, V)
 
 
     def eval_mc_t(self, t, V=None):

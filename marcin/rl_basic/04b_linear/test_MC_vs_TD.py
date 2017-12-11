@@ -46,6 +46,8 @@ def test_run(nb_episodes, world_size, method,
 
             if method == 'td-online':
                 agent.eval_td_online()
+            elif method == 'td-lambda-online':
+                agent.eval_td_lambda_online()
 
             if done:
                 if method == 'mc-offline':
@@ -253,7 +255,14 @@ def test_single():
         'lmbda':     0.3,
         'color':     'orange'
     }
-    tests = [td_offline, mc_offline, td_lambda_offline]
+    td_lambda_online = {
+        'method':    'td-lambda-online',
+        'stepsize':  0.15,
+        'nb_steps':  None,
+        'lmbda':     0.3,
+        'color':     'green'
+    }
+    tests = [td_offline, mc_offline, td_lambda_offline, td_lambda_online]
 
     td_offline = {
         'method':    'td-offline',
