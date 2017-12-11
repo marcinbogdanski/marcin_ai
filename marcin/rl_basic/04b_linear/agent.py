@@ -30,7 +30,7 @@ class Agent:
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
-        self.__eligibility_traces = {}   # for lambda funtions
+        self._eligibility_traces = {}   # for lambda funtions
 
     def reset(self):
         self._episode += 1
@@ -75,7 +75,7 @@ class Agent:
         """
 
         if V is None:
-            V = self.V          # State values array, shape: [size_x, size_y]
+            V = self.V          # State values array, shape: [world_size]
 
         # Shortcuts for more compact notation:
 
@@ -104,7 +104,7 @@ class Agent:
         """
         
         if V is None:
-            V = self.V          # State values array, shape: [size_x, size_y]
+            V = self.V          # State values array, shape: [size]
         
         if not self._trajectory[-1].done:
             raise ValueError('Cant do offline on non-terminated episode')
@@ -132,7 +132,7 @@ class Agent:
         """
 
         if V is None:
-            V = self.V          # State values array, shape: [size_x, size_y]
+            V = self.V          # State values array, shape: [size]
 
         T = len(self._trajectory)-1   # terminal state
         max_j = min(t+n, T)    # last state iterated, inclusive
@@ -181,7 +181,7 @@ class Agent:
         """
 
         if V is None:
-            V = self.V          # State values array, shape: [size_x, size_y]
+            V = self.V          # State values array, shape: [size]
         
         # Shortcuts for more compact notation:
         V = self.V
@@ -205,7 +205,7 @@ class Agent:
         """
 
         if V is None:
-            V = self.V          # State values array, shape: [size_x, size_y]
+            V = self.V          # State values array, shape: [size]
         
         if not self._trajectory[-1].done:
             raise ValueError('Cant do offline on non-terminated episode')
@@ -239,7 +239,7 @@ class Agent:
         """
 
         if V is None:
-            V = self.V             # State values array, shape: [size_x, size_y]
+            V = self.V             # State values array, shape: [size]
 
         # Do offline update only if episode terminated
         if not self._trajectory[-1].done:
@@ -404,7 +404,7 @@ class Agent:
         """
 
         if V is None:
-            V = self.V   # State values array, shape: [size_x, size_y]
+            V = self.V   # State values array, shape: [size]
 
         # Shortcuts for more compact notation:
         St = self._trajectory[t].observation  # current state (x, y)
@@ -433,7 +433,7 @@ class Agent:
         if not self._trajectory[-1].done:
             raise ValueError('Cant do offline on non-terminated episode')
 
-        # Iterate all states in trajectory, including terminal state
+        # Iterate all states in trajectory, apart from terminal state
         for t in range(0, len(self._trajectory)-1):
             # Update state-value at time t
             self.eval_mc_t(t, V)

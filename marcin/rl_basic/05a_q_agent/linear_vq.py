@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pdb
 
-class LinearEnv:
+class LinearEnvVQ:
     """
     Allowed states are:
     [    0         1         2         3          4         5         6        ]
@@ -37,11 +37,16 @@ class LinearEnv:
         if self._done:
             return (self._state, 0, True)  # We are done
 
-        if action not in [-1, 1]:
+        if action not in [0, 1]:
             raise ValueError('Invalid action')
 
+        if action == 0:
+            movement = -1
+        else:
+            movement = +1
+
         self.t_step += 1
-        self._state += action
+        self._state += movement
 
         obs = self._state
         if self._state > self._max_right:
