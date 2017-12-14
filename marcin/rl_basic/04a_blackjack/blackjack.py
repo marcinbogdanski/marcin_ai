@@ -81,19 +81,8 @@ class BlackjackEnv:
             if self.player_hand.points > 21:
                 # player busted
                 return -1, True
-
-            elif self.player_hand.points == 21:
-                # player done, dealer plays till end
-                while self.dealer_hand.points <= 17:
-                    self.dealer_hand.draw()
-
-                if self.dealer_hand.points == 21:
-                    # draw
-                    return 0, True  # zero reward, episode ends
-                else:
-                    return 1, True  # player wins, episode ends
-
             else:
+                # continue game
                 return 0, False
 
         else:  # action == False
@@ -124,7 +113,7 @@ class BlackjackEnv:
         Returns:
             player points (int, 12-21): player points
         """
-        self.fnished = False
+        self.finished = False
 
         self.dealer_hand = Hand()
         self.dealer_hand.draw()
@@ -133,20 +122,20 @@ class BlackjackEnv:
         self.player_hand = Hand()
         while self.player_hand.points < 12:
             # Player picks cards until at least 12 points
-            reward, self.finished = self._game_step(True)
+            self.player_hand.draw()
 
         self.t_step = 0
 
-        obs = [self.player_hand.points,
+        obs = (self.player_hand.points,
                self.player_hand.has_usabe_ace,
-               self.dealer_hand.cards[0].value]
-        return obs, reward, self.finished
+               self.dealer_hand.cards[0].value)
+        return obs
 
     def step(self, action):
         """Take action and roll environment one t-step
 
         Params:
-            actions (bool): True to draw, False to stick
+            actions (Action): Action object
 
         Returns:
             obs (list of float): player points, player pace, dealer points
@@ -157,10 +146,10 @@ class BlackjackEnv:
         if self.finished:
             raise ValueError('Trying to play game step, but game ended.')
         
-        reward, self.finished = self._game_step(action)
-        obs = [self.player_hand.points,
+        reward, self.finished = self._game_step(action.action)
+        obs = (self.player_hand.points,
                self.player_hand.has_usabe_ace,
-               self.dealer_hand.cards[0].value]
+               self.dealer_hand.cards[0].value)
         return obs, reward, self.finished
 
 if __name__ == '__main__':
