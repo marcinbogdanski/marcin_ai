@@ -33,11 +33,11 @@ class Hand:
     def __init__(self):
         self.cards = []
         self.points = 0
-        self.has_usabe_ace = False
+        self.has_usabe_ace = 0
 
     def _update(self):
         num_aces = 0
-        self.has_usabe_ace = False
+        self.has_usabe_ace = 0
         self.points = 0
 
         for c in self.cards:
@@ -47,7 +47,7 @@ class Hand:
 
         if num_aces > 0 and self.points <= 11:
             self.points += 10
-            self.has_usabe_ace = True
+            self.has_usabe_ace = 1
 
     def draw(self, rnd=None):
         self.cards.append(Card(rnd))

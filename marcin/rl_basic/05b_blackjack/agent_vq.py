@@ -82,14 +82,18 @@ class AgentVQ:
     def print_trajectory(self):
         print('Trajectory:')
         for element in self._trajectory:
-            print(element)
+            print(element, ['V='], self.V[element.observation])
         print('Total trajectory steps: {0}'.format(len(self._trajectory)))
 
-
-
-
-
-
+    def check_trajectory_terminated_ok(self):
+        last_entry = self._trajectory[-1]
+        if not last_entry.done:
+            raise ValueError('Cant do offline on non-terminated episode')
+        if self.V[last_entry.observation] != 0:
+            raise ValueError('Last state in trajectory has non-zero value')
+            for act in self.action_space:
+                if self.Q[last_entry.observation, act] != 0:
+                    raise ValueError('Action from last state has non-zero val.')
 
 
 
@@ -146,9 +150,7 @@ class AgentVQ:
             This function will yeild slightly different result.
 
         """
-        
-        if not self._trajectory[-1].done:
-            raise ValueError('Cant do offline on non-terminated episode')
+        self.check_trajectory_terminated_ok()
 
         # Iterate all states in trajectory
         for t in range(0, len(self._trajectory)-1):
@@ -241,9 +243,7 @@ class AgentVQ:
         if len(self._eligibility_traces_Q) != 0:
             raise ValueError('TD-lambda offline: eligiblity traces not empty?')
 
-        # Do offline update only if episode terminated
-        if not self._trajectory[-1].done:
-            raise ValueError('Cant do offline on non-terminated episode')
+        self.check_trajectory_terminated_ok()
 
         # Iterate all states apart from terminal state
         max_t = len(self._trajectory)-2  # inclusive
@@ -285,7 +285,7 @@ class AgentVQ:
 
         return Gt
 
-    def eval_mc_t(self, t, V=None):
+    def eval_mc_t(self, t):
         """MC update for state-values for single state in trajectory
 
         Note:
@@ -301,10 +301,6 @@ class AgentVQ:
         Params:
             t (int [t, T-1]) - time step in trajectory,
                     0 is initial state; T-1 is last non-terminal state
-
-            V (float arr) - optional,
-                    if passed, funciton will operate on this array
-                    if None, then function will operate on self.V
 
         """
 
@@ -329,9 +325,7 @@ class AgentVQ:
             This function will yeild slightly different result.
         """
 
-        # Do MC update only if episode terminated
-        if not self._trajectory[-1].done:
-            raise ValueError('Cant do offline on non-terminated episode')
+        self.check_trajectory_terminated_ok()
 
         # Iterate all states in trajectory, apart from terminal state
         T = len(self._trajectory) - 1

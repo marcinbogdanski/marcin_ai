@@ -19,6 +19,11 @@ def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None):
             for dealer_card in range(DEALER_CARD_MIN, DEALER_CARD_MAX+1):
                 state_space.append( (has_ace, player_sum, dealer_card) )
 
+    # Blackjack will terminate without chaning state if player sticks
+    # so we introduce special state to force correct evaluation of
+    # state-value and action-value functions in terminal state (must equal zero)
+    state_space.append('TERMINAL')
+
     action_space = [0, 1]  # stick, draw
 
 
@@ -30,6 +35,8 @@ def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None):
                 lmbda=lmbda)  
 
     for e in range(nb_episodes):
+        if e % 1000 == 0:
+            print('episode:', e, '/', nb_episodes)
 
         obs = env.reset()
         agent.reset()
@@ -51,6 +58,10 @@ def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None):
 
             obs, reward, done = env.step(action)
 
+            if done:
+                # Force unique terminal state
+                obs = 'TERMINAL'
+
             agent.append_trajectory(t_step=env.t_step,
                         prev_action=action,
                         observation=obs,
@@ -61,7 +72,6 @@ def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None):
                 agent.eval_td_online()
             elif method == 'td-lambda-online':
                 agent.eval_td_lambda_online()
-
             if done:
                 if method == 'mc-offline':
                     agent.eval_mc_offline()
@@ -79,7 +89,7 @@ def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None):
 
 
 def test_single():
-    nb_episodes = 100000
+    nb_episodes = 10000
 
     # Experiments tuned for world size 19
     td_offline = {
@@ -103,12 +113,13 @@ def test_single():
         'lmbda':     0.3,
         'color':     'orange'
     }
-    #tests = [td_offline, mc_offline, td_lambda_offline]
-    tests = [mc_offline]
+    tests = [td_offline, mc_offline, td_lambda_offline]
+    #tests = [mc_offline, td_lambda_offline]
+    #tests = [mc_offline, td_offline]
 
     for test in tests:
         np.random.seed(0)
-        print(test['method'])
+        print(' =================   ', test['method'], '   ====================== ')
         test['V_dict'], test['Q_dict'] = test_run(
             nb_episodes=nb_episodes, method=test['method'],
             step_size=test['stepsize'], nb_steps=test['nb_steps'],
@@ -117,79 +128,30 @@ def test_single():
 
 
 
-
-
-
-
-
-
-
-    # convert to 2d arrays
-    V = tests[0]['V_dict']
-
-
-    # no ace state-values
-    player_points = list(range(12, 22))
-    dealer_card = list(range(1, 11))
-    X, Y = np.meshgrid(dealer_card, player_points)
-    Z = np.zeros([len(player_points), len(dealer_card)])
-
-    for dc in dealer_card:
-        for pp in player_points:
-            val = V[(0, pp, dc)]
-            Z[player_points.index(pp), dealer_card.index(dc)] = val
-
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_wireframe(X, Y, Z)
-    plt.show()
 
-
-
-
-
-
-
-
-
-    return
-
-
-
-
-    fig = plt.figure()
-    ax1 = fig.add_subplot(121)
-    ax2 = fig.add_subplot(122)
-
-    ax1.plot(LinearEnvVQ.GROUND_TRUTH[world_size][1:-1], label='True V', color='black')
-    
     for test in tests:
 
-        label = test['method']
-        for i in range(nb_runs):
-            ax1.plot(test['final_V'][i][1:-1], label=label, color=test['color'], alpha=0.3)
+        # convert to 2d arrays
+        V = test['V_dict']
 
-            # for LEFT action (0) here -> ----v
-            #ax1.plot(test['final_Q'][i][1:-1, 0], label=label, color=test['color'], alpha=1.0)
 
-            # for RIGHT action (1) here -> ---v
-            #ax1.plot(test['final_Q'][i][1:-1, 1], label=label, color=test['color'], alpha=1.0)
-    
-            # average between two actions (should be the same as final_V above)
-            final_V_from_Q = np.mean(test['final_Q'][i], axis=1)
-            ax1.plot(final_V_from_Q[1:-1], label=label, color=test['color'], alpha=1.0)        
+        # no ace state-values
+        player_points = list(range(12, 22))
+        dealer_card = list(range(1, 11))
+        X, Y = np.meshgrid(dealer_card, player_points)
+        Z = np.zeros([len(player_points), len(dealer_card)])
 
-            ax2.plot(test['RMSE'][i], label=label, color=test['color'], alpha=0.3)
-    
-            label = None
+        for dc in dealer_card:
+            for pp in player_points:
+                val = V[(0, pp, dc)]
+                Z[player_points.index(pp), dealer_card.index(dc)] = val
 
+        ax.plot_wireframe(X, Y, Z, label=test['method'], color=test['color'])
 
     plt.legend()
-
-    plt.grid()
     plt.show()
-
-
 
 
 if __name__ == '__main__':
