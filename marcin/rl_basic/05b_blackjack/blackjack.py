@@ -87,7 +87,7 @@ class BlackjackEnv:
 
         else:  # action == False
             # player done, dealer plays till end
-            while self.dealer_hand.points <= 17:
+            while self.dealer_hand.points <= 16:
                 self.dealer_hand.draw()
 
             if self.dealer_hand.points > 21:

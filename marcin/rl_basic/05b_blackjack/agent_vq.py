@@ -47,14 +47,15 @@ class AgentVQ:
 
     def pick_action(self, obs):
 
-        player_points = obs[1]
-        if player_points < 20:
-            return 1  # draw
-        else:
-            return 0  # stick
+        # player_points = obs[1]
+        # if player_points < 18:
+        #     return 1  # draw
+        # else:
+        #     return 0  # stick
 
 
-        if np.random.rand() < 0.1:
+
+        if np.random.rand() < 0.05:
             # pick random action
             return np.random.choice(self._action_space)
 
@@ -68,7 +69,7 @@ class AgentVQ:
                 if q > max_Q:
                     max_Q = q
                     max_action = action
-            return action
+            return max_action
 
             
 
@@ -82,7 +83,7 @@ class AgentVQ:
     def print_trajectory(self):
         print('Trajectory:')
         for element in self._trajectory:
-            print(element, ['V='], self.V[element.observation])
+            print(element)
         print('Total trajectory steps: {0}'.format(len(self._trajectory)))
 
     def check_trajectory_terminated_ok(self):
