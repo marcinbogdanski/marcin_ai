@@ -131,6 +131,98 @@ class BlackjackEnv:
                 self.dealer_hand.cards[0].value )
         return obs
 
+    def reset_exploring_starts(self):
+        has_ace = np.random.randint(0, 2)
+        player_points = np.random.randint(12, 22)
+        dealer_shows = np.random.randint(1, 11)
+
+        self.finished = False
+
+        self.dealer_hand = Hand()
+        self.dealer_hand.draw(Card._names[dealer_shows-1])
+        self.dealer_hand.draw()
+
+        self.player_hand = Hand()
+        if not has_ace:
+            if player_points == 12:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_2)
+            elif player_points == 13:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_3)
+            elif player_points == 14:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_4)
+            elif player_points == 15:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_5)
+            elif player_points == 16:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_6)
+            elif player_points == 17:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_7)
+            elif player_points == 18:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_8)
+            elif player_points == 19:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_9)
+            elif player_points == 20:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_10)
+            elif player_points == 21:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.N_9)
+                self.player_hand.draw(Card.N_2)
+        else:
+            # has_ace == 1
+            if player_points == 12:
+                self.player_hand.draw(Card.ACE)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 13:
+                self.player_hand.draw(Card.N_2)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 14:
+                self.player_hand.draw(Card.N_3)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 15:
+                self.player_hand.draw(Card.N_4)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 16:
+                self.player_hand.draw(Card.N_5)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 17:
+                self.player_hand.draw(Card.N_6)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 18:
+                self.player_hand.draw(Card.N_7)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 19:
+                self.player_hand.draw(Card.N_8)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 20:
+                self.player_hand.draw(Card.N_9)
+                self.player_hand.draw(Card.ACE)
+            elif player_points == 21:
+                self.player_hand.draw(Card.N_10)
+                self.player_hand.draw(Card.ACE)
+
+
+        self.t_step = 0
+
+        if not self.player_hand.has_usabe_ace == has_ace:
+            pdb.set_trace()
+
+        assert self.player_hand.has_usabe_ace == has_ace
+        assert self.player_hand.points == player_points
+        assert self.dealer_hand.cards[0].value == dealer_shows
+
+        obs = ( self.player_hand.has_usabe_ace,
+                self.player_hand.points,
+                self.dealer_hand.cards[0].value )
+        return obs
+
     def step(self, action):
         """Take action and roll environment one t-step
 

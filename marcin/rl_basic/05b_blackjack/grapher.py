@@ -21,7 +21,7 @@ def plot_log_no_ace_3d(ax, log):
     maxx = np.greater(log.log_Q_no_ace_draw[-1], log.log_Q_no_ace_hold[-1])
     maxx = maxx.astype(float)
 
-    #plot_3d_wireframe(ax, log.log_Q_no_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax, log.log_Q_no_ace_hold[-1], 'hold', 'green')
     plot_3d_wireframe(ax, log.log_Q_no_ace_draw[-1], 'draw', 'red')
     #plot_3d_wireframe(ax, maxx, 'max', 'blue')
 
@@ -31,7 +31,7 @@ def plot_ref_no_ace_3d(ax, log):
     maxx = np.greater(log.ref_Q_no_ace_draw, log.ref_Q_no_ace_hold)
     maxx = maxx.astype(float)
 
-    #plot_3d_wireframe(ax, log.ref_Q_no_ace_hold, 'hold', 'darkgreen')
+    plot_3d_wireframe(ax, log.ref_Q_no_ace_hold, 'hold', 'darkgreen')
     plot_3d_wireframe(ax, log.ref_Q_no_ace_draw, 'draw', 'darkred')
     #plot_3d_wireframe(ax, maxx, 'max', 'darkblue')
 
@@ -56,8 +56,11 @@ def main():
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plot_3d_wireframe(ax, log.log_Q_num_no_ace_draw, 'draw', 'grey')
+    plot_3d_wireframe(ax, log.log_Q_num_no_ace_hold, 'draw', 'green')
+    plot_3d_wireframe(ax, log.log_Q_num_no_ace_draw, 'draw', 'red')
+    
     print(log.log_Q_num_no_ace_draw.astype(int))
+    print(log.log_Q_num_no_ace_hold.astype(int))
 
     plt.show()
 

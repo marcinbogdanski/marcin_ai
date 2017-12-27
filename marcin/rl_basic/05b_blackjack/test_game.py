@@ -168,8 +168,14 @@ def test_run(nb_episodes, method, step_size,
 
 
 
-        obs = env.reset()
-        agent.reset()
+        # obs = env.reset()
+
+        obs = env.reset_exploring_starts()
+
+
+
+
+        agent.reset_exploring_starts()
         agent.append_trajectory(t_step=0,
                                 prev_action=None,
                                 observation=obs,
@@ -215,7 +221,7 @@ def test_run(nb_episodes, method, step_size,
 
 
 def test_single():
-    nb_episodes = 100000
+    nb_episodes = 500000
 
     td_offline = {
         'method':    'td-offline',
@@ -233,9 +239,9 @@ def test_single():
     }
     td_lambda_offline = {
         'method':    'td-lambda-offline',
-        'stepsize':  0.02,
+        'stepsize':  0.01,
         'nb_steps':  None,
-        'lmbda':     0.5,
+        'lmbda':     0.0,
         'color':     'orange'
     }
     #tests = [td_offline, mc_offline, td_lambda_offline]

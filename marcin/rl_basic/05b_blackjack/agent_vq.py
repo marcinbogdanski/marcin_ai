@@ -41,12 +41,21 @@ class AgentVQ:
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}   # for lambda funtions
         self._eligibility_traces_Q = {}   # for lambda funtions
+        self._force_random_action = False  # for exploring starts
 
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}
         self._eligibility_traces_Q = {}   # for lambda funtions
+        self._force_random_action = False
+
+    def reset_exploring_starts(self):
+        self._episode += 1
+        self._trajectory = []        # Agent saves history on it's way
+        self._eligibility_traces_V = {}
+        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._force_random_action = True
 
     def pick_action(self, obs):
 
@@ -56,9 +65,12 @@ class AgentVQ:
         # else:
         #     return 0  # stick
 
+        if self._force_random_action:
+            return np.random.choice(self._action_space)
+            self._force_random_action = False
 
 
-        if np.random.rand() < 0.05:
+        if np.random.rand() < 0.00:
             # pick random action
             return np.random.choice(self._action_space)
 
@@ -67,12 +79,16 @@ class AgentVQ:
             max_Q = float('-inf')
             max_action = None
 
+            possible_actions = []
             for action in self._action_space:
                 q = self.Q[obs, action]
                 if q > max_Q:
+                    possible_actions.clear()
+                    possible_actions.append(action)
                     max_Q = q
-                    max_action = action
-            return max_action
+                elif q == max_Q:
+                    possible_actions.append(action)
+            return np.random.choice(possible_actions)
 
             
 
