@@ -24,7 +24,12 @@ class Logger:
         self.log_Q_ace_hold = []
         self.log_Q_ace_draw = []
 
-    def log(self, episode, V, Q):
+        self.log_Q_num_no_ace_hold = np.zeros([10, 10])
+        self.log_Q_num_no_ace_draw = np.zeros([10, 10])
+        self.log_Q_num_ace_hold = np.zeros([10, 10])
+        self.log_Q_num_ace_draw = np.zeros([10, 10])
+
+    def log(self, episode, V, Q, Q_num):
         Q_no_ace_hold = np.zeros([10, 10])
         Q_no_ace_draw = np.zeros([10, 10])
         Q_ace_hold = np.zeros([10, 10])
@@ -40,6 +45,15 @@ class Logger:
                     Q[(1, player_sum, dealer_card), 0]
                 Q_ace_draw[player_sum-12, dealer_card-1] = \
                     Q[(1, player_sum, dealer_card), 1]
+
+                self.log_Q_num_no_ace_hold[player_sum-12, dealer_card-1] = \
+                    Q_num[(0, player_sum, dealer_card), 0]
+                self.log_Q_num_no_ace_draw[player_sum-12, dealer_card-1] = \
+                    Q_num[(0, player_sum, dealer_card), 1]
+                self.log_Q_num_ace_hold[player_sum-12, dealer_card-1] = \
+                    Q_num[(1, player_sum, dealer_card), 0]
+                self.log_Q_num_ace_draw[player_sum-12, dealer_card-1] = \
+                    Q_num[(1, player_sum, dealer_card), 1]
 
         self.log_t.append(episode)
         self.log_Q_no_ace_hold.append(Q_no_ace_hold)

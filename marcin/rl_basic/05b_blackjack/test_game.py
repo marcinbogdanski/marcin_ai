@@ -5,6 +5,7 @@ import pdb
 
 from blackjack import BlackjackEnv
 from agent_vq import AgentVQ
+from logger import Logger
 
 PLAYER_SUM_MIN = 12   # BlackjackEnv guarantees this
 PLAYER_SUM_MAX = 31   # 21 + draw 10
@@ -20,7 +21,7 @@ class RefData:
 
         self.ref_no_ace_hold = dataset[:,:,0,1]
         self.ref_no_ace_draw = dataset[:,:,0,0]
-        self.ref_ace_hold = dataset[:,:,1,0]
+        self.ref_ace_hold = dataset[:,:,1,1]
         self.ref_ace_draw = dataset[:,:,1,0]
 
         self.log_t = []
@@ -74,20 +75,22 @@ class RefData:
         return Q_no_ace_hold, rsme_arr
 
     def plot(self):
-        self.ax.clear()
-        self.ax.plot(self.log_t, self.log_rmse_no_ace_hold, 
-            color='green', linestyle='solid')
-        self.ax.plot(self.log_t, self.log_rmse_no_ace_draw, 
-            color='red', linestyle='solid')
+        if self.ax is not None:
+            self.ax.clear()
+            self.ax.plot(self.log_t, self.log_rmse_no_ace_hold, 
+                color='green', linestyle='solid')
+            self.ax.plot(self.log_t, self.log_rmse_no_ace_draw, 
+                color='red', linestyle='solid')
 
-        self.ax.plot(self.log_t, self.log_rmse_ace_hold, 
-            color='green', linestyle='dashed')
-        self.ax.plot(self.log_t, self.log_rmse_ace_draw, 
-            color='red', linestyle='dashed')
+            self.ax.plot(self.log_t, self.log_rmse_ace_hold, 
+                color='green', linestyle='dashed')
+            self.ax.plot(self.log_t, self.log_rmse_ace_draw, 
+                color='red', linestyle='dashed')
+
 
 
 def test_run(nb_episodes, method, step_size,
-    nb_steps=None, lmbda=None, ax=None, ref=None):
+    nb_steps=None, lmbda=None, ax=None, ref=None, log=None):
 
     # States are encoded as:
     # (   HAS_ACE   ,   PLAYER SUM   ,   DEALER CARD   )
@@ -117,11 +120,15 @@ def test_run(nb_episodes, method, step_size,
         if e % 1000 == 0:
             print('episode:', e, '/', nb_episodes, '   ')
 
+            if log is not None:
+                log.log(e, agent.V, agent.Q, agent.Q_num)
+
             # if ax is not None:
             #    plot_3d_points(ax, agent.V, agent.Q, label='rt', color='purple')
             #    plt.pause(0.001)
             #    pass
 
+            """
             if ref is not None:
                 qqq, rmse = ref.calc_RMSE(e, agent.V, agent.Q, True)
                 ref.plot()
@@ -154,6 +161,7 @@ def test_run(nb_episodes, method, step_size,
                 ax.set_zlabel('Z = value')
 
                 plt.pause(0.001)
+            """
 
 
 
@@ -168,9 +176,6 @@ def test_run(nb_episodes, method, step_size,
                                 reward=None,
                                 done=None)
 
-        # if e % 100 == 0:
-        #     agent._step_size *= 0.995
-        #     print('                          ', agent._step_size)
 
         while True:
 
@@ -181,8 +186,7 @@ def test_run(nb_episodes, method, step_size,
             obs, reward, done = env.step(action)
 
             if done:
-                # Force unique terminal state
-                obs = 'TERMINAL'
+                obs = 'TERMINAL'  # Force unique terminal state
 
             agent.append_trajectory(t_step=env.t_step,
                         prev_action=action,
@@ -195,12 +199,6 @@ def test_run(nb_episodes, method, step_size,
             elif method == 'td-lambda-online':
                 agent.eval_td_lambda_online()
             if done:
-
-                #agent.print_trajectory()
-                #print('PLAYER:', env.player_hand)
-                #print('DEALER:', env.dealer_hand)
-                #pdb.set_trace()
-
                 if method == 'mc-offline':
                     agent.eval_mc_offline()
                 elif method == 'td-offline':
@@ -217,9 +215,8 @@ def test_run(nb_episodes, method, step_size,
 
 
 def test_single():
-    nb_episodes = 500000
+    nb_episodes = 100000
 
-    # Experiments tuned for world size 19
     td_offline = {
         'method':    'td-offline',
         'stepsize':  0.001,
@@ -236,7 +233,7 @@ def test_single():
     }
     td_lambda_offline = {
         'method':    'td-lambda-offline',
-        'stepsize':  0.001,
+        'stepsize':  0.02,
         'nb_steps':  None,
         'lmbda':     0.5,
         'color':     'orange'
@@ -245,38 +242,38 @@ def test_single():
     #tests = [td_lambda_offline]
     tests = [td_lambda_offline]
 
-    plt.ion()
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # plt.ion()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
 
-    fig2 = plt.figure()
-    ax2 = fig2.add_subplot(111)
+    # fig2 = plt.figure()
+    # ax2 = fig2.add_subplot(111)
 
-    ref_data = RefData('reference.npy', ax=ax2)
+    # ref_data = RefData('reference.npy', ax=None)
 
+    
 
     for test in tests:
+        logger = Logger(reference_data_filename='reference.npy')
         np.random.seed(0)
         print(' =================   ', test['method'], '   ====================== ')
         test['V_dict'], test['Q_dict'] = test_run(
             nb_episodes=nb_episodes, method=test['method'],
             step_size=test['stepsize'], nb_steps=test['nb_steps'],
-            lmbda=test['lmbda'], ax=ax, ref=ref_data)
+            lmbda=test['lmbda'], ax=None, ref=None, log=logger)
 
-
+        logger.save(test['method']+'.log')
 
     
 
-    for test in tests:
+    # for test in tests:
+    #     # convert to 2d arrays
+    #     V = test['V_dict']
+    #     Q = test['Q_dict']
+    #     plot_3d_points(ax, V, Q, label=test['method'], color=test['color'])
 
-        # convert to 2d arrays
-        V = test['V_dict']
-        Q = test['Q_dict']
-
-        # plot_3d_points(ax, V, Q, label=test['method'], color=test['color'])
-
-    plt.ioff()
-    plt.show()
+    # plt.ioff()
+    # plt.show()
 
 
 

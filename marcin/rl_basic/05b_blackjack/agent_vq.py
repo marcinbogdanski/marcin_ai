@@ -23,10 +23,13 @@ class AgentVQ:
         self.V = {}
         self.Q = {}
 
+        self.Q_num = {}  # number of times state-action visited
+
         for state in state_space:
             self.V[state] = 0
             for action in action_space:
                 self.Q[state, action] = 0
+                self.Q_num[state, action] = 0
         
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
@@ -76,6 +79,7 @@ class AgentVQ:
     def append_trajectory(self, t_step, prev_action, observation, reward, done):
         if len(self._trajectory) != 0:
             self._trajectory[-1].action = prev_action
+            self.Q_num[self._trajectory[-1].observation, prev_action] += 1
 
         self._trajectory.append(
             HistoryData(t_step, observation, reward, done))

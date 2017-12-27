@@ -53,7 +53,11 @@ def main():
     plot_ref_no_ace_3d(ax, log)
 
     plot_log_no_ace_3d(ax, log)
-    
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plot_3d_wireframe(ax, log.log_Q_num_no_ace_draw, 'draw', 'grey')
+    print(log.log_Q_num_no_ace_draw.astype(int))
 
     plt.show()
 
