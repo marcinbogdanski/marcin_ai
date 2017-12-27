@@ -6,12 +6,91 @@ import pdb
 from blackjack import BlackjackEnv
 from agent_vq import AgentVQ
 
-def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None, ax=None):
+PLAYER_SUM_MIN = 12   # BlackjackEnv guarantees this
+PLAYER_SUM_MAX = 31   # 21 + draw 10
+DEALER_CARD_MIN = 1   # ace
+DEALER_CARD_MAX = 10
 
-    PLAYER_SUM_MIN = 12   # BlackjackEnv guarantees this
-    PLAYER_SUM_MAX = 31   # 21 + draw 10
-    DEALER_CARD_MIN = 1   # ace
-    DEALER_CARD_MAX = 10
+class RefData:
+    def __init__(self, filename, ax=None):
+
+        self.ax = ax  # axis to draw plot
+
+        dataset = np.load(filename)
+
+        self.ref_no_ace_hold = dataset[:,:,0,1]
+        self.ref_no_ace_draw = dataset[:,:,0,0]
+        self.ref_ace_hold = dataset[:,:,1,0]
+        self.ref_ace_draw = dataset[:,:,1,0]
+
+        self.log_t = []
+        self.log_rmse_no_ace_hold = []
+        self.log_rmse_no_ace_draw = []
+        self.log_rmse_ace_hold = []
+        self.log_rmse_ace_draw = []
+        self.log_rsme_total = []
+
+    def calc_RMSE(self, episode, V, Q, b=False):
+        Q_no_ace_hold = np.zeros([10, 10])
+        Q_no_ace_draw = np.zeros([10, 10])
+        Q_ace_hold = np.zeros([10, 10])
+        Q_ace_draw = np.zeros([10, 10])
+
+        for player_sum in range(PLAYER_SUM_MIN, 21+1):
+            for dealer_card in range(DEALER_CARD_MIN, DEALER_CARD_MAX+1):
+                Q_no_ace_hold[player_sum-12, dealer_card-1] = \
+                    Q[(0, player_sum, dealer_card), 0]
+                Q_no_ace_draw[player_sum-12, dealer_card-1] = \
+                    Q[(0, player_sum, dealer_card), 1]
+                Q_ace_hold[player_sum-12, dealer_card-1] = \
+                    Q[(1, player_sum, dealer_card), 0]
+                Q_ace_draw[player_sum-12, dealer_card-1] = \
+                    Q[(1, player_sum, dealer_card), 1]
+
+        self.log_t.append(episode)
+
+        size = Q_no_ace_hold.size
+
+        sum1 = np.sum(np.power(self.ref_no_ace_hold - Q_no_ace_hold, 2))
+        rsme = np.sqrt(sum1 / size)
+        self.log_rmse_no_ace_hold.append(rsme)
+
+        sum2 = np.sum(np.power(self.ref_no_ace_draw - Q_no_ace_draw, 2))
+        rsme = np.sqrt(sum2 / size)
+        self.log_rmse_no_ace_draw.append(rsme)
+
+        sum3 = np.sum(np.power(self.ref_ace_hold - Q_ace_hold, 2))
+        rsme = np.sqrt(sum3 / size)
+        self.log_rmse_ace_hold.append(rsme)
+
+        sum4 = np.sum(np.power(self.ref_ace_draw - Q_ace_draw, 2))
+        rsme = np.sqrt(sum4 / size)
+        self.log_rmse_ace_draw.append(rsme)
+
+        rsme_total = np.sqrt( (sum1 + sum2 + sum3 + sum4) / size * 4 )
+        self.log_rsme_total.append(rsme_total)
+
+        rsme_arr = np.power(self.ref_no_ace_hold - Q_no_ace_hold, 2)
+        return Q_no_ace_hold, rsme_arr
+
+    def plot(self):
+        self.ax.clear()
+        self.ax.plot(self.log_t, self.log_rmse_no_ace_hold, 
+            color='green', linestyle='solid')
+        self.ax.plot(self.log_t, self.log_rmse_no_ace_draw, 
+            color='red', linestyle='solid')
+
+        self.ax.plot(self.log_t, self.log_rmse_ace_hold, 
+            color='green', linestyle='dashed')
+        self.ax.plot(self.log_t, self.log_rmse_ace_draw, 
+            color='red', linestyle='dashed')
+
+
+def test_run(nb_episodes, method, step_size,
+    nb_steps=None, lmbda=None, ax=None, ref=None):
+
+    # States are encoded as:
+    # (   HAS_ACE   ,   PLAYER SUM   ,   DEALER CARD   )
 
     state_space = []
     for has_ace in (1, 0):
@@ -36,13 +115,50 @@ def test_run(nb_episodes, method, step_size, nb_steps=None, lmbda=None, ax=None)
 
     for e in range(nb_episodes):
         if e % 1000 == 0:
-            print('episode:', e, '/', nb_episodes)
+            print('episode:', e, '/', nb_episodes, '   ')
 
-            if ax is not None:
+            # if ax is not None:
+            #    plot_3d_points(ax, agent.V, agent.Q, label='rt', color='purple')
+            #    plt.pause(0.001)
+            #    pass
+
+            if ref is not None:
+                qqq, rmse = ref.calc_RMSE(e, agent.V, agent.Q, True)
+                ref.plot()
+                # print('rmse: ', rmse)
+
+                player_points = list(range(12, 22))
+                dealer_card = list(range(1, 11))
+                X, Y = np.meshgrid(dealer_card, player_points)
+                # Z_Q0 = np.zeros([len(player_points), len(dealer_card)])  # stick
+                # Z_Q1 = np.zeros([len(player_points), len(dealer_card)])  # draw
+
+                # for dc in dealer_card:
+                #     for pp in player_points:
+                #         val = V[(0, pp, dc)]
+                #         Z_V[player_points.index(pp), dealer_card.index(dc)] = val
+
+                #         val = Q[(0, pp, dc), 0]
+                #         Z_Q0[player_points.index(pp), dealer_card.index(dc)] = val
+
+                #         val = Q[(0, pp, dc), 1]
+                #         Z_Q1[player_points.index(pp), dealer_card.index(dc)] = val
+
                 ax.clear()
-                plot_3d(ax, agent.V, agent.Q, label='rt', color='purple')
+                ax.plot_wireframe(X, Y, ref.ref_no_ace_hold, label='hold', color='blue')
+                ax.plot_wireframe(X, Y, qqq, label='q', color='green')
+                ax.plot_wireframe(X, Y, rmse-1, label='rsme', color='red')
+
+                ax.set_xlabel('X = dealer card')
+                ax.set_ylabel('Y = player points')
+                ax.set_zlabel('Z = value')
+
                 plt.pause(0.001)
-                pass
+
+
+
+
+
 
         obs = env.reset()
         agent.reset()
@@ -133,13 +249,19 @@ def test_single():
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
+    fig2 = plt.figure()
+    ax2 = fig2.add_subplot(111)
+
+    ref_data = RefData('reference.npy', ax=ax2)
+
+
     for test in tests:
         np.random.seed(0)
         print(' =================   ', test['method'], '   ====================== ')
         test['V_dict'], test['Q_dict'] = test_run(
             nb_episodes=nb_episodes, method=test['method'],
             step_size=test['stepsize'], nb_steps=test['nb_steps'],
-            lmbda=test['lmbda'], ax=ax)
+            lmbda=test['lmbda'], ax=ax, ref=ref_data)
 
 
 
@@ -151,14 +273,18 @@ def test_single():
         V = test['V_dict']
         Q = test['Q_dict']
 
-        ax.clear()
-        plot_3d(ax, V, Q, label=test['method'], color=test['color'])
+        # plot_3d_points(ax, V, Q, label=test['method'], color=test['color'])
 
     plt.ioff()
     plt.show()
 
 
-def plot_3d(ax, V, Q, label, color):
+
+
+
+
+def plot_3d_wireframe(ax, V, Q, label, color):
+    ax.clear()
 
     # no ace state-values
     player_points = list(range(12, 22))
@@ -185,6 +311,47 @@ def plot_3d(ax, V, Q, label, color):
 
     #ax.plot(Y[0], Z_Q0[0,:], color='green')
     #ax.plot(Y[0], Z_Q1[0,:], color='red')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+def plot_3d_points(ax, V, Q, label, color):
+    ax.clear()
+
+    # no ace state-values
+    dealer_card = list(range(1, 11))
+    player_points = list(range(12, 22))
+    X, Y = np.meshgrid(dealer_card, player_points)
+    Z_V = np.zeros([len(player_points), len(dealer_card)])
+    Z_Q0 = np.zeros([len(player_points), len(dealer_card)])  # stick
+    Z_Q1 = np.zeros([len(player_points), len(dealer_card)])  # draw
+
+    X = player_points
+    Y_hold = []
+    Y_draw = []
+
+    for dc in dealer_card:
+
+        Y_hold.clear()
+        Y_draw.clear()
+
+        for pp in player_points:     
+            Y_hold.append(Q[(0, pp, dc), 0])
+            Y_draw.append(Q[(0, pp, dc), 1])
+
+
+        ax.plot(X, Y_hold, zs=dc, zdir='x', color='green')
+        ax.plot(X, Y_draw, zs=dc, zdir='x', color='red')
+
+    ax.set_xlim(1, 11)
+    ax.set_ylim(12, 22)
+    ax.set_zlim(-1, 1)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+
 
 
 if __name__ == '__main__':
