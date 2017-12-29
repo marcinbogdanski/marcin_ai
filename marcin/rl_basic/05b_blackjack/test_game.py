@@ -221,7 +221,7 @@ def test_run(nb_episodes, method, step_size,
 
 
 def test_single():
-    nb_episodes = 500000
+    nb_episodes = 200000
 
     td_offline = {
         'method':    'td-offline',

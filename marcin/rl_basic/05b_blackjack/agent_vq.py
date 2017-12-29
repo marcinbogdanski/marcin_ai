@@ -66,8 +66,9 @@ class AgentVQ:
         #     return 0  # stick
 
         if self._force_random_action:
-            return np.random.choice(self._action_space)
             self._force_random_action = False
+            return np.random.choice(self._action_space)
+            
 
 
         if np.random.rand() < 0.00:
