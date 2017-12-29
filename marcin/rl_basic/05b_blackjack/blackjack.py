@@ -75,7 +75,7 @@ class BlackjackEnv:
 
     def _game_step(self, action):
         self.t_step += 1
-        if action == True:  # draw
+        if action == 1:  # draw
             self.player_hand.draw()
 
             if self.player_hand.points > 21:

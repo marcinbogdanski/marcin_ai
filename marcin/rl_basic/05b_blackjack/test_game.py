@@ -241,7 +241,7 @@ def test_single():
         'method':    'td-lambda-offline',
         'stepsize':  0.01,
         'nb_steps':  None,
-        'lmbda':     0.0,
+        'lmbda':     1.0,
         'color':     'orange'
     }
     #tests = [td_offline, mc_offline, td_lambda_offline]

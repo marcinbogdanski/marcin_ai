@@ -28,12 +28,20 @@ def plot_log_no_ace_3d(ax, log):
     ax.set_zlim(-1, 1)
 
 def plot_ref_no_ace_3d(ax, log):
-    maxx = np.greater(log.ref_Q_no_ace_draw, log.ref_Q_no_ace_hold)
-    maxx = maxx.astype(float)
-
     plot_3d_wireframe(ax, log.ref_Q_no_ace_hold, 'hold', 'darkgreen')
     plot_3d_wireframe(ax, log.ref_Q_no_ace_draw, 'draw', 'darkred')
-    #plot_3d_wireframe(ax, maxx, 'max', 'darkblue')
+    ax.set_zlim(-1, 1)
+
+
+def plot_log_ace_3d(ax, log):
+    plot_3d_wireframe(ax, log.log_Q_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax, log.log_Q_ace_draw[-1], 'draw', 'red')
+    ax.set_zlim(-1, 1)
+
+def plot_ref_ace_3d(ax, log):
+    plot_3d_wireframe(ax, log.ref_Q_ace_hold, 'hold', 'darkgreen')
+    plot_3d_wireframe(ax, log.ref_Q_ace_draw, 'draw', 'darkred')
+    ax.set_zlim(-1, 1)
 
 
 def main():
@@ -48,13 +56,17 @@ def main():
     y2 = [log.ref_Q_no_ace_hold[PLAYER_SUM-12,DEALER_CARD-1] for _ in log.log_t]
 
 
-    fig = plt.figure()
+    fig = plt.figure("No Ace")
     ax = fig.add_subplot(111, projection='3d')
     plot_ref_no_ace_3d(ax, log)
-
     plot_log_no_ace_3d(ax, log)
 
-    fig = plt.figure()
+    fig = plt.figure("Ace")
+    ax = fig.add_subplot(111, projection='3d')
+    plot_ref_ace_3d(ax, log)
+    plot_log_ace_3d(ax, log)
+
+    fig = plt.figure("Num visits")
     ax = fig.add_subplot(111, projection='3d')
     plot_3d_wireframe(ax, log.log_Q_num_no_ace_hold, 'draw', 'green')
     plot_3d_wireframe(ax, log.log_Q_num_no_ace_draw, 'draw', 'red')
