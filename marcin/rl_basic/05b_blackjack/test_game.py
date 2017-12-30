@@ -153,7 +153,7 @@ class ExperimentsDB:
         if self.need_saving:
             with open(self.filename, 'wb') as f:
                 pickle.dump(self.exp_dict, f)
-                
+
 
 # def test_run(nb_episodes, method, step_size,
 #     lmbda=None, log=None):
@@ -232,8 +232,6 @@ def test_run(experiment):
                 break
 
 
-
-
     return agent.V, agent.Q
 
 
@@ -259,8 +257,17 @@ def main():
     # exp_mc = Experiment(nb_episodes, 'mc-offline', 0.001, None, 'purple')
     # exp_list.append(exp_mc)
 
-    exp_lm = Experiment(nb_episodes, 'td-lambda-offline', 0.001, 1.0, 'orange')
+    exp_lm = Experiment(nb_episodes*10, 'td-lambda-offline', 0.001, 1.0, 'orange')
     exp_list.append(exp_lm)
+
+    exp_lm = Experiment(nb_episodes*5, 'td-lambda-offline', 0.005, 1.0, 'orange')
+    exp_list.append(exp_lm)
+
+    # exp_lm = Experiment(nb_episodes*3, 'td-lambda-offline', 0.01, 1.0, 'blue')
+    # exp_list.append(exp_lm)
+
+    # exp_lm = Experiment(nb_episodes*2, 'td-lambda-offline', 0.1, 1.0, 'red')
+    # exp_list.append(exp_lm)
 
     exp_db.fill_from_db(exp_list)
 
@@ -285,6 +292,7 @@ def main():
         if exp.data_logger is None:
             exp.data_logger = DataLogger()
             test_run(exp)
+            exp.data_logger.prep_to_save()
         else:
             # Do nothing, experiment results were loaded from file
             pass
@@ -293,6 +301,80 @@ def main():
     exp_db.save_to_file()
 
 
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    for exp in exp_list:
+        exp.data_logger.process_data(data_ref)
+        plot_rsme(exp, data_ref, ax)
+
+    for exp in exp_list:
+        plot_experiment(exp, data_ref)
+
+    plt.show()
+
+
+
+def plot_rsme(exp, ref, ax):
+    log = exp.data_logger
+
+    ax.plot(log.t, log.rmse_no_ace_hold, color='green', linestyle='-')
+    ax.plot(log.t, log.rmse_no_ace_draw, color='red', linestyle='-')
+    ax.plot(log.t, log.rmse_ace_hold, color='green', linestyle='--')
+    ax.plot(log.t, log.rmse_ace_draw, color='red', linestyle='--')
+
+    ax.plot(log.t, log.rmse_total, color='gray', linestyle='--')
+
+    ax.plot(log.t, np.zeros_like(log.t), color='black')
+
+
+
+def plot_error(exp, ref, ax):
+    log = exp.data_logger
+    color = exp.desc.color
+
+    PLAYER_SUM = 12   # [12..21]
+    DEALER_CARD = 10  # [1..10]
+
+    x = log.t
+    # player_sum == 12, dealer_card == 10
+    y = log.Q_no_ace_hold[:,PLAYER_SUM-12,DEALER_CARD-1]
+    y2 = [ref.Q_no_ace_hold[PLAYER_SUM-12,DEALER_CARD-1] for _ in log.t]
+
+    if color == 'red':
+        y += 0.001
+
+    ax.plot(x, y, label=exp.__str__(), color=color)
+    ax.plot(x, y2, label='Ref', color='black')
+
+def plot_3d_wireframe(ax, Z, label, color):
+    # ax.clear()
+
+    dealer_card = list(range(1, 11))
+    player_points = list(range(12, 22))
+    X, Y = np.meshgrid(dealer_card, player_points)
+    ax.plot_wireframe(X, Y, Z, label=label, color=color)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+def plot_experiment(exp, ref):
+    log = exp.data_logger
+    fig = plt.figure(exp.__str__())
+    ax = fig.add_subplot(121, projection='3d', title='No Ace')
+    plot_3d_wireframe(ax, ref.Q_no_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
+    plot_3d_wireframe(ax, ref.Q_no_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
+    plot_3d_wireframe(ax, log.Q_no_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax, log.Q_no_ace_draw[-1], 'draw', 'red')
+    ax.set_zlim(-1, 1)
+
+    ax = fig.add_subplot(122, projection='3d', title='Ace')
+    plot_3d_wireframe(ax, ref.Q_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
+    plot_3d_wireframe(ax, ref.Q_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
+    plot_3d_wireframe(ax, log.Q_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax, log.Q_ace_draw[-1], 'draw', 'red')
+    ax.set_zlim(-1, 1)
 
 
 if __name__ == '__main__':

@@ -62,12 +62,46 @@ class DataLogger:
         self.Q_ace_hold.append(Q_ace_hold)
         self.Q_ace_draw.append(Q_ace_draw)
 
-    def save(self, filename):
+    def prep_to_save(self):
         self.t = np.array(self.t)
         self.Q_no_ace_hold = np.array(self.Q_no_ace_hold)
         self.Q_no_ace_draw = np.array(self.Q_no_ace_draw)
         self.Q_ace_hold = np.array(self.Q_ace_hold)
         self.Q_ace_draw = np.array(self.Q_ace_draw)
+
+    def process_data(self, ref):
+        self.rmse_no_ace_hold = []
+        self.rmse_no_ace_draw = []
+        self.rmse_ace_hold = []
+        self.rmse_ace_draw = []
+        self.rmse_total = []
+
+
+        for i in range(len(self.t)):
+
+            size = self.Q_no_ace_hold[i].size
+
+            sum1 = np.sum(np.power(ref.Q_no_ace_hold - self.Q_no_ace_hold[i], 2))
+            rmse = np.sqrt(sum1 / size)
+            self.rmse_no_ace_hold.append(rmse)
+
+            sum2 = np.sum(np.power(ref.Q_no_ace_draw - self.Q_no_ace_draw[i], 2))
+            rmse = np.sqrt(sum2 / size)
+            self.rmse_no_ace_draw.append(rmse)
+
+            sum3 = np.sum(np.power(ref.Q_ace_hold - self.Q_ace_hold[i], 2))
+            rmse = np.sqrt(sum3 / size)
+            self.rmse_ace_hold.append(rmse)
+
+            sum4 = np.sum(np.power(ref.Q_ace_draw - self.Q_ace_draw[i], 2))
+            rmse = np.sqrt(sum4 / size)
+            self.rmse_ace_draw.append(rmse)
+
+            rmse_total = np.sqrt( (sum1 + sum2 + sum3 + sum4) / size * 4 )
+            self.rmse_total.append(rmse_total)
+
+    def save(self, filename):
+        self.prep_to_save()
 
         with open(filename, 'wb') as f:
             pickle.dump( self.__dict__, f )
