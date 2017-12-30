@@ -18,7 +18,7 @@ class HistoryData:
 
 class AgentVQ:
     def __init__(self, state_space, action_space,
-        step_size=0.1, nb_steps=None, lmbda=None):
+        step_size=0.1, lmbda=None):
 
         self.V = {}
         self.Q = {}

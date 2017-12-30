@@ -3,7 +3,7 @@ from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
 import pdb
 
-from logger import Logger
+from logger import DataLogger, DataReference
 
 def plot_3d_wireframe(ax, Z, label, color):
     # ax.clear()
@@ -17,62 +17,47 @@ def plot_3d_wireframe(ax, Z, label, color):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-def plot_log_no_ace_3d(ax, log):
-    maxx = np.greater(log.log_Q_no_ace_draw[-1], log.log_Q_no_ace_hold[-1])
-    maxx = maxx.astype(float)
-
-    plot_3d_wireframe(ax, log.log_Q_no_ace_hold[-1], 'hold', 'green')
-    plot_3d_wireframe(ax, log.log_Q_no_ace_draw[-1], 'draw', 'red')
-    #plot_3d_wireframe(ax, maxx, 'max', 'blue')
-
-    ax.set_zlim(-1, 1)
-
-def plot_ref_no_ace_3d(ax, log):
-    plot_3d_wireframe(ax, log.ref_Q_no_ace_hold, 'hold', 'darkgreen')
-    plot_3d_wireframe(ax, log.ref_Q_no_ace_draw, 'draw', 'darkred')
-    ax.set_zlim(-1, 1)
-
-
-def plot_log_ace_3d(ax, log):
-    plot_3d_wireframe(ax, log.log_Q_ace_hold[-1], 'hold', 'green')
-    plot_3d_wireframe(ax, log.log_Q_ace_draw[-1], 'draw', 'red')
-    ax.set_zlim(-1, 1)
-
-def plot_ref_ace_3d(ax, log):
-    plot_3d_wireframe(ax, log.ref_Q_ace_hold, 'hold', 'darkgreen')
-    plot_3d_wireframe(ax, log.ref_Q_ace_draw, 'draw', 'darkred')
-    ax.set_zlim(-1, 1)
 
 
 def main():
-    log = Logger()
+    log = DataLogger()
     log.load('td-lambda-offline.log')
+    ref = DataReference('reference.npy')
 
     PLAYER_SUM = 12   # [12..21]
     DEALER_CARD = 10  # [1..10]
 
-    x = log.log_t
-    y = log.log_Q_no_ace_hold[:,PLAYER_SUM-12,DEALER_CARD-1]  # player_sum == 12, dealer_card == 10
-    y2 = [log.ref_Q_no_ace_hold[PLAYER_SUM-12,DEALER_CARD-1] for _ in log.log_t]
+    x = log.t
+    # player_sum == 12, dealer_card == 10
+    y = log.Q_no_ace_hold[:,PLAYER_SUM-12,DEALER_CARD-1]
+    y2 = [ref.Q_no_ace_hold[PLAYER_SUM-12,DEALER_CARD-1] for _ in log.t]
 
 
-    fig = plt.figure("No Ace")
-    ax = fig.add_subplot(111, projection='3d')
-    plot_ref_no_ace_3d(ax, log)
-    plot_log_no_ace_3d(ax, log)
+    fig = plt.figure("Experimetn 1")
+    ax = fig.add_subplot(121, projection='3d', title='No Ace')
+    plot_3d_wireframe(ax, ref.Q_no_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
+    plot_3d_wireframe(ax, ref.Q_no_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
+    plot_3d_wireframe(ax, log.Q_no_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax, log.Q_no_ace_draw[-1], 'draw', 'red')
+    ax.set_zlim(-1, 1)
 
-    fig = plt.figure("Ace")
-    ax = fig.add_subplot(111, projection='3d')
-    plot_ref_ace_3d(ax, log)
-    plot_log_ace_3d(ax, log)
+    ax = fig.add_subplot(122, projection='3d', title='Ace')
+    plot_3d_wireframe(ax, ref.Q_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
+    plot_3d_wireframe(ax, ref.Q_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
+    plot_3d_wireframe(ax, log.Q_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax, log.Q_ace_draw[-1], 'draw', 'red')
+    ax.set_zlim(-1, 1)
 
-    fig = plt.figure("Num visits")
-    ax = fig.add_subplot(111, projection='3d')
-    plot_3d_wireframe(ax, log.log_Q_num_no_ace_hold, 'draw', 'green')
-    plot_3d_wireframe(ax, log.log_Q_num_no_ace_draw, 'draw', 'red')
+    # fig = plt.figure("ps 12 dc 10")
+    # ax = fig.add_subplot(111)
+    # ax.plot(x, y, label='us')
+    # ax.plot(x, y2, label='ref')
+    # ax.legend()
+
     
-    print(log.log_Q_num_no_ace_draw.astype(int))
-    print(log.log_Q_num_no_ace_hold.astype(int))
+    
+    print(log.Q_num_no_ace_draw.astype(int))
+    print(log.Q_num_no_ace_hold.astype(int))
 
     plt.show()
 

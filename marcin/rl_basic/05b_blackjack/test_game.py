@@ -1,11 +1,12 @@
 import numpy as np
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
+import pickle
 import pdb
 
 from blackjack import BlackjackEnv
 from agent_vq import AgentVQ
-from logger import Logger
+from logger import DataLogger, DataReference
 
 PLAYER_SUM_MIN = 12   # BlackjackEnv guarantees this
 PLAYER_SUM_MAX = 31   # 21 + draw 10
@@ -88,9 +89,75 @@ class RefData:
                 color='red', linestyle='dashed')
 
 
+class ExpParams:
+    def __init__(self, nb_episodes, method, step_size, lmbda):
+        self.nb_episodes = nb_episodes
+        self.method = method
+        self.step_size = step_size
+        self.lmbda = lmbda
+    def __hash__(self):
+        return hash((self.nb_episodes, self.method, self.step_size, self.lmbda))
 
-def test_run(nb_episodes, method, step_size,
-    nb_steps=None, lmbda=None, ax=None, ref=None, log=None):
+    def __eq__(self, other):
+        return (self.nb_episodes, self.method, self.step_size, self.lmbda) == \
+            (other.nb_episodes, other.method, other.step_size, other.lmbda)
+
+    def __ne__(self, other):
+        # Not strictly necessary, but to avoid having both x==y and x!=y
+        # True at the same time
+        return not(self == other)
+        
+class ExpDesc:
+    def __init__(self, color):
+        self.color = color
+
+class Experiment:
+    def __init__(self, nb_episodes, method, step_size, lmbda, color):
+        self.params = ExpParams(nb_episodes, method, step_size, lmbda)
+        self.desc = ExpDesc(color)
+        self.data_logger = None
+
+    def __str__(self):
+        data_logger_present = self.data_logger is not None
+        return 'Params: ep={0} m={1} step={2} lmbda={3}; Data={4}'.format(
+            self.params.nb_episodes, self.params.method,
+            self.params.step_size, self.params.lmbda, 
+            data_logger_present)
+
+
+class ExperimentsDB:
+    def __init__(self, filename):
+        self.filename = filename
+        self.exp_dict = {}
+        self.need_saving = False
+
+    def load_from_file(self):
+        try:
+            with open(self.filename, 'rb') as f:
+                self.exp_dict = pickle.load(f)
+        except:
+            pass
+
+    def fill_from_db(self, exp_list):
+        for exp in exp_list:
+            if exp.params in self.exp_dict:
+                exp.data_logger = self.exp_dict[exp.params].data_logger
+
+    def put_to_db(self, exp_list):
+        for exp in exp_list:
+            if exp.params not in self.exp_dict:
+                self.exp_dict[exp.params] = exp
+                self.need_saving = True
+
+    def save_to_file(self):
+        if self.need_saving:
+            with open(self.filename, 'wb') as f:
+                pickle.dump(self.exp_dict, f)
+                
+
+# def test_run(nb_episodes, method, step_size,
+#     lmbda=None, log=None):
+def test_run(experiment):
 
     # States are encoded as:
     # (   HAS_ACE   ,   PLAYER SUM   ,   DEALER CARD   )
@@ -112,69 +179,19 @@ def test_run(nb_episodes, method, step_size,
     env = BlackjackEnv()
     agent = AgentVQ(state_space=state_space,
                 action_space=action_space,
-                step_size=step_size,
-                nb_steps=nb_steps,
-                lmbda=lmbda)  
+                step_size=experiment.params.step_size,
+                lmbda=experiment.params.lmbda)  
 
-    for e in range(nb_episodes):
+    for e in range(experiment.params.nb_episodes):
         if e % 1000 == 0:
-            print('episode:', e, '/', nb_episodes, '   ')
+            print('episode:', e, '/', experiment.params.nb_episodes, '   ')
 
-            if log is not None:
-                log.log(e, agent.V, agent.Q, agent.Q_num)
-
-            # if ax is not None:
-            #    plot_3d_points(ax, agent.V, agent.Q, label='rt', color='purple')
-            #    plt.pause(0.001)
-            #    pass
-
-            """
-            if ref is not None:
-                qqq, rmse = ref.calc_RMSE(e, agent.V, agent.Q, True)
-                ref.plot()
-                # print('rmse: ', rmse)
-
-                player_points = list(range(12, 22))
-                dealer_card = list(range(1, 11))
-                X, Y = np.meshgrid(dealer_card, player_points)
-                # Z_Q0 = np.zeros([len(player_points), len(dealer_card)])  # stick
-                # Z_Q1 = np.zeros([len(player_points), len(dealer_card)])  # draw
-
-                # for dc in dealer_card:
-                #     for pp in player_points:
-                #         val = V[(0, pp, dc)]
-                #         Z_V[player_points.index(pp), dealer_card.index(dc)] = val
-
-                #         val = Q[(0, pp, dc), 0]
-                #         Z_Q0[player_points.index(pp), dealer_card.index(dc)] = val
-
-                #         val = Q[(0, pp, dc), 1]
-                #         Z_Q1[player_points.index(pp), dealer_card.index(dc)] = val
-
-                ax.clear()
-                ax.plot_wireframe(X, Y, ref.ref_no_ace_hold, label='hold', color='blue')
-                ax.plot_wireframe(X, Y, qqq, label='q', color='green')
-                ax.plot_wireframe(X, Y, rmse-1, label='rsme', color='red')
-
-                ax.set_xlabel('X = dealer card')
-                ax.set_ylabel('Y = player points')
-                ax.set_zlabel('Z = value')
-
-                plt.pause(0.001)
-            """
-
-
-
-
+            if experiment.data_logger is not None:
+                experiment.data_logger.log(e, agent.V, agent.Q, agent.Q_num)
 
 
         # obs = env.reset()
-
         obs = env.reset_exploring_starts()
-
-
-
-
         agent.reset_exploring_starts()
         agent.append_trajectory(t_step=0,
                                 prev_action=None,
@@ -200,6 +217,7 @@ def test_run(nb_episodes, method, step_size,
                         reward=reward,
                         done=done)
 
+            method = experiment.params.method
             if method == 'td-online':
                 agent.eval_td_online()
             elif method == 'td-lambda-online':
@@ -220,143 +238,63 @@ def test_run(nb_episodes, method, step_size,
 
 
 
-def test_single():
-    nb_episodes = 200000
 
-    td_offline = {
-        'method':    'td-offline',
-        'stepsize':  0.001,
-        'nb_steps':  None,
-        'lmbda':     None,
-        'color':     'blue'
-    }
-    mc_offline = {
-        'method':    'mc-offline',
-        'stepsize':  0.001,
-        'nb_steps':  None,
-        'lmbda':     1.0,     # Monte-Carlo
-        'color':     'purple'
-    }
-    td_lambda_offline = {
-        'method':    'td-lambda-offline',
-        'stepsize':  0.01,
-        'nb_steps':  None,
-        'lmbda':     1.0,
-        'color':     'orange'
-    }
-    #tests = [td_offline, mc_offline, td_lambda_offline]
-    #tests = [td_lambda_offline]
-    tests = [td_lambda_offline]
+def main():
+    
+    exp_db = ExperimentsDB('experiments.db')
+    exp_db.load_from_file()
 
-    # plt.ion()
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
+    print('Experimetns in file:')
+    for params, exp in exp_db.exp_dict.items():
+        print(exp)
+    print()
 
-    # fig2 = plt.figure()
-    # ax2 = fig2.add_subplot(111)
 
-    # ref_data = RefData('reference.npy', ax=None)
+    nb_episodes = 100000
+    exp_list = []
+
+    # exp_td = Experiment(nb_episodes, 'td-offline', 0.001, None, 'blue' )
+    # exp_list.append(exp1)
+
+    # exp_mc = Experiment(nb_episodes, 'mc-offline', 0.001, None, 'purple')
+    # exp_list.append(exp_mc)
+
+    exp_lm = Experiment(nb_episodes, 'td-lambda-offline', 0.001, 1.0, 'orange')
+    exp_list.append(exp_lm)
+
+    exp_db.fill_from_db(exp_list)
+
+
+    print('All experiments:')
+    for params, exp in exp_db.exp_dict.items():
+        print(exp)
+    print()
 
     
+    
+    print('Defined experiments:')
+    for exp in exp_list:
+        print(exp)
 
-    for test in tests:
-        logger = Logger(reference_data_filename='reference.npy')
+    
+    data_ref = DataReference('reference.npy')
+
+    for exp in exp_list:
         np.random.seed(0)
-        print(' =================   ', test['method'], '   ====================== ')
-        test['V_dict'], test['Q_dict'] = test_run(
-            nb_episodes=nb_episodes, method=test['method'],
-            step_size=test['stepsize'], nb_steps=test['nb_steps'],
-            lmbda=test['lmbda'], ax=None, ref=None, log=logger)
+        print(' === Exp: ', exp)
+        if exp.data_logger is None:
+            exp.data_logger = DataLogger()
+            test_run(exp)
+        else:
+            # Do nothing, experiment results were loaded from file
+            pass
 
-        logger.save(test['method']+'.log')
-
-    
-
-    # for test in tests:
-    #     # convert to 2d arrays
-    #     V = test['V_dict']
-    #     Q = test['Q_dict']
-    #     plot_3d_points(ax, V, Q, label=test['method'], color=test['color'])
-
-    # plt.ioff()
-    # plt.show()
-
-
-
-
-
-
-def plot_3d_wireframe(ax, V, Q, label, color):
-    ax.clear()
-
-    # no ace state-values
-    player_points = list(range(12, 22))
-    dealer_card = list(range(1, 11))
-    X, Y = np.meshgrid(dealer_card, player_points)
-    Z_V = np.zeros([len(player_points), len(dealer_card)])
-    Z_Q0 = np.zeros([len(player_points), len(dealer_card)])  # stick
-    Z_Q1 = np.zeros([len(player_points), len(dealer_card)])  # draw
-
-    for dc in dealer_card:
-        for pp in player_points:
-            val = V[(0, pp, dc)]
-            Z_V[player_points.index(pp), dealer_card.index(dc)] = val
-
-            val = Q[(0, pp, dc), 0]
-            Z_Q0[player_points.index(pp), dealer_card.index(dc)] = val
-
-            val = Q[(0, pp, dc), 1]
-            Z_Q1[player_points.index(pp), dealer_card.index(dc)] = val
-
-    #ax.plot_wireframe(X, Y, Z_V, label=label, color=color)
-    ax.plot_wireframe(X, Y, Z_Q0, label='stick', color='green')
-    ax.plot_wireframe(X, Y, Z_Q1, label='draw', color='red')
-
-    #ax.plot(Y[0], Z_Q0[0,:], color='green')
-    #ax.plot(Y[0], Z_Q1[0,:], color='red')
-
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-
-def plot_3d_points(ax, V, Q, label, color):
-    ax.clear()
-
-    # no ace state-values
-    dealer_card = list(range(1, 11))
-    player_points = list(range(12, 22))
-    X, Y = np.meshgrid(dealer_card, player_points)
-    Z_V = np.zeros([len(player_points), len(dealer_card)])
-    Z_Q0 = np.zeros([len(player_points), len(dealer_card)])  # stick
-    Z_Q1 = np.zeros([len(player_points), len(dealer_card)])  # draw
-
-    X = player_points
-    Y_hold = []
-    Y_draw = []
-
-    for dc in dealer_card:
-
-        Y_hold.clear()
-        Y_draw.clear()
-
-        for pp in player_points:     
-            Y_hold.append(Q[(0, pp, dc), 0])
-            Y_draw.append(Q[(0, pp, dc), 1])
-
-
-        ax.plot(X, Y_hold, zs=dc, zdir='x', color='green')
-        ax.plot(X, Y_draw, zs=dc, zdir='x', color='red')
-
-    ax.set_xlim(1, 11)
-    ax.set_ylim(12, 22)
-    ax.set_zlim(-1, 1)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
+    exp_db.put_to_db(exp_list)
+    exp_db.save_to_file()
 
 
 
 
 if __name__ == '__main__':
-    test_single()
+    main()
     
