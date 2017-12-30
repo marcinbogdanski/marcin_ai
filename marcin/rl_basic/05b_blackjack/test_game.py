@@ -1,6 +1,7 @@
 import numpy as np
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
+import time
 import pickle
 import pdb
 
@@ -257,8 +258,8 @@ def main():
     # exp_mc = Experiment(nb_episodes, 'mc-offline', 0.001, None, 'purple')
     # exp_list.append(exp_mc)
 
-    exp_lm = Experiment(nb_episodes*10, 'td-lambda-offline', 0.001, 1.0, 'orange')
-    exp_list.append(exp_lm)
+    # exp_lm = Experiment(nb_episodes*10, 'td-lambda-offline', 0.001, 1.0, 'orange')
+    # exp_list.append(exp_lm)
 
     exp_lm = Experiment(nb_episodes*5, 'td-lambda-offline', 0.005, 1.0, 'orange')
     exp_list.append(exp_lm)
@@ -286,6 +287,8 @@ def main():
     
     data_ref = DataReference('reference.npy')
 
+    t_start = time.time()
+
     for exp in exp_list:
         np.random.seed(0)
         print(' === Exp: ', exp)
@@ -296,6 +299,9 @@ def main():
         else:
             # Do nothing, experiment results were loaded from file
             pass
+
+    t_sec = time.time() - t_start
+    print('Time sec:', t_sec)
 
     exp_db.put_to_db(exp_list)
     exp_db.save_to_file()
