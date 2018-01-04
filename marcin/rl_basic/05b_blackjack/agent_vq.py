@@ -23,12 +23,14 @@ class AgentVQ:
         self.V = {}
         self.Q = {}
 
+        self.Q_sum = {}  # sum of all visits
         self.Q_num = {}  # number of times state-action visited
 
         for state in state_space:
             self.V[state] = 0
             for action in action_space:
                 self.Q[state, action] = 0
+                self.Q_sum[state, action] = 0
                 self.Q_num[state, action] = 0
         
         self._action_space = action_space
@@ -356,4 +358,54 @@ class AgentVQ:
         for t in range(0, T):
             # Update state-value at time t
             self.eval_mc_t(t)
+
+
+
+
+
+    def eval_mc_full_t(self, t):
+        """MC update for state-values for single state in trajectory
+
+        Note:
+            This assumes episode is completed and trajectory is present
+            from start to termination.
+
+        For online updates:
+            N/A
+
+        For offline updates:
+            Iterate trajectory from t=0 to t=T-1 and call for every t
+
+        Params:
+            t (int [t, T-1]) - time step in trajectory,
+                    0 is initial state; T-1 is last non-terminal state
+
+        """
+
+        V = self.V    # State values array, shape: [world_size]
+        Q = self.Q    # Action value array, shape: [world_size, action_space]
+
+        # Shortcuts for more compact notation:
+        St = self._trajectory[t].observation  # current state (x, y)
+        Gt = self.calc_Gt(t)            # return for current state
+
+
+        V[St] = 0  # not updated
+
+
+        At = self._trajectory[t].action
+        self.Q_sum[St, At] += Gt
+        Q[St, At] = self.Q_sum[St, At] / self.Q_num[St, At]
+
+    def eval_mc_full(self):
+        """MC update for all statates. Call after episode terminates
+
+        """
+        self.check_trajectory_terminated_ok()
+
+        # Iterate all states in trajectory, apart from terminal state
+        T = len(self._trajectory) - 1
+        for t in range(0, T):
+            # Update state-value at time t
+            self.eval_mc_full_t(t)
 

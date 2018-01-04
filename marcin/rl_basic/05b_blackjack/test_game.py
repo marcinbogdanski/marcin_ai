@@ -253,7 +253,9 @@ def test_run(experiment):
             elif method == 'td-lambda-online':
                 agent.eval_td_lambda_online()
             if done:
-                if method == 'mc-offline':
+                if method == 'mc-full':
+                    agent.eval_mc_full()
+                elif method == 'mc-offline':
                     agent.eval_mc_offline()
                 elif method == 'td-offline':
                     agent.eval_td_offline()
@@ -296,12 +298,12 @@ def main():
     exp_list.append(exp_lm)
 
 
-    # exp_lm = Experiment(
-    #     nb_episodes=nb_episodes*5,
-    #     expl_starts=True, method='td-lambda-offline',
-    #     step_size=0.005, lmbda=1.0, e_greed=0.0,
-    #     color='orange', redo=False)
-    # exp_list.append(exp_lm)
+    exp_lm = Experiment(
+        nb_episodes=nb_episodes*5,
+        expl_starts=True, method='mc-full',
+        step_size=0.005, lmbda=1.0, e_greed=0.0,
+        color='orange', redo=False)
+    exp_list.append(exp_lm)
 
     
 
@@ -345,6 +347,8 @@ def main():
     
     data_ref = DataReference('reference.npy')
 
+    plot_policy_ref(data_ref)
+
     for exp in exp_list:
         np.random.seed(0)
         print(' === Exp: ', exp)
@@ -363,12 +367,68 @@ def main():
     for exp in exp_list:
         plot_experiment(exp, data_ref, 'Q_val for ' + exp.__str__())
 
+        plot_policy(exp, data_ref, 'Policy for ' + exp.__str__())
+
         fig = plt.figure('RSME for ' + exp.__str__())
         ax = fig.add_subplot(111)
         exp.data_logger.process_data(data_ref)
         plot_rsme(exp, data_ref, ax)
 
     plt.show()
+
+def plot_policy(exp, ref, heading):
+    log = exp.data_logger
+    fig = plt.figure(heading)
+    
+    no_ace_hold = log.Q_no_ace_hold[-1]
+    no_ace_draw = log.Q_no_ace_draw[-1]
+    no_ace_policy = (no_ace_draw > no_ace_hold).astype(int)
+
+    print('No Ace (', heading, '):')
+    no_ace_diff = np.round(no_ace_draw - no_ace_hold, 3)
+    print(no_ace_diff)
+
+    ax = fig.add_subplot(121, title='No Ace')
+    ax.imshow(no_ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
+    ax.set_xticks(np.arange(0.5, 10.5, 1))
+    ax.set_yticks(np.arange(11.5, 21.5, 1))
+    ax.grid()
+
+    ace_hold = log.Q_ace_hold[-1]
+    ace_draw = log.Q_ace_draw[-1]
+    ace_policy = (ace_draw > ace_hold).astype(int)
+
+    ax = fig.add_subplot(122, title='Ace')
+    ax.imshow(ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
+    ax.set_xticks(np.arange(0.5, 10.5, 1))
+    ax.set_yticks(np.arange(11.5, 21.5, 1))
+    ax.grid()
+
+
+
+
+def plot_policy_ref(ref):
+    fig = plt.figure('Reference Policy')
+    
+    ref_no_ace_policy = (ref.Q_no_ace_draw > ref.Q_no_ace_hold).astype(int)
+
+    print('No Ace (reference):')
+    no_ace_diff = np.round(ref.Q_no_ace_draw - ref.Q_no_ace_hold, 3)
+    print(no_ace_diff)
+
+    ax = fig.add_subplot(121, title='No Ace')
+    ax.imshow(ref_no_ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
+    ax.set_xticks(np.arange(0.5, 10.5, 1))
+    ax.set_yticks(np.arange(11.5, 21.5, 1))
+    ax.grid()
+
+    ref_ace_policy = (ref.Q_ace_draw > ref.Q_ace_hold).astype(int)
+
+    ax = fig.add_subplot(122, title='Ace')
+    ax.imshow(ref_ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
+    ax.set_xticks(np.arange(0.5, 10.5, 1))
+    ax.set_yticks(np.arange(11.5, 21.5, 1))
+    ax.grid()
 
 
 
