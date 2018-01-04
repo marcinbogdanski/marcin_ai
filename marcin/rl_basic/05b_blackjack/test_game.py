@@ -91,17 +91,27 @@ class RefData:
 
 
 class ExpParams:
-    def __init__(self, nb_episodes, method, step_size, lmbda):
+    def __init__(self, nb_episodes, expl_starts,
+                 method, step_size, lmbda, e_greed):
         self.nb_episodes = nb_episodes
+        self.expl_starts = expl_starts
         self.method = method
         self.step_size = step_size
         self.lmbda = lmbda
+        self.e_greed = e_greed
+        
     def __hash__(self):
-        return hash((self.nb_episodes, self.method, self.step_size, self.lmbda))
+        return hash((self.nb_episodes,
+                     self.expl_starts, self.method, 
+                     self.step_size, self.lmbda, self.e_greed))
 
     def __eq__(self, other):
-        return (self.nb_episodes, self.method, self.step_size, self.lmbda) == \
-            (other.nb_episodes, other.method, other.step_size, other.lmbda)
+        return (self.nb_episodes,
+                self.expl_starts, self.method, 
+                self.step_size, self.lmbda, self.e_greed) == \
+            (other.nb_episodes,
+             other.expl_starts, other.method, 
+             other.step_size, other.lmbda, other.e_greed)
 
     def __ne__(self, other):
         # Not strictly necessary, but to avoid having both x==y and x!=y
@@ -109,20 +119,27 @@ class ExpParams:
         return not(self == other)
         
 class ExpDesc:
-    def __init__(self, color):
+    def __init__(self, color, redo):
         self.color = color
+        self.redo = redo
 
 class Experiment:
-    def __init__(self, nb_episodes, method, step_size, lmbda, color):
-        self.params = ExpParams(nb_episodes, method, step_size, lmbda)
-        self.desc = ExpDesc(color)
+    def __init__(self, nb_episodes, expl_starts,
+                 method, step_size, lmbda, e_greed, color, redo):
+        self.params = ExpParams(nb_episodes, expl_starts,
+                                method, step_size, lmbda, e_greed)
+        self.desc = ExpDesc(color, redo)
         self.data_logger = None
 
     def __str__(self):
         data_logger_present = self.data_logger is not None
-        return 'Params: ep={0} m={1} step={2} lmbda={3}; Data={4}'.format(
-            self.params.nb_episodes, self.params.method,
-            self.params.step_size, self.params.lmbda, 
+        return 'Params: ep={0} es={1} m={2} step={3} lmbda={4} e_greed={5}; Data={6}'.format(
+            self.params.nb_episodes,
+            self.params.expl_starts,
+            self.params.method,
+            self.params.step_size,
+            self.params.lmbda, 
+            self.params.e_greed,
             data_logger_present)
 
 
@@ -138,6 +155,13 @@ class ExperimentsDB:
                 self.exp_dict = pickle.load(f)
         except:
             pass
+
+    def delete_redo(self, exp_list):
+        for exp in exp_list:
+            if exp.desc.redo:
+                if exp.params in self.exp_dict:
+                    del self.exp_dict[exp.params]
+
 
     def fill_from_db(self, exp_list):
         for exp in exp_list:
@@ -192,8 +216,13 @@ def test_run(experiment):
 
 
         # obs = env.reset()
-        obs = env.reset_exploring_starts()
-        agent.reset_exploring_starts()
+        if experiment.params.expl_starts:
+            obs = env.reset_exploring_starts()
+            agent.reset_exploring_starts()
+        else:
+            obs = env.reset()
+            agent.reset()
+
         agent.append_trajectory(t_step=0,
                                 prev_action=None,
                                 observation=obs,
@@ -258,18 +287,47 @@ def main():
     # exp_mc = Experiment(nb_episodes, 'mc-offline', 0.001, None, 'purple')
     # exp_list.append(exp_mc)
 
-    # exp_lm = Experiment(nb_episodes*10, 'td-lambda-offline', 0.001, 1.0, 'orange')
-    # exp_list.append(exp_lm)
 
-    exp_lm = Experiment(nb_episodes*5, 'td-lambda-offline', 0.005, 1.0, 'orange')
+    exp_lm = Experiment(
+        nb_episodes=nb_episodes*5,
+        expl_starts=True, method='td-lambda-offline',
+        step_size=0.005, lmbda=1.0, e_greed=0.0,
+        color='orange', redo=False)
     exp_list.append(exp_lm)
 
-    # exp_lm = Experiment(nb_episodes*3, 'td-lambda-offline', 0.01, 1.0, 'blue')
+
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*5,
+    #     expl_starts=True, method='td-lambda-offline',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.0,
+    #     color='orange', redo=False)
     # exp_list.append(exp_lm)
 
-    # exp_lm = Experiment(nb_episodes*2, 'td-lambda-offline', 0.1, 1.0, 'red')
+    
+
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1,
+    #     expl_starts=False, method='td-lambda-offline',
+    #     step_size=0.1, lmbda=1.0, e_greed=0.1, 
+    #     color='blue', redo=False)
     # exp_list.append(exp_lm)
 
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1,
+    #     expl_starts=False, method='td-lambda-offline',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.1,
+    #     color='blue', redo=False)
+    # exp_list.append(exp_lm)
+
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*3,
+    #     expl_starts=False, method='td-lambda-offline',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.1,
+    #     color='blue', redo=False)
+    # exp_list.append(exp_lm)
+
+
+    exp_db.delete_redo(exp_list)
     exp_db.fill_from_db(exp_list)
 
 
@@ -287,8 +345,6 @@ def main():
     
     data_ref = DataReference('reference.npy')
 
-    t_start = time.time()
-
     for exp in exp_list:
         np.random.seed(0)
         print(' === Exp: ', exp)
@@ -300,22 +356,17 @@ def main():
             # Do nothing, experiment results were loaded from file
             pass
 
-    t_sec = time.time() - t_start
-    print('Time sec:', t_sec)
-
     exp_db.put_to_db(exp_list)
     exp_db.save_to_file()
 
 
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
     for exp in exp_list:
+        plot_experiment(exp, data_ref, 'Q_val for ' + exp.__str__())
+
+        fig = plt.figure('RSME for ' + exp.__str__())
+        ax = fig.add_subplot(111)
         exp.data_logger.process_data(data_ref)
         plot_rsme(exp, data_ref, ax)
-
-    for exp in exp_list:
-        plot_experiment(exp, data_ref)
 
     plt.show()
 
@@ -332,6 +383,8 @@ def plot_rsme(exp, ref, ax):
     ax.plot(log.t, log.rmse_total, color='gray', linestyle='--')
 
     ax.plot(log.t, np.zeros_like(log.t), color='black')
+
+    ax.grid()
 
 
 
@@ -365,9 +418,9 @@ def plot_3d_wireframe(ax, Z, label, color):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-def plot_experiment(exp, ref):
+def plot_experiment(exp, ref, heading):
     log = exp.data_logger
-    fig = plt.figure(exp.__str__())
+    fig = plt.figure(heading)
     ax = fig.add_subplot(121, projection='3d', title='No Ace')
     plot_3d_wireframe(ax, ref.Q_no_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
     plot_3d_wireframe(ax, ref.Q_no_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))

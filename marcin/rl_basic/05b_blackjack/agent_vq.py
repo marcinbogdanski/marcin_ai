@@ -18,7 +18,7 @@ class HistoryData:
 
 class AgentVQ:
     def __init__(self, state_space, action_space,
-        step_size=0.1, lmbda=None):
+        step_size=0.1, lmbda=None, e_greed=0.0):
 
         self.V = {}
         self.Q = {}
@@ -36,6 +36,8 @@ class AgentVQ:
         self._discount = 1.0         # usually noted as gamma in literature
 
         self._lmbda = lmbda          # param for lambda functions
+
+        self._epsilon_greedy = e_greed  # policy parameter, 0 => always greedy
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
@@ -71,7 +73,7 @@ class AgentVQ:
             
 
 
-        if np.random.rand() < 0.00:
+        if np.random.rand() < self._epsilon_greedy:
             # pick random action
             return np.random.choice(self._action_space)
 
