@@ -283,13 +283,21 @@ def main():
     nb_episodes = 100000
     exp_list = []
 
-    # exp_td = Experiment(nb_episodes, 'td-offline', 0.001, None, 'blue' )
-    # exp_list.append(exp1)
 
-    # exp_mc = Experiment(nb_episodes, 'mc-offline', 0.001, None, 'purple')
-    # exp_list.append(exp_mc)
+    #
+    #   REFERENCE
+    #
+    exp_lm = Experiment(
+        nb_episodes=nb_episodes*5,
+        expl_starts=True, method='mc-full',
+        step_size=0.005, lmbda=1.0, e_greed=0.0,
+        color='gray', redo=False)
+    exp_list.append(exp_lm)
 
 
+    #
+    #   ES - MC
+    #
     exp_lm = Experiment(
         nb_episodes=nb_episodes*5,
         expl_starts=True, method='td-lambda-offline',
@@ -298,13 +306,18 @@ def main():
     exp_list.append(exp_lm)
 
 
+
+    #
+    #   MC
+    #
     exp_lm = Experiment(
         nb_episodes=nb_episodes*5,
-        expl_starts=True, method='mc-full',
-        step_size=0.005, lmbda=1.0, e_greed=0.0,
-        color='orange', redo=False)
+        expl_starts=False, method='td-lambda-offline',
+        step_size=0.005, lmbda=1.0, e_greed=0.1,
+        color='pink', redo=False)
     exp_list.append(exp_lm)
 
+    
     
 
     # exp_lm = Experiment(
@@ -347,7 +360,7 @@ def main():
     
     data_ref = DataReference('reference.npy')
 
-    plot_policy_ref(data_ref)
+    
 
     for exp in exp_list:
         np.random.seed(0)
@@ -364,13 +377,22 @@ def main():
     exp_db.save_to_file()
 
 
+    #
+    #   Plotting
+    #
+    
+    plot_policy_ref(data_ref)
+    
+    fig = plt.figure('RSME')
+    ax = fig.add_subplot(111)
+        
     for exp in exp_list:
+        # Wireframe Plot
         plot_experiment(exp, data_ref, 'Q_val for ' + exp.__str__())
 
+        # Policy Plot
         plot_policy(exp, data_ref, 'Policy for ' + exp.__str__())
 
-        fig = plt.figure('RSME for ' + exp.__str__())
-        ax = fig.add_subplot(111)
         exp.data_logger.process_data(data_ref)
         plot_rsme(exp, data_ref, ax)
 
@@ -434,13 +456,14 @@ def plot_policy_ref(ref):
 
 def plot_rsme(exp, ref, ax):
     log = exp.data_logger
+    color = exp.desc.color
 
-    ax.plot(log.t, log.rmse_no_ace_hold, color='green', linestyle='-')
-    ax.plot(log.t, log.rmse_no_ace_draw, color='red', linestyle='-')
-    ax.plot(log.t, log.rmse_ace_hold, color='green', linestyle='--')
-    ax.plot(log.t, log.rmse_ace_draw, color='red', linestyle='--')
+    ax.plot(log.t, log.rmse_no_ace_hold, color=color, linestyle='--')
+    ax.plot(log.t, log.rmse_no_ace_draw, color=color, linestyle='-')
+    ax.plot(log.t, log.rmse_ace_hold, color=color, linestyle=':')
+    ax.plot(log.t, log.rmse_ace_draw, color=color, linestyle='-.')
 
-    ax.plot(log.t, log.rmse_total, color='gray', linestyle='--')
+    ax.plot(log.t, log.rmse_total, color=color, linestyle='-')
 
     ax.plot(log.t, np.zeros_like(log.t), color='black')
 
@@ -448,23 +471,6 @@ def plot_rsme(exp, ref, ax):
 
 
 
-def plot_error(exp, ref, ax):
-    log = exp.data_logger
-    color = exp.desc.color
-
-    PLAYER_SUM = 12   # [12..21]
-    DEALER_CARD = 10  # [1..10]
-
-    x = log.t
-    # player_sum == 12, dealer_card == 10
-    y = log.Q_no_ace_hold[:,PLAYER_SUM-12,DEALER_CARD-1]
-    y2 = [ref.Q_no_ace_hold[PLAYER_SUM-12,DEALER_CARD-1] for _ in log.t]
-
-    if color == 'red':
-        y += 0.001
-
-    ax.plot(x, y, label=exp.__str__(), color=color)
-    ax.plot(x, y2, label='Ref', color='black')
 
 def plot_3d_wireframe(ax, Z, label, color):
     # ax.clear()
