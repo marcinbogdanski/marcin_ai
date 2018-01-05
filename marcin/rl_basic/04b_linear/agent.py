@@ -30,12 +30,12 @@ class Agent:
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
-        self._eligibility_traces = {}   # for lambda funtions
+        self._eligibility_traces = np.zeros_like(self.V)  # for lambda funtions
 
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
-        self._eligibility_traces = {}
+        self._eligibility_traces.fill(0)
 
     def pick_action(self, obs):
         # Randomly go left or right
@@ -334,17 +334,13 @@ class Agent:
         St_1 = self._trajectory[t+1].observation
         Rt_1 = self._trajectory[t+1].reward
 
-        if St not in E:
-            E[St] = 0
 
         # Update eligibility traces
-        for s in E:
-            E[s] *= self._lmbda
+        E *= self._lmbda
         E[St] += 1
 
         ro_t = Rt_1 + self._discount * V[St_1] - V[St]
-        for s in E:
-            V[s] = V[s] + self._step_size * ro_t * E[s]
+        V += self._step_size * ro_t * E
 
     def eval_td_lambda_offline(self, V=None):
         """TD(lambda) update for all states
@@ -358,7 +354,7 @@ class Agent:
             self._lmbda (float, [0, 1]) - param. for weighted average of returns
         """
 
-        if len(self._eligibility_traces) != 0:
+        if np.count_nonzero(self._eligibility_traces) != 0:
             raise ValueError('TD-lambda offline: eligiblity traces not empty?')
 
         if V is None:
