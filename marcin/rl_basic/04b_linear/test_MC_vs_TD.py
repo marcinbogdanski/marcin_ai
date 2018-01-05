@@ -264,22 +264,6 @@ def test_single():
     }
     tests = [td_offline, mc_offline, td_lambda_offline, td_lambda_online]
 
-    td_offline = {
-        'method':    'td-offline',
-        'stepsize':  0.15,
-        'nb_steps':  None,
-        'lmbda':     None,
-        'color':     'blue'
-    }
-    td_online = {
-        'method':    'td-online',
-        'stepsize':  0.15,
-        'nb_steps':  None,
-        'lmbda':     None,
-        'color':     'red'
-    }
-    #tests = [td_offline, td_online]
-
     for test in tests:
         np.random.seed(0)
         print(test['method'])
@@ -335,9 +319,9 @@ def test_test():
 
 
 if __name__ == '__main__':
-    test_MC_vs_TD()
+    # test_MC_vs_TD()
     #test_n_step()
     #test_lambda_return()
 
-    #test_single()
+    test_single()
     
