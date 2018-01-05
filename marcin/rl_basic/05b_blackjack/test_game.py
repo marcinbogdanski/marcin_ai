@@ -288,7 +288,7 @@ def main():
     #   REFERENCE
     #
     exp_lm = Experiment(
-        nb_episodes=nb_episodes*5,
+        nb_episodes=nb_episodes*1,
         expl_starts=True, method='mc-full',
         step_size=0.005, lmbda=1.0, e_greed=0.0,
         color='gray', redo=False)
@@ -299,7 +299,7 @@ def main():
     #   ES - MC
     #
     exp_lm = Experiment(
-        nb_episodes=nb_episodes*5,
+        nb_episodes=nb_episodes*1,
         expl_starts=True, method='td-lambda-offline',
         step_size=0.005, lmbda=1.0, e_greed=0.0,
         color='orange', redo=False)
@@ -311,7 +311,7 @@ def main():
     #   MC
     #
     exp_lm = Experiment(
-        nb_episodes=nb_episodes*5,
+        nb_episodes=nb_episodes*1,
         expl_starts=False, method='td-lambda-offline',
         step_size=0.005, lmbda=1.0, e_greed=0.1,
         color='pink', redo=False)
@@ -381,47 +381,68 @@ def main():
     #   Plotting
     #
     
-    plot_policy_ref(data_ref)
-    
-    fig = plt.figure('RSME')
-    ax = fig.add_subplot(111)
-        
+    #
+    #   Reference Policy
+    #
+
+    # fig_ref = plt.figure('Reference Policy')
+    # ax_ref_no_ace = fig_ref.add_subplot(121)
+    # ax_ref_ace = fig_ref.add_subplot(122)
+    # plot_policy(ax_ref_no_ace,
+    #     data_ref.Q_no_ace_hold,
+    #     data_ref.Q_no_ace_draw)
+    # plot_policy(ax_ref_ace,
+    #     data_ref.Q_ace_hold,
+    #     data_ref.Q_ace_draw)
+
+    #
+    #   RMSE
+    #
+
+    fig_rmse = plt.figure('RSME')
+    ax_rmse = fig_rmse.add_subplot(111)
     for exp in exp_list:
+        exp.data_logger.process_data(data_ref)
+        plot_rsme(ax_rmse, exp, data_ref)
+    
+    #
+    #   Wireframe & Policy
+    #
+
+    for exp in exp_list:
+
+        fig = plt.figure(exp.__str__())
+        ax_wireframe_no_ace = fig.add_subplot(231, projection='3d', title='No Ace')
+        ax_policy_no_ace = fig.add_subplot(232)
+        ax_rmse_no_ace = fig.add_subplot(233)
+        ax_wireframe_ace = fig.add_subplot(234, projection='3d', title='Ace')
+        ax_policy_ace = fig.add_subplot(235)
+        ax_rmse_ace = fig.add_subplot(236)
+
+
         # Wireframe Plot
-        plot_experiment(exp, data_ref, 'Q_val for ' + exp.__str__())
+        plot_experiment(ax_wireframe_no_ace, ax_wireframe_ace, exp, data_ref)
 
         # Policy Plot
-        plot_policy(exp, data_ref, 'Policy for ' + exp.__str__())
+        #plot_policy_log(exp, 'Policy for ' + exp.__str__())
 
-        exp.data_logger.process_data(data_ref)
-        plot_rsme(exp, data_ref, ax)
+        plot_policy(ax_policy_no_ace,
+            exp.data_logger.Q_no_ace_hold[-1],
+            exp.data_logger.Q_no_ace_draw[-1])
+        plot_policy(ax_policy_ace,
+            exp.data_logger.Q_ace_hold[-1],
+            exp.data_logger.Q_ace_draw[-1])
+
+        plot_rsme(ax_rmse_no_ace, exp, data_ref)
+
+        
 
     plt.show()
 
-def plot_policy(exp, ref, heading):
-    log = exp.data_logger
-    fig = plt.figure(heading)
-    
-    no_ace_hold = log.Q_no_ace_hold[-1]
-    no_ace_draw = log.Q_no_ace_draw[-1]
-    no_ace_policy = (no_ace_draw > no_ace_hold).astype(int)
+def plot_policy(ax, Q_hold, Q_draw):
+    policy = (Q_draw > Q_hold).astype(int)
 
-    print('No Ace (', heading, '):')
-    no_ace_diff = np.round(no_ace_draw - no_ace_hold, 3)
-    print(no_ace_diff)
-
-    ax = fig.add_subplot(121, title='No Ace')
-    ax.imshow(no_ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
-    ax.set_xticks(np.arange(0.5, 10.5, 1))
-    ax.set_yticks(np.arange(11.5, 21.5, 1))
-    ax.grid()
-
-    ace_hold = log.Q_ace_hold[-1]
-    ace_draw = log.Q_ace_draw[-1]
-    ace_policy = (ace_draw > ace_hold).astype(int)
-
-    ax = fig.add_subplot(122, title='Ace')
-    ax.imshow(ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
+    ax.imshow(policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
     ax.set_xticks(np.arange(0.5, 10.5, 1))
     ax.set_yticks(np.arange(11.5, 21.5, 1))
     ax.grid()
@@ -429,32 +450,8 @@ def plot_policy(exp, ref, heading):
 
 
 
-def plot_policy_ref(ref):
-    fig = plt.figure('Reference Policy')
-    
-    ref_no_ace_policy = (ref.Q_no_ace_draw > ref.Q_no_ace_hold).astype(int)
 
-    print('No Ace (reference):')
-    no_ace_diff = np.round(ref.Q_no_ace_draw - ref.Q_no_ace_hold, 3)
-    print(no_ace_diff)
-
-    ax = fig.add_subplot(121, title='No Ace')
-    ax.imshow(ref_no_ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
-    ax.set_xticks(np.arange(0.5, 10.5, 1))
-    ax.set_yticks(np.arange(11.5, 21.5, 1))
-    ax.grid()
-
-    ref_ace_policy = (ref.Q_ace_draw > ref.Q_ace_hold).astype(int)
-
-    ax = fig.add_subplot(122, title='Ace')
-    ax.imshow(ref_ace_policy, origin='lower', extent=[0.5,10.5,11.5,21.5], interpolation='none')
-    ax.set_xticks(np.arange(0.5, 10.5, 1))
-    ax.set_yticks(np.arange(11.5, 21.5, 1))
-    ax.grid()
-
-
-
-def plot_rsme(exp, ref, ax):
+def plot_rsme(ax, exp, ref):
     log = exp.data_logger
     color = exp.desc.color
 
@@ -484,22 +481,20 @@ def plot_3d_wireframe(ax, Z, label, color):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-def plot_experiment(exp, ref, heading):
+def plot_experiment(ax_no_ace, ax_ace, exp, ref):
     log = exp.data_logger
-    fig = plt.figure(heading)
-    ax = fig.add_subplot(121, projection='3d', title='No Ace')
-    plot_3d_wireframe(ax, ref.Q_no_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
-    plot_3d_wireframe(ax, ref.Q_no_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
-    plot_3d_wireframe(ax, log.Q_no_ace_hold[-1], 'hold', 'green')
-    plot_3d_wireframe(ax, log.Q_no_ace_draw[-1], 'draw', 'red')
-    ax.set_zlim(-1, 1)
+    
+    plot_3d_wireframe(ax_no_ace, ref.Q_no_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
+    plot_3d_wireframe(ax_no_ace, ref.Q_no_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
+    plot_3d_wireframe(ax_no_ace, log.Q_no_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax_no_ace, log.Q_no_ace_draw[-1], 'draw', 'red')
+    ax_no_ace.set_zlim(-1, 1)
 
-    ax = fig.add_subplot(122, projection='3d', title='Ace')
-    plot_3d_wireframe(ax, ref.Q_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
-    plot_3d_wireframe(ax, ref.Q_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
-    plot_3d_wireframe(ax, log.Q_ace_hold[-1], 'hold', 'green')
-    plot_3d_wireframe(ax, log.Q_ace_draw[-1], 'draw', 'red')
-    ax.set_zlim(-1, 1)
+    plot_3d_wireframe(ax_ace, ref.Q_ace_hold, 'hold', (0.5, 0.7, 0.5, 1.0))
+    plot_3d_wireframe(ax_ace, ref.Q_ace_draw, 'draw', (0.7, 0.5, 0.5, 1.0))
+    plot_3d_wireframe(ax_ace, log.Q_ace_hold[-1], 'hold', 'green')
+    plot_3d_wireframe(ax_ace, log.Q_ace_draw[-1], 'draw', 'red')
+    ax_ace.set_zlim(-1, 1)
 
 
 if __name__ == '__main__':
