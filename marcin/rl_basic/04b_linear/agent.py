@@ -191,7 +191,7 @@ class Agent:
         V[St] = V[St] + self._step_size * (Gt - V[St])
 
 
-    def eval_nstep_offline(self, V):
+    def eval_nstep_offline(self, V=None):
         """n-step update for all steps in trajectory
 
         Params:            
@@ -298,7 +298,7 @@ class Agent:
             # Iterate all states in trajectory
             for t in range(0, len(self._trajectory)-1):
                 # Update state-value at time t
-                self.eval_lambda_return_t(t, self._lmbda, V)
+                self.eval_lambda_return_t(t, V)
 
         return V
 

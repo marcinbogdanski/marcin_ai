@@ -201,7 +201,7 @@ def test_lambda_return():
         for step_size in np.arange(0.1, 1.1, 0.1):
             print('  step = ', step_size)
             RMSE, final_V = multi_run(
-                nb_runs=1, nb_episodes=10, world_size=world_size, 
+                nb_runs=1, nb_episodes=100, world_size=world_size, 
                 method='lambda-return-offline', step_size=step_size, lmbda=lmbda)
 
             RMSE_ep_mean = np.mean(RMSE, axis=1)
@@ -335,9 +335,9 @@ def test_test():
 
 
 if __name__ == '__main__':
-    #test_MC_vs_TD()
+    test_MC_vs_TD()
     #test_n_step()
     #test_lambda_return()
 
-    test_single()
+    #test_single()
     
