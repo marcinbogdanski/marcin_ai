@@ -37,14 +37,14 @@ class AgentVQ:
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
-        self._eligibility_traces_V = {}   # for lambda funtions
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_V = np.zeros_like(self.V)  # for lambda funtions
+        self._eligibility_traces_Q = np.zeros_like(self.Q)   # for lambda funtions
 
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
-        self._eligibility_traces_V = {}
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_V.fill(0)
+        self._eligibility_traces_Q.fill(0)   # for lambda funtions
 
     def pick_action(self, obs):
         # Randomly go left or right (0 is left, 1 is right)
@@ -173,17 +173,12 @@ class AgentVQ:
         #   Handle V
         #
 
-        if St not in EV:
-            EV[St] = 0
-
         # Update eligibility traces for V
-        for s in EV:
-            EV[s] *= self._lmbda
+        EV *= self._lmbda
         EV[St] += 1
 
         ro_t = Rt_1 + self._discount * V[St_1] - V[St]
-        for s in EV:
-            V[s] = V[s] + self._step_size * ro_t * EV[s]
+        V += self._step_size * ro_t * EV
 
         #
         #   Handle Q
@@ -195,17 +190,13 @@ class AgentVQ:
         if At_1 is None:
             At_1 = self.pick_action(St)
 
-        if (St, At) not in EQ:
-            EQ[St, At] = 0
 
         # Update eligibility traces for Q
-        for s, a in EQ:
-            EQ[s, a] *= self._lmbda
+        EQ *= self._lmbda
         EQ[St, At] += 1
 
         ro_t = Rt_1 + self._discount * Q[St_1, At_1] - Q[St, At]
-        for s, a in EQ:
-            Q[s, a] = Q[s, a] + self._step_size * ro_t * EQ[s, a]
+        Q += self._step_size * ro_t * EQ
 
     def eval_td_lambda_offline(self):
         """TD(lambda) update for all states
@@ -214,9 +205,9 @@ class AgentVQ:
             self._lmbda (float, [0, 1]) - param. for weighted average of returns
         """
 
-        if len(self._eligibility_traces_V) != 0:
+        if np.count_nonzero(self._eligibility_traces_V) != 0:
             raise ValueError('TD-lambda offline: eligiblity traces not empty?')
-        if len(self._eligibility_traces_Q) != 0:
+        if np.count_nonzero(self._eligibility_traces_Q) != 0:
             raise ValueError('TD-lambda offline: eligiblity traces not empty?')
 
         # Do offline update only if episode terminated
