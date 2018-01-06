@@ -16,7 +16,7 @@ class HistoryData:
             self.t_step, self.observation, self.reward, self.done, self.action)
 
 
-class AgentOld:
+class Agent:
     def __init__(self, state_space, action_space,
         step_size=0.1, lmbda=None, e_greed=0.0):
 

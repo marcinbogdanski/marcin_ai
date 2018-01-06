@@ -6,7 +6,8 @@ import pickle
 import pdb
 
 from blackjack import BlackjackEnv
-from agent_vq import AgentVQ
+from agent import Agent
+from agent_vq import AgentOld
 from logger import DataLogger, DataReference
 
 PLAYER_SUM_MIN = 12   # BlackjackEnv guarantees this
@@ -91,9 +92,10 @@ class RefData:
 
 
 class ExpParams:
-    def __init__(self, nb_episodes, expl_starts,
+    def __init__(self, nb_episodes, agent, expl_starts,
                  method, step_size, lmbda, e_greed):
         self.nb_episodes = nb_episodes
+        self.agent = agent
         self.expl_starts = expl_starts
         self.method = method
         self.step_size = step_size
@@ -101,15 +103,15 @@ class ExpParams:
         self.e_greed = e_greed
         
     def __hash__(self):
-        return hash((self.nb_episodes,
+        return hash((self.nb_episodes, self.agent,
                      self.expl_starts, self.method, 
                      self.step_size, self.lmbda, self.e_greed))
 
     def __eq__(self, other):
-        return (self.nb_episodes,
+        return (self.nb_episodes, self.agent,
                 self.expl_starts, self.method, 
                 self.step_size, self.lmbda, self.e_greed) == \
-            (other.nb_episodes,
+            (other.nb_episodes, other.agent,
              other.expl_starts, other.method, 
              other.step_size, other.lmbda, other.e_greed)
 
@@ -124,17 +126,18 @@ class ExpDesc:
         self.redo = redo
 
 class Experiment:
-    def __init__(self, nb_episodes, expl_starts,
+    def __init__(self, nb_episodes, agent, expl_starts,
                  method, step_size, lmbda, e_greed, color, redo):
-        self.params = ExpParams(nb_episodes, expl_starts,
+        self.params = ExpParams(nb_episodes, agent, expl_starts,
                                 method, step_size, lmbda, e_greed)
         self.desc = ExpDesc(color, redo)
         self.data_logger = None
 
     def __str__(self):
         data_logger_present = self.data_logger is not None
-        return 'Params: ep={0} es={1} m={2} step={3} lmbda={4} e_greed={5}; Data={6}'.format(
+        return 'Params: ep={0} ag={1} es={2} m={3} step={4} lmbda={5} e_greed={6}; Data={7}'.format(
             self.params.nb_episodes,
+            self.params.agent,
             self.params.expl_starts,
             self.params.method,
             self.params.step_size,
@@ -202,10 +205,18 @@ def test_run(experiment):
 
 
     env = BlackjackEnv()
-    agent = AgentVQ(state_space=state_space,
-                action_space=action_space,
-                step_size=experiment.params.step_size,
-                lmbda=experiment.params.lmbda)  
+    if experiment.params.agent == 'old':
+        agent = AgentOld(state_space=state_space,
+                    action_space=action_space,
+                    step_size=experiment.params.step_size,
+                    lmbda=experiment.params.lmbda)
+    elif experiment.params.agent == 'new':
+        agent = Agent(state_space=state_space,
+                    action_space=action_space,
+                    step_size=experiment.params.step_size,
+                    lmbda=experiment.params.lmbda)
+    else:
+        raise ValueError('Agent type not recognized')
 
     for e in range(experiment.params.nb_episodes):
         if e % 1000 == 0:
@@ -285,37 +296,51 @@ def main():
 
 
     #
-    #   REFERENCE
+    #   MC-FULL (ES)  -  REFERENCE
     #
     exp_lm = Experiment(
-        nb_episodes=nb_episodes*1,
+        nb_episodes=nb_episodes*1, agent='old',
         expl_starts=True, method='mc-full',
         step_size=0.005, lmbda=1.0, e_greed=0.0,
         color='gray', redo=False)
+    exp_list.append(exp_lm)
+
+    exp_lm = Experiment(
+        nb_episodes=nb_episodes*1, agent='new',
+        expl_starts=True, method='mc-full',
+        step_size=0.005, lmbda=1.0, e_greed=0.0,
+        color='green', redo=False)
     exp_list.append(exp_lm)
 
 
     #
     #   ES - MC
     #
-    exp_lm = Experiment(
-        nb_episodes=nb_episodes*1,
-        expl_starts=True, method='td-lambda-offline',
-        step_size=0.005, lmbda=1.0, e_greed=0.0,
-        color='orange', redo=False)
-    exp_list.append(exp_lm)
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1, agent='old',
+    #     expl_starts=True, method='td-lambda-offline',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.0,
+    #     color='orange', redo=False)
+    # exp_list.append(exp_lm)
+
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1, agent='old',
+    #     expl_starts=True, method='mc-offline',
+    #     step_size=0.005, lmbda=None, e_greed=0.0,
+    #     color='red', redo=False)
+    # exp_list.append(exp_lm)
 
 
 
     #
     #   MC
     #
-    exp_lm = Experiment(
-        nb_episodes=nb_episodes*1,
-        expl_starts=False, method='td-lambda-offline',
-        step_size=0.005, lmbda=1.0, e_greed=0.1,
-        color='pink', redo=False)
-    exp_list.append(exp_lm)
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1,
+    #     expl_starts=False, method='td-lambda-offline',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.1,
+    #     color='pink', redo=False)
+    # exp_list.append(exp_lm)
 
     
     
