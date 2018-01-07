@@ -10,7 +10,7 @@ class QContainer:
         # 10 dealer cards [1..10]
         data_dims = [2, 10, 10]
         action_count = 2  # hold, draw
-        self._data = np.zeros(data_dims + [action_count])
+        self.data = np.zeros(data_dims + [action_count])
 
     
     def __getitem__(self, key):
@@ -35,7 +35,7 @@ class QContainer:
         player_points = state[1] - 12
         dealer_shows = state[2] - 1
 
-        return self._data[has_usable_ace, player_points, dealer_shows, action ]
+        return self.data[has_usable_ace, player_points, dealer_shows, action ]
 
 
     def __setitem__(self, key, value):
@@ -58,7 +58,13 @@ class QContainer:
         player_points = state[1] - 12
         dealer_shows = state[2] - 1
 
-        self._data[has_usable_ace, player_points, dealer_shows, action ] = value
+        self.data[has_usable_ace, player_points, dealer_shows, action ] = value
+
+    def clear(self):
+        self.data.fill(0)
+
+    def is_zeros(self):
+        return np.count_nonzero(self.data) == 0
 
 class HistoryData:
     """One piece of agent trajectory"""
@@ -102,21 +108,21 @@ class Agent:
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}   # for lambda funtions
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_Q = QContainer()   # for lambda funtions
         self._force_random_action = False  # for exploring starts
 
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_Q.clear()   # for lambda funtions
         self._force_random_action = False
 
     def reset_exploring_starts(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_Q.clear()   # for lambda funtions
         self._force_random_action = True
 
     def pick_action(self, obs):
@@ -303,17 +309,13 @@ class Agent:
         if At_1 is None:
             At_1 = self.pick_action(St)
 
-        if (St, At) not in EQ:
-            EQ[St, At] = 0
 
         # Update eligibility traces for Q
-        for s, a in EQ:
-            EQ[s, a] *= self._lmbda
+        EQ.data *= self._lmbda
         EQ[St, At] += 1
 
         ro_t = Rt_1 + self._discount * Q[St_1, At_1] - Q[St, At]
-        for s, a in EQ:
-            Q[s, a] = Q[s, a] + self._step_size * ro_t * EQ[s, a]
+        Q.data += self._step_size * ro_t * EQ.data
 
     def eval_td_lambda_offline(self):
         """TD(lambda) update for all states
@@ -324,8 +326,8 @@ class Agent:
 
         if len(self._eligibility_traces_V) != 0:
             raise ValueError('TD-lambda offline: eligiblity traces not empty?')
-        if len(self._eligibility_traces_Q) != 0:
-            raise ValueError('TD-lambda offline: eligiblity traces not empty?')
+        if not self._eligibility_traces_Q.is_zeros():
+            raise ValueError('TD-lambda offline: eligiblity traces not zeros?')
 
         self.check_trajectory_terminated_ok()
 

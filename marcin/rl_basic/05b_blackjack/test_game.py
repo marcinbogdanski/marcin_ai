@@ -290,26 +290,6 @@ def main():
     exp_list.append(exp_lm)
 
 
-    # exp_lm = Experiment(
-    #     nb_episodes=nb_episodes*1,
-    #     expl_starts=False, method='td-lambda-offline',
-    #     step_size=0.1, lmbda=1.0, e_greed=0.1, 
-    #     color='blue', redo=False)
-    # exp_list.append(exp_lm)
-
-    # exp_lm = Experiment(
-    #     nb_episodes=nb_episodes*1,
-    #     expl_starts=False, method='td-lambda-offline',
-    #     step_size=0.005, lmbda=1.0, e_greed=0.1,
-    #     color='blue', redo=False)
-    # exp_list.append(exp_lm)
-
-    # exp_lm = Experiment(
-    #     nb_episodes=nb_episodes*3,
-    #     expl_starts=False, method='td-lambda-offline',
-    #     step_size=0.005, lmbda=1.0, e_greed=0.1,
-    #     color='blue', redo=False)
-    # exp_list.append(exp_lm)
 
 
     exp_db.delete_redo(exp_list)
