@@ -2,6 +2,64 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pdb
 
+
+class QContainer:
+    def __init__(self):
+        # 2 - ace or no ace
+        # 10 player states [12..21]
+        # 10 dealer cards [1..10]
+        data_dims = [2, 10, 10]
+        action_count = 2  # hold, draw
+        self._data = np.zeros(data_dims + [action_count])
+
+    
+    def __getitem__(self, key):
+        """Retrieve action-state value
+
+        key should have following format:
+        ((has_ace, player_points, dealer_card), action)
+           [0,1]      [12..21]      [1..10]      [0,1]
+        """
+
+        assert isinstance(key, tuple)
+        assert len(key) == 2
+        if key[0] == 'TERMINAL':
+            return 0
+        assert isinstance(key[0], tuple)
+        assert isinstance(key[1], int) or isinstance(key[1], np.int64)
+
+        state = key[0]
+        action = key[1]
+
+        has_usable_ace = state[0]
+        player_points = state[1] - 12
+        dealer_shows = state[2] - 1
+
+        return self._data[has_usable_ace, player_points, dealer_shows, action ]
+
+
+    def __setitem__(self, key, value):
+        """Set action-state value
+
+        key should have following format:
+        ((has_ace, player_points, dealer_card), action)
+           [0,1]      [12..21]      [1..10]      [0,1]
+        """
+
+        assert isinstance(key, tuple)
+        assert len(key) == 2
+        assert isinstance(key[0], tuple)
+        assert isinstance(key[1], int) or isinstance(key[1], np.int64)
+
+        state = key[0]
+        action = key[1]
+
+        has_usable_ace = state[0]
+        player_points = state[1] - 12
+        dealer_shows = state[2] - 1
+
+        self._data[has_usable_ace, player_points, dealer_shows, action ] = value
+
 class HistoryData:
     """One piece of agent trajectory"""
     def __init__(self, t_step, observation, reward, done):
@@ -21,17 +79,17 @@ class Agent:
         step_size=0.1, lmbda=None, e_greed=0.0):
 
         self.V = {}
-        self.Q = {}
+        self.Q = QContainer()
 
-        self.Q_sum = {}  # sum of all visits
-        self.Q_num = {}  # number of times state-action visited
+        self.Q_sum = QContainer()  # sum of all visits
+        self.Q_num = QContainer()  # number of times state-action visited
 
         for state in state_space:
             self.V[state] = 0
-            for action in action_space:
-                self.Q[state, action] = 0
-                self.Q_sum[state, action] = 0
-                self.Q_num[state, action] = 0
+            # for action in action_space:
+            #     self.Q[state, action] = 0
+            #     self.Q_sum[state, action] = 0
+            #     self.Q_num[state, action] = 0
         
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature

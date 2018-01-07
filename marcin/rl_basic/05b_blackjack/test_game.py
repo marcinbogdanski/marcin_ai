@@ -15,81 +15,6 @@ PLAYER_SUM_MAX = 31   # 21 + draw 10
 DEALER_CARD_MIN = 1   # ace
 DEALER_CARD_MAX = 10
 
-class RefData:
-    def __init__(self, filename, ax=None):
-
-        self.ax = ax  # axis to draw plot
-
-        dataset = np.load(filename)
-
-        self.ref_no_ace_hold = dataset[:,:,0,1]
-        self.ref_no_ace_draw = dataset[:,:,0,0]
-        self.ref_ace_hold = dataset[:,:,1,1]
-        self.ref_ace_draw = dataset[:,:,1,0]
-
-        self.log_t = []
-        self.log_rmse_no_ace_hold = []
-        self.log_rmse_no_ace_draw = []
-        self.log_rmse_ace_hold = []
-        self.log_rmse_ace_draw = []
-        self.log_rsme_total = []
-
-    def calc_RMSE(self, episode, V, Q, b=False):
-        Q_no_ace_hold = np.zeros([10, 10])
-        Q_no_ace_draw = np.zeros([10, 10])
-        Q_ace_hold = np.zeros([10, 10])
-        Q_ace_draw = np.zeros([10, 10])
-
-        for player_sum in range(PLAYER_SUM_MIN, 21+1):
-            for dealer_card in range(DEALER_CARD_MIN, DEALER_CARD_MAX+1):
-                Q_no_ace_hold[player_sum-12, dealer_card-1] = \
-                    Q[(0, player_sum, dealer_card), 0]
-                Q_no_ace_draw[player_sum-12, dealer_card-1] = \
-                    Q[(0, player_sum, dealer_card), 1]
-                Q_ace_hold[player_sum-12, dealer_card-1] = \
-                    Q[(1, player_sum, dealer_card), 0]
-                Q_ace_draw[player_sum-12, dealer_card-1] = \
-                    Q[(1, player_sum, dealer_card), 1]
-
-        self.log_t.append(episode)
-
-        size = Q_no_ace_hold.size
-
-        sum1 = np.sum(np.power(self.ref_no_ace_hold - Q_no_ace_hold, 2))
-        rsme = np.sqrt(sum1 / size)
-        self.log_rmse_no_ace_hold.append(rsme)
-
-        sum2 = np.sum(np.power(self.ref_no_ace_draw - Q_no_ace_draw, 2))
-        rsme = np.sqrt(sum2 / size)
-        self.log_rmse_no_ace_draw.append(rsme)
-
-        sum3 = np.sum(np.power(self.ref_ace_hold - Q_ace_hold, 2))
-        rsme = np.sqrt(sum3 / size)
-        self.log_rmse_ace_hold.append(rsme)
-
-        sum4 = np.sum(np.power(self.ref_ace_draw - Q_ace_draw, 2))
-        rsme = np.sqrt(sum4 / size)
-        self.log_rmse_ace_draw.append(rsme)
-
-        rsme_total = np.sqrt( (sum1 + sum2 + sum3 + sum4) / size * 4 )
-        self.log_rsme_total.append(rsme_total)
-
-        rsme_arr = np.power(self.ref_no_ace_hold - Q_no_ace_hold, 2)
-        return Q_no_ace_hold, rsme_arr
-
-    def plot(self):
-        if self.ax is not None:
-            self.ax.clear()
-            self.ax.plot(self.log_t, self.log_rmse_no_ace_hold, 
-                color='green', linestyle='solid')
-            self.ax.plot(self.log_t, self.log_rmse_no_ace_draw, 
-                color='red', linestyle='solid')
-
-            self.ax.plot(self.log_t, self.log_rmse_ace_hold, 
-                color='green', linestyle='dashed')
-            self.ax.plot(self.log_t, self.log_rmse_ace_draw, 
-                color='red', linestyle='dashed')
-
 
 class ExpParams:
     def __init__(self, nb_episodes, agent, expl_starts,
@@ -298,19 +223,19 @@ def main():
     #
     #   MC-FULL (ES)  -  REFERENCE
     #
-    exp_lm = Experiment(
-        nb_episodes=nb_episodes*1, agent='old',
-        expl_starts=True, method='mc-full',
-        step_size=0.005, lmbda=1.0, e_greed=0.0,
-        color='gray', redo=False)
-    exp_list.append(exp_lm)
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1, agent='old',
+    #     expl_starts=True, method='mc-full',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.0,
+    #     color='gray', redo=False)
+    # exp_list.append(exp_lm)
 
-    exp_lm = Experiment(
-        nb_episodes=nb_episodes*1, agent='new',
-        expl_starts=True, method='mc-full',
-        step_size=0.005, lmbda=1.0, e_greed=0.0,
-        color='green', redo=False)
-    exp_list.append(exp_lm)
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1, agent='new',
+    #     expl_starts=True, method='mc-full',
+    #     step_size=0.005, lmbda=1.0, e_greed=0.0,
+    #     color='green', redo=True)
+    # exp_list.append(exp_lm)
 
 
     #
@@ -318,32 +243,52 @@ def main():
     #
     # exp_lm = Experiment(
     #     nb_episodes=nb_episodes*1, agent='old',
-    #     expl_starts=True, method='td-lambda-offline',
-    #     step_size=0.005, lmbda=1.0, e_greed=0.0,
-    #     color='orange', redo=False)
-    # exp_list.append(exp_lm)
-
-    # exp_lm = Experiment(
-    #     nb_episodes=nb_episodes*1, agent='old',
     #     expl_starts=True, method='mc-offline',
     #     step_size=0.005, lmbda=None, e_greed=0.0,
-    #     color='red', redo=False)
+    #     color='orange', redo=False)
+    # exp_list.append(exp_lm)
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1, agent='new',
+    #     expl_starts=True, method='mc-offline',
+    #     step_size=0.005, lmbda=None, e_greed=0.0,
+    #     color='red', redo=True)
     # exp_list.append(exp_lm)
 
 
 
     #
-    #   MC
+    #   ES - TD
     #
     # exp_lm = Experiment(
-    #     nb_episodes=nb_episodes*1,
-    #     expl_starts=False, method='td-lambda-offline',
-    #     step_size=0.005, lmbda=1.0, e_greed=0.1,
-    #     color='pink', redo=False)
+    #     nb_episodes=nb_episodes*1, agent='old',
+    #     expl_starts=True, method='td-offline',
+    #     step_size=0.005, lmbda=None, e_greed=0.0,
+    #     color='orange', redo=False)
+    # exp_list.append(exp_lm)
+    # exp_lm = Experiment(
+    #     nb_episodes=nb_episodes*1, agent='new',
+    #     expl_starts=True, method='td-offline',
+    #     step_size=0.005, lmbda=None, e_greed=0.0,
+    #     color='blue', redo=True)
     # exp_list.append(exp_lm)
 
-    
-    
+
+    #
+    #   ES - TD(lmbda)
+    #
+    exp_lm = Experiment(
+        nb_episodes=nb_episodes*1, agent='old',
+        expl_starts=True, method='td-lambda-offline',
+        step_size=0.005, lmbda=0.8, e_greed=0.0,
+        color='orange', redo=False)
+    exp_list.append(exp_lm)
+    exp_lm = Experiment(
+        nb_episodes=nb_episodes*1, agent='new',
+        expl_starts=True, method='td-lambda-offline',
+        step_size=0.005, lmbda=0.8, e_greed=0.0,
+        color='blue', redo=True)
+    exp_list.append(exp_lm)
+
 
     # exp_lm = Experiment(
     #     nb_episodes=nb_episodes*1,
@@ -386,13 +331,17 @@ def main():
     data_ref = DataReference('reference.npy')
 
     
-
     for exp in exp_list:
         np.random.seed(0)
         print(' === Exp: ', exp)
         if exp.data_logger is None:
             exp.data_logger = DataLogger()
+
+            time_start = time.time()
             test_run(exp)
+            time_total = time.time() - time_start
+            print('Time Total: ', time_total)
+
             exp.data_logger.prep_to_save()
         else:
             # Do nothing, experiment results were loaded from file
@@ -520,6 +469,19 @@ def plot_experiment(ax_no_ace, ax_ace, exp, ref):
     plot_3d_wireframe(ax_ace, log.Q_ace_hold[-1], 'hold', 'green')
     plot_3d_wireframe(ax_ace, log.Q_ace_draw[-1], 'draw', 'red')
     ax_ace.set_zlim(-1, 1)
+
+
+
+
+
+
+def main2():
+    print('hoho')
+
+    Q = OffsetQ()
+    Q[(1, 12, 1), 1] = 30
+
+    print(Q._data)
 
 
 if __name__ == '__main__':
