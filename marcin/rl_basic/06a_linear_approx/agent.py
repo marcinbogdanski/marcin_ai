@@ -2,6 +2,65 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pdb
 
+
+class QContainer:
+    def __init__(self, nb_states):
+        assert nb_states in [11, 101, 1001]
+
+        divisors = {1001: 1, 101: 10, 11: 100}
+        self._divisor = divisors[nb_states]
+
+        # 1001 explicit states (-500..500)
+        data_dims = [nb_states]
+        action_count = 2  # move left, move right
+        self.data = np.zeros(data_dims + [action_count])
+
+    
+    def __getitem__(self, key):
+        """Retrieve action-state value
+
+        key should have following format:
+        (state, action)
+        [0,1001]  [0,1]
+        """
+
+        assert isinstance(key, tuple)
+        assert len(key) == 2
+        if key[0] == 'TERMINAL':
+            return 0
+        assert isinstance(key[0], int)
+        assert isinstance(key[1], int) or isinstance(key[1], np.int64)
+
+        state = key[0]
+        action = key[1]
+
+        return self.data[round(state/self._divisor), action]
+
+
+    def __setitem__(self, key, value):
+        """Retrieve action-state value
+
+        key should have following format:
+        (state, action)
+        [0,1001]  [0,1]
+        """
+
+        assert isinstance(key, tuple)
+        assert len(key) == 2
+        assert isinstance(key[0], int)
+        assert isinstance(key[1], int) or isinstance(key[1], np.int64)
+
+        state = key[0]
+        action = key[1]
+
+        self.data[round(state/self._divisor), action] = value
+
+    def clear(self):
+        self.data.fill(0)
+
+    def is_zeros(self):
+        return np.count_nonzero(self.data) == 0
+
 class HistoryData:
     """One piece of agent trajectory"""
     def __init__(self, t_step, observation, reward, done):
@@ -17,21 +76,21 @@ class HistoryData:
 
 
 class Agent:
-    def __init__(self, state_space, action_space,
+    def __init__(self, state_space, action_space, nb_states,
         step_size=0.1, lmbda=None, e_rand=0.0):
 
         self.V = {}
-        self.Q = {}
+        self.Q = QContainer(nb_states)
 
-        self.Q_sum = {}  # sum of all visits
-        self.Q_num = {}  # number of times state-action visited
+        self.Q_sum = QContainer(nb_states)  # sum of all visits
+        self.Q_num = QContainer(nb_states)  # number of times state-action visited
 
         for state in state_space:
             self.V[state] = 0
-            for action in action_space:
-                self.Q[state, action] = 0
-                self.Q_sum[state, action] = 0
-                self.Q_num[state, action] = 0
+            # for action in action_space:
+            #     self.Q[state, action] = 0
+            #     self.Q_sum[state, action] = 0
+            #     self.Q_num[state, action] = 0
         
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
@@ -39,26 +98,26 @@ class Agent:
 
         self._lmbda = lmbda          # param for lambda functions
 
-        self._epsilon_random = e_rand  # policy parameter, 0.0 is always greedy
+        self._epsilon_random = e_rand  # policy parameter, 0 => always greedy
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}   # for lambda funtions
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_Q = QContainer(nb_states)   # for lambda funtions
         self._force_random_action = False  # for exploring starts
 
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_Q.clear()   # for lambda funtions
         self._force_random_action = False
 
     def reset_exploring_starts(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
         self._eligibility_traces_V = {}
-        self._eligibility_traces_Q = {}   # for lambda funtions
+        self._eligibility_traces_Q.clear()   # for lambda funtions
         self._force_random_action = True
 
     def pick_action(self, obs):
@@ -95,7 +154,7 @@ class Agent:
                     possible_actions.append(action)
             return np.random.choice(possible_actions)
 
-            
+
 
     def append_trajectory(self, t_step, prev_action, observation, reward, done):
         if len(self._trajectory) != 0:
@@ -245,17 +304,13 @@ class Agent:
         if At_1 is None:
             At_1 = self.pick_action(St)
 
-        if (St, At) not in EQ:
-            EQ[St, At] = 0
 
         # Update eligibility traces for Q
-        for s, a in EQ:
-            EQ[s, a] *= self._lmbda
+        EQ.data *= self._lmbda
         EQ[St, At] += 1
 
         ro_t = Rt_1 + self._discount * Q[St_1, At_1] - Q[St, At]
-        for s, a in EQ:
-            Q[s, a] = Q[s, a] + self._step_size * ro_t * EQ[s, a]
+        Q.data += self._step_size * ro_t * EQ.data
 
     def eval_td_lambda_offline(self):
         """TD(lambda) update for all states
@@ -266,8 +321,8 @@ class Agent:
 
         if len(self._eligibility_traces_V) != 0:
             raise ValueError('TD-lambda offline: eligiblity traces not empty?')
-        if len(self._eligibility_traces_Q) != 0:
-            raise ValueError('TD-lambda offline: eligiblity traces not empty?')
+        if not self._eligibility_traces_Q.is_zeros():
+            raise ValueError('TD-lambda offline: eligiblity traces not zeros?')
 
         self.check_trajectory_terminated_ok()
 
