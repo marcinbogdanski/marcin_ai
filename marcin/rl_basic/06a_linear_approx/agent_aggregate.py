@@ -75,7 +75,7 @@ class HistoryData:
             self.t_step, self.observation, self.reward, self.done, self.action)
 
 
-class Agent:
+class AgentAggregate:
     def __init__(self, state_space, action_space, nb_states,
         step_size=0.1, lmbda=None, e_rand=0.0):
 

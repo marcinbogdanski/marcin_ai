@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 import pdb
 
 from linear import LinearEnv
-from agent import Agent
+from agent_aggregate import AgentAggregate
+from agent_linear import AgentLinear
 
 
-def test_run(nb_episodes, method, nb_states,
+def test_run(nb_episodes, agent_type, method, nb_states,
             step_size, lmbda=None, e_rand=0.0):
 
     # States are encoded as:
@@ -20,16 +21,25 @@ def test_run(nb_episodes, method, nb_states,
 
 
     env = LinearEnv()
-    agent = Agent(state_space=state_space,
-                action_space=action_space,
-                nb_states=nb_states,
-                step_size=step_size,
-                lmbda=lmbda,
-                e_rand=e_rand)  
+    if agent_type == 'aggregate':
+        agent = AgentAggregate(state_space=state_space,
+                    action_space=action_space,
+                    nb_states=nb_states,
+                    step_size=step_size,
+                    lmbda=lmbda,
+                    e_rand=e_rand)
+    elif agent_type == 'linear':
+        agent = AgentLinear(action_space=action_space,
+                    step_size=step_size,
+                    lmbda=lmbda,
+                    e_rand=e_rand)
+    else:
+        raise ValueError('Unknown agent type') 
+
 
     RMSE = []    # root mean-squared error
     for e in range(nb_episodes):
-        if e % 1000 == 0:
+        if e % 100 == 0:
             print('episode:', e, '/', nb_episodes, '   ')
 
 
@@ -78,7 +88,6 @@ def test_run(nb_episodes, method, nb_states,
         arr_V = np.zeros(1001)
         arr_Q = np.zeros([1001, 2])
         for i in range(len(arr_V)):
-            arr_V[i] = agent.V[i]
             arr_Q[i, 0] = agent.Q[i, 0]
             arr_Q[i, 1] = agent.Q[i, 1]
         arr_Vp = np.mean(arr_Q, axis=1)
@@ -87,16 +96,18 @@ def test_run(nb_episodes, method, nb_states,
             LinearEnv.TRUE_VALUES - arr_Vp, 2)) / len(LinearEnv.TRUE_VALUES))
         RMSE.append(rmse)
     
-    return RMSE, arr_V, arr_Q
+    return RMSE, arr_Vp, arr_Q
 
 
 
 
 def test_multi():
-    nb_episodes = 100
+    nb_episodes = 2000
 
     # Experiments tuned for world size 19
     mc_full = {
+        'name':      'agg mc-full',
+        'agent':     'aggregate',
         'method':    'mc-full',
         'nb_states': 1001,
         'stepsize':  None,
@@ -105,6 +116,8 @@ def test_multi():
         'color':     'gray'
     }
     td_lambda_offline_1000 = {
+        'name':      'agg td-lambda-offline 1001',
+        'agent':     'aggregate',
         'method':    'td-lambda-offline',
         'nb_states': 1001,
         'stepsize':  0.1,
@@ -113,6 +126,8 @@ def test_multi():
         'color':     'orange'
     }
     td_lambda_offline_100 = {
+        'name':      'agg td-lambda-offline 101',
+        'agent':     'aggregate',
         'method':    'td-lambda-offline',
         'nb_states': 101,
         'stepsize':  0.1,
@@ -121,6 +136,8 @@ def test_multi():
         'color':     'green'
     }
     td_lambda_offline_10 = {
+        'name':      'agg td-lambda-offline 11',
+        'agent':     'aggregate',
         'method':    'td-lambda-offline',
         'nb_states': 11,
         'stepsize':  0.1,
@@ -128,10 +145,33 @@ def test_multi():
         'e_rand':    1.0,
         'color':     'red'
     }
-    tests = [mc_full,
-        td_lambda_offline_1000,
-        td_lambda_offline_100,
-        td_lambda_offline_10]
+    linear_mc = {
+        'name':      'lin mc-offline',
+        'agent':     'linear',
+        'method':    'mc-offline',
+        'nb_states': None,
+        'stepsize':  0.0015,
+        'lmbda':     None,
+        'e_rand':    1.0,
+        'color':     'blue'
+    }
+    linear_td = {
+        'name':      'lin td-offline',
+        'agent':     'linear',
+        'method':    'td-offline',
+        'nb_states': None,
+        'stepsize':  0.015,
+        'lmbda':     None,
+        'e_rand':    1.0,
+        'color':     'purple'
+    }
+    tests = [
+        # mc_full,
+        # td_lambda_offline_1000,
+        # td_lambda_offline_100,
+        # td_lambda_offline_10,
+        linear_mc,
+        linear_td]
     #tests = [td_offline]
 
     for test in tests:
@@ -140,6 +180,7 @@ def test_multi():
 
         test['RMSE'], test['final_V'], test['final_Q'] = test_run(
             nb_episodes=nb_episodes,
+            agent_type=test['agent'],
             method=test['method'],
             nb_states=test['nb_states'],
             step_size=test['stepsize'],
@@ -156,14 +197,18 @@ def test_multi():
     
     for test in tests:
 
-        label = test['method']
+        label = test['name']
 
         arr_Vp = np.mean(test['final_Q'], axis=1)
+        arr_Q = test['final_Q']
 
 
         ax1.plot(arr_Vp, label=label, color=test['color'], alpha=0.3)
 
-          # average between two actions (should be the same as final_V above)
+        #ax1.plot(arr_Q[:,0], label=label, color='green', alpha=0.3)
+        #ax1.plot(arr_Q[:,1], label=label, color='red', alpha=0.3)
+
+        # average between two actions (should be the same as final_V above)
         # final_V_from_Q = np.mean(test['final_Q'][i], axis=1)
         # ax1.plot(final_V_from_Q[1:-1], label=label, color=test['color'], alpha=1.0)        
 
