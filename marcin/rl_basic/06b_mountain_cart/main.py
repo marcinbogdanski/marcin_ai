@@ -7,7 +7,7 @@ from mountain_car import MountainCarEnv
 from agent import Agent
 
 
-def test_run(nb_episodes, approximator, step_size, e_rand):
+def test_run(nb_episodes, approximator, step_size, e_rand, ax=None):
 
 
     action_space = [-1, 0, 1]  # move left, do nothing, move right
@@ -20,10 +20,8 @@ def test_run(nb_episodes, approximator, step_size, e_rand):
     
 
     # RMSE = []    # root mean-squared error
-    e = 0
     for e in range(nb_episodes):
         print('episode:', e, '/', nb_episodes, '   ')
-
 
         obs = env.reset()
         agent.reset()
@@ -35,7 +33,18 @@ def test_run(nb_episodes, approximator, step_size, e_rand):
                                 done=None)
 
 
+        s = 0
         while True:
+            s += 1
+            
+            if s % 10 == 0 and ax is not None:
+                print(s)
+                ax.clear()
+                plot_approximator(ax, agent.Q)
+                plt.pause(0.001)
+
+            # if s == 428:
+            #     break
 
             action = agent.pick_action(obs)
 
@@ -54,19 +63,7 @@ def test_run(nb_episodes, approximator, step_size, e_rand):
             if done:
                 break
 
-        arr_Q = agent.Q._states  # [pos, vel, act]
-        arr_V = np.max(arr_Q, axis=2)
-        # 
-        # for i in range(len(arr_V)):
-        #     arr_Q[i, 0] = agent.Q[i, 0]
-        #     arr_Q[i, 1] = agent.Q[i, 1]
-        # arr_Vp = np.mean(arr_Q, axis=1)
-
-        # rmse = np.sqrt(np.sum(np.power(
-        #     LinearEnv.TRUE_VALUES - arr_Vp, 2)) / len(LinearEnv.TRUE_VALUES))
-        # RMSE.append(rmse)
-    
-    return arr_V, arr_Q
+    return agent
 
 
 
@@ -196,44 +193,69 @@ def test_multi():
 
 
 def test_single():
+
+    np.random.seed(0)
+
     nb_episodes = 100
-    arr_V, arr_Q = \
-        test_run(nb_episodes=nb_episodes,
-            approximator=None, step_size=0.1, e_rand=0.0)
-
-    
-    # X = np.array(range(-500, 501))
-
-    # arr_V = np.zeros(1001)
-    # arr_Q = np.zeros([1001, 2])
-    # for i in range(len(arr_V)):
-    #     arr_V[i] = agent_V[i]
-    #     arr_Q[i, 0] = agent_Q[i, 0]
-    #     arr_Q[i, 1] = agent_Q[i, 1]
-    # arr_Vp = np.mean(arr_Q, axis=1)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
+    agent = test_run(nb_episodes=nb_episodes,
+            approximator='tile', step_size=0.3, e_rand=0.0, ax=None)
 
-    pos = list(range(0, 50))
-    vel = list(range(0, 50))
-    X, Y = np.meshgrid(pos, vel)
-    ax.plot_wireframe(X, Y, -arr_V)
-
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-
-    # ax.plot(X, LinearEnv.TRUE_VALUES, color='gray', label='V-ref')
-    # ax.plot(X, arr_Vp, color='orange', label='V')
-    # ax.grid()
-
-    
-    # ax = fig.add_subplot(122)
-    # ax.plot(rmse)
+    ax.clear()
+    plot_approximator(ax, agent.Q)
 
     plt.show()
+
+
+
+def plot_approximator(ax, approx):
+
+    positions = np.linspace(-1.2, 0.5, 40)
+    velocities = np.linspace(-0.07, 0.07, 40)
+    actions = np.array([-1, 0, 1])
+
+    X, Y = np.meshgrid(positions, velocities)
+    Z = np.zeros_like(X)
+    for x in range(40):
+        for y in range(40):
+            pos = X[x, y]
+            vel = Y[x, y]
+            q_vals = []
+            for act in actions:
+                q = approx.estimate((pos, vel), act)
+                q_vals.append(q)
+            Z[x, y] = -np.max(q_vals)
+
+    ax.plot_wireframe(X, Y, Z)
+
+    ax.set_xlabel('position')
+    ax.set_ylabel('velocity')
+    ax.set_zlabel('cost to go')
+
+
+def main():
+    test_single()
+    # test_multi()
+    # test_cart()
+    # test_agg()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def test_cart():
 
@@ -317,8 +339,5 @@ def test_agg():
 
 
 if __name__ == '__main__':
-    test_single()
-    # test_multi()
-    # test_cart()
-    # test_agg()
+    main()
     

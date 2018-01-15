@@ -2,15 +2,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pdb
 
+import tile_coding
 
 class AggregateApproximator:
     def __init__(self, step_size):
         self._step_size = step_size
         
-        self._pos_bin_nb = 50
+        self._pos_bin_nb = 64
         self._pos_bins = np.linspace(-1.2, 0.5, self._pos_bin_nb+1)
 
-        self._vel_bin_nb = 50
+        self._vel_bin_nb = 64
         self._vel_bins = np.linspace(-0.07, 0.07, self._vel_bin_nb+1)
 
         self._action_nb = 3
@@ -70,6 +71,69 @@ class AggregateApproximator:
             self._step_size * (target - est)
 
 
+class TileApproximator:
+
+    def __init__(self, step_size):
+        self._num_of_tillings = 8
+        self._step_size = step_size / self._num_of_tillings
+
+        self._pos_scale = self._num_of_tillings / (0.5 + 1.2)
+        self._vel_scale = self._num_of_tillings / (0.07 + 0.07)
+
+        self._hashtable = tile_coding.IHT(2048)
+
+        self._weights = np.zeros(2048)
+
+    def _test_input(self, state, action):
+        # print('_to_idx(state, action)', state, type(state), action, type(action))
+        assert isinstance(state, tuple)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        assert isinstance(action, int) or isinstance(action, np.int64)
+
+        pos, vel = state[0], state[1]
+
+        # print('pos, vel', pos, vel)
+
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        assert action in [-1, 0, 1]
+
+        if pos == 0.5:
+            return None, None, None
+
+        return pos, vel, action
+
+    def estimate(self, state, action):
+        pos, vel, action = self._test_input(state, action)
+        if pos is None:
+            return 0  # terminal state
+
+        active_tiles = tile_coding.tiles(
+            self._hashtable, self._num_of_tillings,
+            [self._pos_scale * pos, self._vel_scale * vel],
+            [action])
+
+        return np.sum(self._weights[active_tiles])
+
+
+    def update(self, state, action, target):
+        pos, vel, action = self._test_input(state, action)
+        if pos is None:
+            return 0  # terminal state
+
+        active_tiles = tile_coding.tiles(
+            self._hashtable, self._num_of_tillings,
+            [self._pos_scale * pos, self._vel_scale * vel],
+            [action])
+
+        est = np.sum(self._weights[active_tiles])
+
+        delta = self._step_size * (target - est)
+
+        for tile in active_tiles:
+            self._weights[tile] += delta
 
 
 class HistoryData:
@@ -90,7 +154,12 @@ class Agent:
     def __init__(self, action_space, approximator,
         step_size=0.1, e_rand=0.0):
 
-        self.Q = AggregateApproximator(step_size)
+        if approximator == 'aggregate':
+            self.Q = AggregateApproximator(step_size)
+        elif approximator == 'tile':
+            self.Q = TileApproximator(step_size)
+        else:
+            raise ValueError('Unknown approximator')
 
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
