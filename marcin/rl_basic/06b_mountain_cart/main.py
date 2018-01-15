@@ -196,44 +196,62 @@ def test_single():
 
     np.random.seed(0)
 
-    nb_episodes = 100
+    nb_episodes = 1
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    axb = fig.add_subplot(141, projection='3d')
+    axs = fig.add_subplot(142, projection='3d')
+    axf = fig.add_subplot(143, projection='3d')
+    axm = fig.add_subplot(144, projection='3d')
 
     agent = test_run(nb_episodes=nb_episodes,
             approximator='tile', step_size=0.3, e_rand=0.0, ax=None)
 
-    ax.clear()
-    plot_approximator(ax, agent.Q)
+    axb.clear()
+    axs.clear()
+    axf.clear()
+    axm.clear()
+    plot_approximator(axb, axs, axf, axm, agent.Q)
 
     plt.show()
 
 
 
-def plot_approximator(ax, approx):
+def plot_approximator(ax_back, ax_stay, ax_fwd, ax_max, approx):
 
     positions = np.linspace(-1.2, 0.5, 40)
     velocities = np.linspace(-0.07, 0.07, 40)
     actions = np.array([-1, 0, 1])
 
     X, Y = np.meshgrid(positions, velocities)
-    Z = np.zeros_like(X)
+    Z_back = np.zeros_like(X)
+    Z_stay = np.zeros_like(X)
+    Z_fwd = np.zeros_like(X)
+    Z_max = np.zeros_like(X)
     for x in range(40):
         for y in range(40):
             pos = X[x, y]
             vel = Y[x, y]
-            q_vals = []
-            for act in actions:
-                q = approx.estimate((pos, vel), act)
-                q_vals.append(q)
-            Z[x, y] = -np.max(q_vals)
+                        
+            q_back = approx.estimate((pos, vel), -1)
+            q_stay = approx.estimate((pos, vel), 0)
+            q_fwd = approx.estimate((pos, vel), 1)
+                
+            Z_back[x, y] = -q_back
+            Z_stay[x, y] = -q_stay
+            Z_fwd[x, y] = -q_fwd
+            Z_max[x, y] = -np.max([q_back, q_stay, q_fwd])
 
-    ax.plot_wireframe(X, Y, Z)
+    axes = [ax_back, ax_stay, ax_fwd, ax_max]
+    Z_vals = [Z_back,  Z_stay, Z_fwd, Z_max]
 
-    ax.set_xlabel('position')
-    ax.set_ylabel('velocity')
-    ax.set_zlabel('cost to go')
+    for i in range(len(axes)):
+
+        axes[i].plot_wireframe(X, Y, Z_vals[i])
+
+        axes[i].set_xlabel('pos')
+        axes[i].set_ylabel('vel')
+        axes[i].set_zlabel('cost')
 
 
 def main():

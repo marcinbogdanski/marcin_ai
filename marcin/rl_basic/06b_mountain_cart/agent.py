@@ -136,6 +136,9 @@ class TileApproximator:
             self._weights[tile] += delta
 
 
+
+
+
 class HistoryData:
     """One piece of agent trajectory"""
     def __init__(self, t_step, observation, reward, done):
