@@ -1,4 +1,5 @@
 import numpy as np
+import collections
 
 class NeuralNetwork2:
     def __init__(self, shape):
@@ -15,14 +16,18 @@ class NeuralNetwork2:
         self.biases = [None, None]
 
         # hidden layer
-        self.weights_hidden = np.random.randn(shape[0], shape[1])
-        self.biases_hidden = np.random.randn(1, shape[1])
+        self.weights_hidden = np.random.randn(shape[0], shape[1])# * 0.1
+        self.biases_hidden = np.random.randn(1, shape[1])# * 0.1
 
         # output layer
-        self.weights_output = np.random.randn(shape[1], shape[2])
-        self.biases_output = np.random.randn(1, shape[2])
+        self.weights_output = np.random.randn(shape[1], shape[2])# * 0.1
+        self.biases_output = np.random.randn(1, shape[2]) - 0
 
-
+        self.grad_log = []
+        self.w_abs_max = collections.deque(maxlen=5000)
+        self.b_abs_max = collections.deque(maxlen=5000)
+        self.w2_abs_max = collections.deque(maxlen=5000)
+        self.b2_abs_max = collections.deque(maxlen=5000)
 
     def fun_linear(self, x, deriv=False):
         if deriv:
@@ -84,6 +89,21 @@ class NeuralNetwork2:
         # sum biases in case data was multi-row
         res_b[0] = np.sum(res_b[0], axis=0, keepdims=True)
         res_b[1] = np.sum(res_b[1], axis=0, keepdims=True)
+
+        #grad = np.sum(res_b[0]) + np.sum(res_b[1]) + \
+        #       np.sum(res_w[0]) + np.sum(res_w[1])
+        # grad = np.max(np.abs(res_w[0]))
+        
+        cc = 10
+        # res_w[0] = np.clip(res_w[0], -cc, cc)
+        # res_b[0] = np.clip(res_b[0], -cc, cc)
+        # res_w[1] = np.clip(res_w[1], -cc, cc)
+        # res_b[1] = np.clip(res_b[1], -cc, cc)
+
+        self.w_abs_max.append(np.max(np.abs(res_w[0])))
+        self.b_abs_max.append(np.max(np.abs(res_b[0])))
+        self.w2_abs_max.append(np.max(np.abs(res_w[1])))
+        self.b2_abs_max.append(np.max(np.abs(res_b[1])))
 
         return res_b, res_w
 

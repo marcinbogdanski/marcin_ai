@@ -1,8 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import collections
 import pdb
 
 import tile_coding
+import neural_mini
+
+
 
 class AggregateApproximator:
     def __init__(self, step_size):
@@ -18,6 +22,18 @@ class AggregateApproximator:
 
         self._states = np.zeros([self._pos_bin_nb,
             self._vel_bin_nb, self._action_nb])
+
+        max_len = 2000
+        self._hist_pos = collections.deque(maxlen=max_len)
+        self._hist_vel = collections.deque(maxlen=max_len)
+        self._hist_act = collections.deque(maxlen=max_len)
+        self._hist_tar = collections.deque(maxlen=max_len)
+
+    def reset(self):
+        self._hist_pos.clear()
+        self._hist_vel.clear()
+        self._hist_act.clear()
+        self._hist_tar.clear()
 
     def _to_idx(self, state, action):
         # print('_to_idx(state, action)', state, type(state), action, type(action))
@@ -64,6 +80,11 @@ class AggregateApproximator:
         # print('update(target)', target, type(target))
         assert isinstance(target, float)
         pos_idx, vel_idx, act_idx = self._to_idx(state, action)
+
+        self._hist_pos.append(state[0])
+        self._hist_vel.append(state[1])
+        self._hist_act.append(action)
+        self._hist_tar.append(target)
         
         est = self.estimate(state, action)
         
@@ -83,6 +104,21 @@ class TileApproximator:
         self._hashtable = tile_coding.IHT(2048)
 
         self._weights = np.zeros(2048)
+        # self._weights = np.random.randn(2048) - 100
+
+
+        max_len = 2000
+        self._hist_pos = collections.deque(maxlen=max_len)
+        self._hist_vel = collections.deque(maxlen=max_len)
+        self._hist_act = collections.deque(maxlen=max_len)
+        self._hist_tar = collections.deque(maxlen=max_len)
+
+    def reset(self):
+        pass
+        # self._hist_pos.clear()
+        # self._hist_vel.clear()
+        # self._hist_act.clear()
+        # self._hist_tar.clear()
 
     def _test_input(self, state, action):
         # print('_to_idx(state, action)', state, type(state), action, type(action))
@@ -123,6 +159,11 @@ class TileApproximator:
         if pos is None:
             return 0  # terminal state
 
+        self._hist_pos.append(pos)
+        self._hist_vel.append(vel)
+        self._hist_act.append(action)
+        self._hist_tar.append(target)
+
         active_tiles = tile_coding.tiles(
             self._hashtable, self._num_of_tillings,
             [self._pos_scale * pos, self._vel_scale * vel],
@@ -136,6 +177,139 @@ class TileApproximator:
             self._weights[tile] += delta
 
 
+
+class NeuralApproximator:
+
+    def __init__(self, step_size):
+        self._step_size = step_size
+
+        self._nn = neural_mini.NeuralNetwork2([2, 128, 3])
+
+        self._pos_offset = 0.35
+        self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
+        self._vel_scale = 2 / 0.14  # maps vel to -1..1
+
+        max_len = 500
+        self._hist_pos = collections.deque(maxlen=max_len)
+        self._hist_vel = collections.deque(maxlen=max_len)
+        self._hist_act = collections.deque(maxlen=max_len)
+        self._hist_tar = collections.deque(maxlen=max_len)
+
+        self._q_back = collections.deque(maxlen=50)
+        self._q_stay = collections.deque(maxlen=50)
+        self._q_fwd = collections.deque(maxlen=50)
+
+    def reset(self):
+        pass
+        # self._hist_pos.clear()
+        # self._hist_vel.clear()
+        # self._hist_act.clear()
+        # self._hist_tar.clear()
+
+
+    def _test_input(self, state, action):
+        # print('_to_idx(state, action)', state, type(state), action, type(action))
+        assert isinstance(state, tuple)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        assert isinstance(action, int) or isinstance(action, np.int64)
+
+        pos, vel = state[0], state[1]
+
+        # print('pos, vel', pos, vel)
+
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        assert action in [-1, 0, 1]
+
+        if pos == 0.5:
+            return None, None, None
+
+        return pos, vel, action
+
+    def estimate(self, state, action):
+        pos, vel, action = self._test_input(state, action)
+        if pos is None:
+            return 0  # terminal state
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._nn.forward(np.array([[pos, vel]]))
+
+        assert action in [-1, 0, 1]
+
+        return est[0, action+1]
+
+    def update(self, state, action, target):
+        self.update_replay(state, action, target)
+
+    def update_single(self, state, action, target):
+        pos, vel, action = self._test_input(state, action)
+        if pos is None:
+            return 0  # terminal state
+
+        # pdb.set_trace()
+
+        self._hist_pos.append(pos)
+        self._hist_vel.append(vel)
+        self._hist_act.append(action)
+        self._hist_tar.append(target)
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._nn.forward(np.array([[pos, vel]]))
+
+        # do not update other action predicitons
+        assert action in [-1, 0, 1]
+        est[0, action+1] = target
+
+
+
+        batch = [ (np.array([[pos, vel]]), est) ]
+
+        self._nn.train_batch(batch, self._step_size)
+
+        
+    def update_replay(self, state, action, target):
+        pos, vel, action = self._test_input(state, action)
+        if pos is None:
+            return 0  # terminal state
+
+        # pdb.set_trace()
+
+        self._hist_pos.append(pos)
+        self._hist_vel.append(vel)
+        self._hist_act.append(action)
+        self._hist_tar.append(target)
+
+        if len(self._hist_pos) < 32:
+            return
+
+        idx = np.random.choice(range(len(self._hist_pos)), 32)
+
+        batch = []
+        for i in idx:
+            pp = self._hist_pos[i]
+            vv = self._hist_vel[i]
+            aa = self._hist_act[i]
+            tt = self._hist_tar[i]
+
+            pp += self._pos_offset
+            pp *= self._pos_scale
+            vv *= self._vel_scale
+
+            est = self._nn.forward(np.array([[pp, vv]]))
+            assert aa in [-1, 0, 1]
+            est[0, aa+1] = tt
+
+            batch.append( (np.array([[pp, vv]]), np.array(est)) )
+
+        self._nn.train_batch(batch, self._step_size)
 
 
 
@@ -161,6 +335,8 @@ class Agent:
             self.Q = AggregateApproximator(step_size)
         elif approximator == 'tile':
             self.Q = TileApproximator(step_size)
+        elif approximator == 'neural':
+            self.Q = NeuralApproximator(step_size)
         else:
             raise ValueError('Unknown approximator')
 
@@ -177,6 +353,8 @@ class Agent:
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
 
+        self.Q.reset()
+
 
     def pick_action(self, obs):
         assert isinstance(obs, tuple)          
@@ -184,7 +362,7 @@ class Agent:
 
         if np.random.rand() < self._epsilon_random:
             # pick random action
-            return np.random.choice(self._action_space)
+            res = np.random.choice(self._action_space)
 
         else:
             # act greedy
@@ -200,7 +378,9 @@ class Agent:
                     max_Q = q
                 elif q == max_Q:
                     possible_actions.append(action)
-            return np.random.choice(possible_actions)
+            res = np.random.choice(possible_actions)
+
+        return res
 
 
 
