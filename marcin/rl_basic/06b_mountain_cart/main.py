@@ -38,20 +38,20 @@ def test_run(nb_episodes, nb_iterations,
         i = 0
         while True:
             
-            # if agent._epsilon_random > 0.0:
-            #     agent._epsilon_random -= 1.0 / 100000
+            if agent._epsilon_random > 0.1:
+                agent._epsilon_random -= 1.0 / 100000
 
 
 
             # print(i)
             
-            if i % 1 == 0 and (axes is not None or ax_hist is not None):
+            if i % 1000 == 0 and (axes is not None or ax_hist is not None):
 
                 # agent._step_size *= 0.999
 
                 print('ep, iter', e, i)
 
-                # print('e_rand', agent._epsilon_random, 'step_size', agent._step_size)
+                print('e_rand', agent._epsilon_random, 'step_size', agent._step_size)
 
                 if axes is not None:
                     for ax in axes:
@@ -115,7 +115,9 @@ def test_run(nb_episodes, nb_iterations,
 
             agent.eval_td_online()
             
-            if done:
+            if done or i >= 5000:
+                if i >= 5000:
+                    agent._epsilon_random = min(1.0, agent._epsilon_random + 1/10.0)
                 print('espiode finished after iteration', i)
                 break
 

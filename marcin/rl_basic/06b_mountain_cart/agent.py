@@ -180,8 +180,9 @@ class TileApproximator:
 
 class NeuralApproximator:
 
-    def __init__(self, step_size):
+    def __init__(self, step_size, discount):
         self._step_size = step_size
+        self._discount = discount
 
         self._nn = neural_mini.NeuralNetwork2([2, 128, 3])
 
@@ -194,6 +195,10 @@ class NeuralApproximator:
         self._hist_vel = collections.deque(maxlen=max_len)
         self._hist_act = collections.deque(maxlen=max_len)
         self._hist_tar = collections.deque(maxlen=max_len)
+
+        self._hist_rew_next = collections.deque(maxlen=max_len)
+        self._hist_pos_next = collections.deque(maxlen=max_len)
+        self._hist_vel_next = collections.deque(maxlen=max_len)
 
         self._q_back = collections.deque(maxlen=50)
         self._q_stay = collections.deque(maxlen=50)
@@ -311,6 +316,75 @@ class NeuralApproximator:
 
         self._nn.train_batch(batch, self._step_size)
 
+    def update2(self, state, action, reward, state_next):
+        pos, vel, action = self._test_input(state, action)
+        if pos is None:
+            return 0  # current state is terminal
+
+        # if state_next[0] == 0.5:
+        #     pdb.set_trace()
+
+        self._hist_pos.append(pos)
+        self._hist_vel.append(vel)
+        self._hist_act.append(action)
+        self._hist_tar.append(0)
+
+        assert reward in [-1, 0]
+        pos_next = state_next[0]
+        vel_next = state_next[1]
+
+        assert -1.2 <= pos_next and pos_next <= 0.5
+        assert -0.07 <= vel_next and vel_next <= 0.07
+
+        if pos_next == 0.5:
+            assert reward == 0
+
+        self._hist_rew_next.append(reward)
+        self._hist_pos_next.append(pos_next)
+        self._hist_vel_next.append(vel_next)
+
+        if len(self._hist_pos) < 32:
+            return
+
+        idx = np.random.choice(range(len(self._hist_pos)), 32)
+        idx[31] = len(self._hist_pos) - 1
+
+        batch = []
+        for i in idx:
+            pp = self._hist_pos[i]
+            vv = self._hist_vel[i]
+            aa = self._hist_act[i]
+
+            rr = self._hist_rew_next[i]
+            pp_n = self._hist_pos_next[i]
+            vv_n = self._hist_vel_next[i]
+
+            pp += self._pos_offset
+            pp *= self._pos_scale
+            vv *= self._vel_scale
+
+            pp_n += self._pos_offset
+            pp_n *= self._pos_scale
+            vv_n *= self._vel_scale
+
+            est = self._nn.forward(np.array([[pp, vv]]))
+            est_n = self._nn.forward(np.array([[pp_n, vv_n]]))
+            q_n = np.max(est_n)
+
+            if pp_n == 0.5:
+                pdb.set_trace()
+                # next state is terminal
+                tt = rr 
+            else:
+                tt = rr + self._discount * q_n
+
+            assert aa in [-1, 0, 1]
+            est[0, aa+1] = tt
+
+            batch.append( (np.array([[pp, vv]]), np.array(est)) )
+
+        self._nn.train_batch(batch, self._step_size)
+
 
 
 class HistoryData:
@@ -336,13 +410,13 @@ class Agent:
         elif approximator == 'tile':
             self.Q = TileApproximator(step_size)
         elif approximator == 'neural':
-            self.Q = NeuralApproximator(step_size)
+            self.Q = NeuralApproximator(step_size, 0.99)
         else:
             raise ValueError('Unknown approximator')
 
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
-        self._discount = 1.0         # usually noted as gamma in literature
+        self._discount = 0.99         # usually noted as gamma in literature
 
         self._epsilon_random = e_rand  # policy parameter, 0 => always greedy
 
@@ -444,7 +518,13 @@ class Agent:
 
         Tt = Rt_1 + disc * self.Q.estimate(St_1, At_1)
 
-        self.Q.update(St, At, Tt)
+        if isinstance(self.Q, NeuralApproximator):
+            self.Q.update2(St, At, Rt_1, St_1)
+
+            # if St_1[0] == 0.5:
+            #     pdb.set_trace()
+        else:
+            self.Q.update(St, At, Tt)
 
     def eval_td_online(self):
         self.eval_td_t(len(self._trajectory) - 2)  # Eval next-to last state
