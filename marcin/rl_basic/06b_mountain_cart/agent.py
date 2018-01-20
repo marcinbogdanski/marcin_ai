@@ -409,14 +409,14 @@ class HistoryData:
         self.done = done
 
     def __str__(self):
-        return '{0}: {1}, {2} {3}   {4}'.format(
+        return '{0}: obs={1}, rew={2} done={3}   act={4}'.format(
             self.t_step, self.observation, self.reward, self.done, self.action)
 
 
 class Agent:
     def __init__(self, action_space, approximator,
         step_size=0.1, e_rand=0.0, 
-        log_agent=None, log_mem=None, log_approx=None):
+        log_agent=None, log_q_val=None, log_mem=None, log_approx=None):
 
         if approximator == 'aggregate':
             self.Q = AggregateApproximator(step_size, log=log_approx)
@@ -441,13 +441,18 @@ class Agent:
             log_agent.add_param('step_size', self._step_size)
             log_agent.add_param('epsilon_random', self._epsilon_random)
             log_agent.add_param('discount', self._discount)
-            log_agent.add_data_item('q_val')
+
+        self.log_q_val = log_q_val
+        if log_q_val is not None:
+            log_q_val.add_data_item('q_val')
 
         self.log_mem = log_mem
         if log_mem is not None:
             log_mem.add_data_item('Rt')
-            log_mem.add_data_item('St')
+            log_mem.add_data_item('St_pos')
+            log_mem.add_data_item('St_vel')
             log_mem.add_data_item('At')
+            log_mem.add_data_item('done')
 
     def reset(self):
         self._episode += 1
@@ -456,23 +461,40 @@ class Agent:
         self.Q.reset()
 
     def log(self, episode, step, total_step):
-        positions = np.linspace(-1.2, 0.49, 8)
-        velocities = np.linspace(-0.07, 0.07, 8)
-        actions = np.array([-1, 0, 1])
 
-        q_val = np.zeros([len(positions), len(velocities), len(actions)])
+        #
+        #   Log memory
+        #
+        self.log_mem.append(episode, step, total_step,
+            Rt=self._trajectory[-1].reward,
+            St_pos=self._trajectory[-1].observation[0],
+            St_vel=self._trajectory[-1].observation[1],
+            At=self._trajectory[-1].action,
+            done=self._trajectory[-1].done)
 
-        for pi in range(len(positions)):
-            for vi in range(len(velocities)):
-                for ai in range(len(actions)):
-                    pos = positions[pi]
-                    vel = velocities[vi]
-                    act = actions[ai]
+        #
+        #   Log Q values
+        #
+        if total_step % 1000 == 0:
+            positions = np.linspace(-1.2, 0.49, 64)
+            velocities = np.linspace(-0.07, 0.07, 64)
+            actions = np.array([-1, 0, 1])
 
-                    q = self.Q.estimate((pos, vel), act)
-                    q_val[pi, vi, ai] = q
+            q_val = np.zeros([len(positions), len(velocities), len(actions)])
 
-        self.log_agent.append(episode, step, total_step, q_val=q_val)
+            for pi in range(len(positions)):
+                for vi in range(len(velocities)):
+                    for ai in range(len(actions)):
+                        pos = positions[pi]
+                        vel = velocities[vi]
+                        act = actions[ai]
+
+                        q = self.Q.estimate((pos, vel), act)
+                        q_val[pi, vi, ai] = q
+
+            self.log_q_val.append(episode, step, total_step, q_val=q_val)
+        else:
+            self.log_q_val.append(episode, step, total_step, q_val=None)
 
 
     def pick_action(self, obs):
@@ -503,12 +525,13 @@ class Agent:
 
 
 
-    def append_trajectory(self, t_step, prev_action, observation, reward, done):
-        if len(self._trajectory) != 0:
-            self._trajectory[-1].action = prev_action
-
+    def append_trajectory(self, t_step, observation, reward, done):
         self._trajectory.append(
             HistoryData(t_step, observation, reward, done))
+
+    def append_action(self, action):
+        if len(self._trajectory) != 0:
+            self._trajectory[-1].action = action
 
     def print_trajectory(self):
         print('Trajectory:')

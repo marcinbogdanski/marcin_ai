@@ -25,6 +25,7 @@ def test_run(nb_episodes, nb_iterations,
                 step_size=step_size,
                 e_rand=e_rand,
                 log_agent=logger.agent,
+                log_q_val=logger.q_val,
                 log_mem=logger.mem,
                 log_approx=logger.approx)
 
@@ -45,11 +46,9 @@ def test_run(nb_episodes, nb_iterations,
         agent.reset()
 
         agent.append_trajectory(t_step=step,
-                                prev_action=None,
                                 observation=obs,
                                 reward=None,
                                 done=None)
-
 
         time_pick = 0
 
@@ -60,17 +59,15 @@ def test_run(nb_episodes, nb_iterations,
 
             # print(i)
 
-            if nb_iterations is not None and step > nb_iterations:
-                break
-
             time_start = time.time()
             action = agent.pick_action(obs)
             time_pick += time.time() - time_start
 
+            agent.append_action(action=action)
 
 
-            if step % 1000 == 0:
-                agent.log(episode, step, total_step)
+            # print('AGENT logging', total_step, len(logger.q_val.data['q_val']))
+            agent.log(episode, step, total_step)
 
 
             if step % 1000 == 0 and (axes is not None or ax_hist is not None):
@@ -127,20 +124,18 @@ def test_run(nb_episodes, nb_iterations,
                 # plt.pause(0.001)
 
             
-
+            # print('-------------')
 
             #   ---   time step rolls here   ---
             step += 1
             total_step += 1
-            print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
 
-
-
+            # print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
+            
 
             obs, reward, done = env.step(action)
 
             agent.append_trajectory(t_step=env.t_step,
-                        prev_action=action,
                         observation=obs,
                         reward=reward,
                         done=done)
@@ -151,6 +146,7 @@ def test_run(nb_episodes, nb_iterations,
                 if step >= 5000:
                     agent._epsilon_random = min(1.0, agent._epsilon_random + 1/10.0)
                 print('espiode finished after iteration', step)
+                agent.log(episode, step, total_step)
                 break
 
 
@@ -292,6 +288,7 @@ def test_single(logger):
 
     
     logger.agent = Log('Agent')
+    logger.q_val = Log('Q_Val')
     logger.env = Log('Environment', 'Mountain Car')
     logger.mem = Log('Memory', 'Replay buffer for DQN')
     logger.approx = Log('Approx', 'Approximator')
@@ -446,8 +443,8 @@ def plot_q_val(ax, approx):
 
 def plot_approximator(ax_back, ax_stay, ax_fwd, ax_max, approx):
 
-    positions = np.linspace(-1.2, 0.49, 8)
-    velocities = np.linspace(-0.07, 0.07, 8)
+    positions = np.linspace(-1.2, 0.49, 32)
+    velocities = np.linspace(-0.07, 0.07, 32)
     actions = np.array([-1, 0, 1])
 
     X, Y = np.meshgrid(positions, velocities)
@@ -455,8 +452,8 @@ def plot_approximator(ax_back, ax_stay, ax_fwd, ax_max, approx):
     Z_stay = np.zeros_like(X)
     Z_fwd = np.zeros_like(X)
     Z_max = np.zeros_like(X)
-    for x in range(8):
-        for y in range(8):
+    for x in range(32):
+        for y in range(32):
             pos = X[x, y]
             vel = Y[x, y]
                         
