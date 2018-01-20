@@ -9,7 +9,7 @@ import neural_mini
 
 
 class AggregateApproximator:
-    def __init__(self, step_size):
+    def __init__(self, step_size, log=None):
         self._step_size = step_size
         
         self._pos_bin_nb = 64
@@ -94,7 +94,7 @@ class AggregateApproximator:
 
 class TileApproximator:
 
-    def __init__(self, step_size):
+    def __init__(self, step_size, log=None):
         self._num_of_tillings = 8
         self._step_size = step_size / self._num_of_tillings
 
@@ -184,7 +184,7 @@ class TileApproximator:
 
 class NeuralApproximator:
 
-    def __init__(self, step_size, discount):
+    def __init__(self, step_size, discount, log=None):
         self._step_size = step_size
         self._discount = discount
 
@@ -207,6 +207,14 @@ class NeuralApproximator:
         self._q_back = collections.deque(maxlen=50)
         self._q_stay = collections.deque(maxlen=50)
         self._q_fwd = collections.deque(maxlen=50)
+
+        if log is not None:
+            log.add_param('type', 'neural network')
+            log.add_param('nb_inputs', 2)
+            log.add_param('hid_1_size', 128)
+            log.add_param('hid_1_act', 'sigmoid')
+            log.add_param('out_size', 3)
+            log.add_param('out_act', 'linear')
 
     def reset(self):
         pass
@@ -407,14 +415,15 @@ class HistoryData:
 
 class Agent:
     def __init__(self, action_space, approximator,
-        step_size=0.1, e_rand=0.0):
+        step_size=0.1, e_rand=0.0, 
+        log_agent=None, log_mem=None, log_approx=None):
 
         if approximator == 'aggregate':
-            self.Q = AggregateApproximator(step_size)
+            self.Q = AggregateApproximator(step_size, log=log_approx)
         elif approximator == 'tile':
-            self.Q = TileApproximator(step_size)
+            self.Q = TileApproximator(step_size, log=log_approx)
         elif approximator == 'neural':
-            self.Q = NeuralApproximator(step_size, 0.99)
+            self.Q = NeuralApproximator(step_size, 0.99, log=log_approx)
         else:
             raise ValueError('Unknown approximator')
 
@@ -427,11 +436,43 @@ class Agent:
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
 
+        self.log_agent = log_agent
+        if log_agent is not None:
+            log_agent.add_param('step_size', self._step_size)
+            log_agent.add_param('epsilon_random', self._epsilon_random)
+            log_agent.add_param('discount', self._discount)
+            log_agent.add_data_item('q_val')
+
+        self.log_mem = log_mem
+        if log_mem is not None:
+            log_mem.add_data_item('Rt')
+            log_mem.add_data_item('St')
+            log_mem.add_data_item('At')
+
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
 
         self.Q.reset()
+
+    def log(self, episode, step, total_step):
+        positions = np.linspace(-1.2, 0.49, 8)
+        velocities = np.linspace(-0.07, 0.07, 8)
+        actions = np.array([-1, 0, 1])
+
+        q_val = np.zeros([len(positions), len(velocities), len(actions)])
+
+        for pi in range(len(positions)):
+            for vi in range(len(velocities)):
+                for ai in range(len(actions)):
+                    pos = positions[pi]
+                    vel = velocities[vi]
+                    act = actions[ai]
+
+                    q = self.Q.estimate((pos, vel), act)
+                    q_val[pi, vi, ai] = q
+
+        self.log_agent.append(episode, step, total_step, q_val=q_val)
 
 
     def pick_action(self, obs):

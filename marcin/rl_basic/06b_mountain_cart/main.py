@@ -8,29 +8,43 @@ import pdb
 from mountain_car import MountainCarEnv
 from agent import Agent
 
+from logger import Logger, Log
+
 
 def test_run(nb_episodes, nb_iterations, 
     approximator, step_size, e_rand, 
-    axes=None, ax_pol=None, ax_hist=None, ax_w=None, ax_log=None, ax_q=None):
+    axes=None, ax_pol=None, ax_hist=None, ax_w=None,
+    ax_log=None, ax_q=None, logger=None):
 
 
     action_space = [-1, 0, 1]  # move left, do nothing, move right
 
-    env = MountainCarEnv()
+    env = MountainCarEnv(log=logger.env)
     agent = Agent(action_space=action_space,
                 approximator=approximator,
                 step_size=step_size,
-                e_rand=e_rand)
-    
+                e_rand=e_rand,
+                log_agent=logger.agent,
+                log_mem=logger.mem,
+                log_approx=logger.approx)
+
+    #
+    #   Initialise loggers
+    #
+    total_step = -1
 
     # RMSE = []    # root mean-squared error
-    for e in range(nb_episodes):
-        print('episode:', e, '/', nb_episodes, '   ')
+    for episode in range(nb_episodes):
+        
+        step = 0
+        total_step += 1
+
+        print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
 
         obs = env.reset()
         agent.reset()
 
-        agent.append_trajectory(t_step=0,
+        agent.append_trajectory(t_step=step,
                                 prev_action=None,
                                 observation=obs,
                                 reward=None,
@@ -39,21 +53,31 @@ def test_run(nb_episodes, nb_iterations,
 
         time_pick = 0
 
-        i = 0
         while True:
             
             if agent._epsilon_random > 0.1:
                 agent._epsilon_random -= 1.0 / 100000
 
             # print(i)
-            
-            if i % 1000 == 0 and (axes is not None or ax_hist is not None):
+
+            if nb_iterations is not None and step > nb_iterations:
+                break
+
+            time_start = time.time()
+            action = agent.pick_action(obs)
+            time_pick += time.time() - time_start
+
+
+
+            if step % 1000 == 0:
+                agent.log(episode, step, total_step)
+
+
+            if step % 1000 == 0 and (axes is not None or ax_hist is not None):
 
                 print('time_pick', time_pick)
 
                 # agent._step_size *= 0.999
-
-                print('ep, iter', e, i)
 
                 print('e_rand', agent._epsilon_random, 'step_size', agent._step_size)
 
@@ -72,6 +96,8 @@ def test_run(nb_episodes, nb_iterations,
                     ax_hist.clear()
                     plot_history_2d(ax_hist, agent.Q._hist_pos, agent.Q._hist_vel,
                                           agent.Q._hist_act, agent.Q._hist_tar)
+
+
 
                 # if ax_w is not None:
                 #     if ax_w[0] is not None:
@@ -98,19 +124,18 @@ def test_run(nb_episodes, nb_iterations,
                     ax_q.clear()
                     plot_q_val(ax_q, agent.Q)
 
-                plt.pause(0.001)
+                # plt.pause(0.001)
 
             
 
-            if nb_iterations is not None and i > nb_iterations:
-                break
-
-            time_start = time.time()
-            action = agent.pick_action(obs)
-            time_pick += time.time() - time_start
 
             #   ---   time step rolls here   ---
-            i += 1
+            step += 1
+            total_step += 1
+            print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
+
+
+
 
             obs, reward, done = env.step(action)
 
@@ -122,14 +147,12 @@ def test_run(nb_episodes, nb_iterations,
 
             agent.eval_td_online()
             
-            if done or i >= 5000:
-                if i >= 5000:
+            if done or step >= 5000:
+                if step >= 5000:
                     agent._epsilon_random = min(1.0, agent._epsilon_random + 1/10.0)
-                print('espiode finished after iteration', i)
+                print('espiode finished after iteration', step)
                 break
 
-        if nb_iterations is not None:
-            break
 
     return agent
 
@@ -260,22 +283,31 @@ def test_multi():
     plt.show()
 
 
-def test_single():
+def test_single(logger):
 
     np.random.seed(0)
 
     nb_episodes = 1000
     nb_iterations = None
 
+    
+    logger.agent = Log('Agent')
+    logger.env = Log('Environment', 'Mountain Car')
+    logger.mem = Log('Memory', 'Replay buffer for DQN')
+    logger.approx = Log('Approx', 'Approximator')
+
+
+
+
     fig = plt.figure()
-    axb = None #fig.add_subplot(11, projection='3d')
-    axs = None #fig.add_subplot(162, projection='3d')
-    axf = None # fig.add_subplot(141, projection='3d')
-    axm = fig.add_subplot(141, projection='3d')
+    axb = fig.add_subplot(171, projection='3d')
+    axs = fig.add_subplot(172, projection='3d')
+    axf = fig.add_subplot(173, projection='3d')
+    axm = fig.add_subplot(174, projection='3d')
     
-    ax_pol = fig.add_subplot(142)
+    ax_pol = fig.add_subplot(175, projection='3d')
     
-    ax_hist = fig.add_subplot(143)
+    ax_hist = fig.add_subplot(176)
 
     ax_w = None # fig.add_subplot(173)
     ax_w2 = None # fig.add_subplot(174)
@@ -283,7 +315,7 @@ def test_single():
     ax_b2 = None # fig.add_subplot(176)
     ax_log = None # fig.add_subplot(154)
 
-    ax_q = fig.add_subplot(144)
+    ax_q = fig.add_subplot(177)
 
     agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
             approximator='tile', step_size=0.3, e_rand=0.0, 
@@ -292,7 +324,8 @@ def test_single():
             ax_hist=ax_hist, 
             ax_w=[ax_w, ax_b, ax_w2, ax_b2], 
             ax_log=ax_log,
-            ax_q=ax_q)
+            ax_q=ax_q,
+            logger=logger)
 
     axb.clear()
     axs.clear()
@@ -453,7 +486,13 @@ def plot_approximator(ax_back, ax_stay, ax_fwd, ax_max, approx):
 
 
 def main():
-    test_single()
+    logger = Logger()
+    try:
+        test_single(logger)
+    except KeyboardInterrupt:
+        logger.save('data.log')
+        print('log saved')
+
     # test_multi()
     # test_cart()
     # test_agg()

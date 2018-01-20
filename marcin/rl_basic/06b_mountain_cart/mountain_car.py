@@ -4,11 +4,22 @@ import pdb
 
 class MountainCarEnv:
 
-    def __init__(self):
+    def __init__(self, log=None):
         self.t_step = 0
         self._pos = 0
         self._vel = 0
         self.reset()
+
+        if log is not None:
+            log.add_param('pos_min', -1.2)
+            log.add_param('pos_max', 0.5)
+            log.add_param('vel_min', -0.07)
+            log.add_param('vel_max', 0.07)
+            log.add_param('start_pos_min', -0.6)
+            log.add_param('start_pos_max', -0.4)
+            log.add_param('max_steps', '+inf')
+            log.add_param('target_pos', 0.5)
+
 
     def reset(self):
         self.t_step = 0
