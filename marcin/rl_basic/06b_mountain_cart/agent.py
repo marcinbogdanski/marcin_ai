@@ -113,6 +113,10 @@ class TileApproximator:
         self._hist_act = collections.deque(maxlen=max_len)
         self._hist_tar = collections.deque(maxlen=max_len)
 
+        self._q_back = collections.deque(maxlen=50)
+        self._q_stay = collections.deque(maxlen=50)
+        self._q_fwd = collections.deque(maxlen=50)
+
     def reset(self):
         pass
         # self._hist_pos.clear()
@@ -355,7 +359,7 @@ class NeuralApproximator:
             vv = self._hist_vel[i]
             aa = self._hist_act[i]
 
-            rr = self._hist_rew_next[i]
+            rr_n = self._hist_rew_next[i]
             pp_n = self._hist_pos_next[i]
             vv_n = self._hist_vel_next[i]
 
@@ -374,9 +378,9 @@ class NeuralApproximator:
             if pp_n == 0.5:
                 pdb.set_trace()
                 # next state is terminal
-                tt = rr 
+                tt = rr_n 
             else:
-                tt = rr + self._discount * q_n
+                tt = rr_n + self._discount * q_n
 
             assert aa in [-1, 0, 1]
             est[0, aa+1] = tt

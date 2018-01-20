@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
+
+import time
 import pdb
 
 from mountain_car import MountainCarEnv
@@ -35,17 +37,19 @@ def test_run(nb_episodes, nb_iterations,
                                 done=None)
 
 
+        time_pick = 0
+
         i = 0
         while True:
             
             if agent._epsilon_random > 0.1:
                 agent._epsilon_random -= 1.0 / 100000
 
-
-
             # print(i)
             
             if i % 1000 == 0 and (axes is not None or ax_hist is not None):
+
+                print('time_pick', time_pick)
 
                 # agent._step_size *= 0.999
 
@@ -69,26 +73,26 @@ def test_run(nb_episodes, nb_iterations,
                     plot_history_2d(ax_hist, agent.Q._hist_pos, agent.Q._hist_vel,
                                           agent.Q._hist_act, agent.Q._hist_tar)
 
-                if ax_w is not None:
-                    if ax_w[0] is not None:
-                        ax_w[0].clear()
-                        plot_weights(ax_w[0], agent.Q._nn.weights_hidden)
-                    if ax_w[1] is not None:
-                        ax_w[1].clear()
-                        plot_weights(ax_w[1], agent.Q._nn.biases_hidden)
-                    if ax_w[2] is not None:
-                        ax_w[2].clear()
-                        plot_weights(ax_w[2], agent.Q._nn.weights_output)
-                    if ax_w[3] is not None:
-                        ax_w[3].clear()
-                        plot_weights(ax_w[3], agent.Q._nn.biases_output)
+                # if ax_w is not None:
+                #     if ax_w[0] is not None:
+                #         ax_w[0].clear()
+                #         plot_weights(ax_w[0], agent.Q._nn.weights_hidden)
+                #     if ax_w[1] is not None:
+                #         ax_w[1].clear()
+                #         plot_weights(ax_w[1], agent.Q._nn.biases_hidden)
+                #     if ax_w[2] is not None:
+                #         ax_w[2].clear()
+                #         plot_weights(ax_w[2], agent.Q._nn.weights_output)
+                #     if ax_w[3] is not None:
+                #         ax_w[3].clear()
+                #         plot_weights(ax_w[3], agent.Q._nn.biases_output)
 
-                if ax_log is not None:
-                    ax_log.clear()
-                    #ax_log.plot(agent.Q._nn.w_abs_max, color='red')
-                    #ax_log.plot(agent.Q._nn.b_abs_max, color='green')
-                    #ax_log.plot(agent.Q._nn.w2_abs_max, color='orange')
-                    ax_log.plot(agent.Q._nn.b2_abs_max, color='blue')
+                # if ax_log is not None:
+                #     ax_log.clear()
+                #     #ax_log.plot(agent.Q._nn.w_abs_max, color='red')
+                #     #ax_log.plot(agent.Q._nn.b_abs_max, color='green')
+                #     #ax_log.plot(agent.Q._nn.w2_abs_max, color='orange')
+                #     ax_log.plot(agent.Q._nn.b2_abs_max, color='blue')
 
                 if ax_q is not None:
                     ax_q.clear()
@@ -96,14 +100,17 @@ def test_run(nb_episodes, nb_iterations,
 
                 plt.pause(0.001)
 
-            i += 1
+            
 
             if nb_iterations is not None and i > nb_iterations:
                 break
 
+            time_start = time.time()
             action = agent.pick_action(obs)
+            time_pick += time.time() - time_start
 
             #   ---   time step rolls here   ---
+            i += 1
 
             obs, reward, done = env.step(action)
 
@@ -279,7 +286,7 @@ def test_single():
     ax_q = fig.add_subplot(144)
 
     agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
-            approximator='neural', step_size=0.01, e_rand=0.1, 
+            approximator='tile', step_size=0.3, e_rand=0.0, 
             axes=[axb, axs, axf, axm], 
             ax_pol=ax_pol,
             ax_hist=ax_hist, 
@@ -360,9 +367,9 @@ def plot_history_2d(ax, hpos, hvel, hact, htar):
             raise ValueError('bad')
 
 
-    ax.scatter(data_back_p, data_back_v, color='red', marker='.')
-    ax.scatter(data_stay_p, data_stay_v, color='blue', marker='.')
-    ax.scatter(data_fwd_p, data_fwd_v, color='green', marker='.')
+    ax.scatter(data_back_p, data_back_v, color='red', marker=',', lw=0, s=1)
+    ax.scatter(data_stay_p, data_stay_v, color='blue', marker=',', lw=0, s=1)
+    ax.scatter(data_fwd_p, data_fwd_v, color='green', marker=',', lw=0, s=1)
 
     ax.set_xlim([-1.2, 0.5])
     ax.set_ylim([-0.07, 0.07])
