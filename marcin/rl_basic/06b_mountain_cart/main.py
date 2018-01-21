@@ -198,7 +198,7 @@ def test_single(logger):
     ax_q = fig.add_subplot(144)
 
     agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
-            approximator='neural', step_size=0.01, e_rand=0.1, 
+            approximator='tile', step_size=0.3, e_rand=0.0, 
             axes=[axb, axs, axf, axm], 
             ax_pol=ax_pol,
             ax_hist=ax_hist, 

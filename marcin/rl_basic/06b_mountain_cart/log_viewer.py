@@ -62,16 +62,22 @@ def main():
         #   Plot Q
         #
         if logger.q_val.data['q_val'][i] is not None:
+
+            q_val = logger.q_val.data['q_val'][i]
+            q_max = np.max(q_val, axis=2)
+
             ax_q_max_wr.clear()
-            plot_q_val_wireframe(ax_q_max_wr, logger.q_val.data['q_val'][i])
+            plot_q_val_wireframe(
+                ax_q_max_wr, q_max, 'pos', -1.2, 0.5, 'vel', -0.07, 0.07, 'q_max')
             ax_q_max_wr.set_title('i=' + str(i))
 
             ax_q_max_im.clear()
-            plot_q_val_imshow(ax_q_max_im, logger.q_val.data['q_val'][i])
+            plot_q_val_imshow(ax_q_max_im, q_max, 
+                -1.2, 0.5, -0.07, 0.07, h_line=0.0, v_line=-0.5)
             ax_q_max_im.set_title('i=' + str(i))
 
             ax_pol.clear()
-            plot_policy(ax_pol, logger.q_val.data['q_val'][i])
+            plot_policy(ax_pol, q_val)
             ax_pol.set_title('i=' + str(i))
             
         plt.pause(0.1)
@@ -117,33 +123,39 @@ def plot_trajectory_2d(ax, hpos, hvel, hact):
     ax.set_ylim([-0.07, 0.07])
 
 
-def plot_q_val_wireframe(ax, q_val):
-    pos_size = q_val.shape[0]
-    vel_size = q_val.shape[1]
-    positions = np.linspace(-1.2, 0.5, pos_size)
-    velocities = np.linspace(-0.07, 0.07, vel_size)
-    actions = np.array([-1, 0, 1])
+def plot_q_val_wireframe(ax, q_val, 
+        label_x, min_x, max_x, label_y, min_y, max_y, label_z):
+    """Plot 2d q_val array on 3d wireframe plot.
+    
+    Params:
+        ax - axis to plot on
+        q_val - 2d numpy array as follows:
+                1-st dim is X, increasing as indices grow
+                2-nd dim is Y, increasing as indices grow
+    """
 
-    Y, X = np.meshgrid(velocities, positions)
-    Z = np.max(q_val, axis=2)
+    x_size = q_val.shape[0]
+    y_size = q_val.shape[1]
+    x_space = np.linspace(min_x, max_x, x_size)
+    y_space = np.linspace(min_y, max_y, y_size)
 
-    ax.plot_wireframe(X, Y, Z)
+    Y, X = np.meshgrid(y_space, x_space)
+    
+    ax.plot_wireframe(X, Y, q_val)
 
-    ax.set_xlabel('pos')
-    ax.set_ylabel('vel')
-    ax.set_zlabel('cost')
+    ax.set_xlabel(label_x)
+    ax.set_ylabel(label_y)
+    ax.set_zlabel(label_z)
 
-def plot_q_val_imshow(ax, q_val):
+def plot_q_val_imshow(ax, q_val, x_min, x_max, y_min, y_max, h_line, v_line):
 
-    Z = np.max(q_val, axis=2)
-
-    extent=[-1.2, 0.5, -0.07, 0.07]
-    ax.imshow(Z.T, extent=extent, 
+    extent=[x_min, x_max, y_min, y_max]
+    ax.imshow(q_val.T, extent=extent, 
         aspect='auto', origin='lower',
         interpolation='gaussian')
 
-    ax.plot([-1.2, 0.5], [0, 0], color='black')
-    ax.plot([-0.5, -0.5], [-0.07, 0.07], color='black')
+    ax.plot([x_min, x_max], [h_line, h_line], color='black')
+    ax.plot([v_line, v_line], [y_min, y_max], color='black')
 
 def plot_policy(ax, q_val):
     pos_size = q_val.shape[0]
