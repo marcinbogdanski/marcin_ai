@@ -23,7 +23,6 @@ def main():
     print(logger.mem)
     print(logger.approx)
 
-
     fig = plt.figure()
     ax_q_max_wr = fig.add_subplot(141, projection='3d')
     ax_q_max_im = fig.add_subplot(142)
@@ -36,6 +35,8 @@ def main():
 
     for i in range(0, len(logger.mem.total_steps), skip):
         print(i)
+
+        extent = (-1, 0.5, -0.07, 0.07)
 
         #
         #   Plot trajectory
@@ -54,7 +55,7 @@ def main():
         At = At_arr[ max(0, i-disp_len) : i + 1 ]
 
         ax_traj.clear()
-        plot_trajectory_2d(ax_traj, St_pos, St_vel, At)
+        plot_trajectory_2d(ax_traj, St_pos, St_vel, At, extent)
         ax_traj.set_title('i=' + str(i))
 
 
@@ -67,64 +68,64 @@ def main():
             q_max = np.max(q_val, axis=2)
 
             ax_q_max_wr.clear()
-            plot_q_val_wireframe(
-                ax_q_max_wr, q_max, 'pos', -1.2, 0.5, 'vel', -0.07, 0.07, 'q_max')
+            plot_q_val_wireframe(ax_q_max_wr, q_max,
+                extent, ('pos', 'vel', 'q_max'))
             ax_q_max_wr.set_title('i=' + str(i))
 
             ax_q_max_im.clear()
             plot_q_val_imshow(ax_q_max_im, q_max, 
-                -1.2, 0.5, -0.07, 0.07, h_line=0.0, v_line=-0.5)
+                extent, h_line=0.0, v_line=-0.5)
             ax_q_max_im.set_title('i=' + str(i))
 
             ax_pol.clear()
-            plot_policy(ax_pol, q_val)
+            plot_policy(ax_pol, q_val,
+                extent, h_line=0.0, v_line=-0.5)
             ax_pol.set_title('i=' + str(i))
-            
+
         plt.pause(0.1)
 
     plt.show()
 
 
-def plot_trajectory_2d(ax, hpos, hvel, hact):
-    hpos = np.array(hpos)
-    hvel = np.array(hvel)
-    hact = np.array(hact)
+def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent):
+    assert len(extent) == 4
 
-    data_back_p = []
-    data_back_v = []
-    data_stay_p = []
-    data_stay_v = []
-    data_fwd_p = []
-    data_fwd_v = []
+    x_min, x_max, y_min, y_max = extent
 
-    for i in range(len(hpos)):
-        if hact[i] == -1:
-            data_back_p.append(hpos[i])
-            data_back_v.append(hvel[i])
-        elif hact[i] == 0:
-            data_stay_p.append(hpos[i])
-            data_stay_v.append(hvel[i])
-        elif hact[i] == 1:
-            data_fwd_p.append(hpos[i])
-            data_fwd_v.append(hvel[i])
-        elif hact[i] is None:
+    data_a0_x = []
+    data_a0_y = []
+    data_a1_x = []
+    data_a1_y = []
+    data_a2_x = []
+    data_a2_y = []
+
+    for i in range(len(x_arr)):
+        if act_arr[i] == -1:
+            data_a0_x.append(x_arr[i])
+            data_a0_y.append(y_arr[i])
+        elif act_arr[i] == 0:
+            data_a1_x.append(x_arr[i])
+            data_a1_y.append(y_arr[i])
+        elif act_arr[i] == 1:
+            data_a2_x.append(x_arr[i])
+            data_a2_y.append(y_arr[i])
+        elif act_arr[i] is None:
             # terminal state
             pass
         else:
-            print('hact[i] = ', hact[i])
+            print('act_arr[i] = ', act_arr[i])
             raise ValueError('bad')
 
 
-    ax.scatter(data_back_p, data_back_v, color='red', marker=',', lw=0, s=1)
-    ax.scatter(data_stay_p, data_stay_v, color='blue', marker=',', lw=0, s=1)
-    ax.scatter(data_fwd_p, data_fwd_v, color='green', marker=',', lw=0, s=1)
+    ax.scatter(data_a0_x, data_a0_y, color='red', marker=',', lw=0, s=1)
+    ax.scatter(data_a1_x, data_a1_y, color='blue', marker=',', lw=0, s=1)
+    ax.scatter(data_a2_x, data_a2_y, color='green', marker=',', lw=0, s=1)
 
-    ax.set_xlim([-1.2, 0.5])
-    ax.set_ylim([-0.07, 0.07])
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
 
 
-def plot_q_val_wireframe(ax, q_val, 
-        label_x, min_x, max_x, label_y, min_y, max_y, label_z):
+def plot_q_val_wireframe(ax, q_val, extent, labels):
     """Plot 2d q_val array on 3d wireframe plot.
     
     Params:
@@ -132,24 +133,34 @@ def plot_q_val_wireframe(ax, q_val,
         q_val - 2d numpy array as follows:
                 1-st dim is X, increasing as indices grow
                 2-nd dim is Y, increasing as indices grow
+        extent - [x_min, x_max, y_min, y_max]
+        labels - [x_label, y_label, z_label]
     """
+
+    assert len(extent) == 4
+    assert len(labels) == 3
+
+    x_min, x_max, y_min, y_max = extent
+    x_label, y_label, z_label = labels
 
     x_size = q_val.shape[0]
     y_size = q_val.shape[1]
-    x_space = np.linspace(min_x, max_x, x_size)
-    y_space = np.linspace(min_y, max_y, y_size)
+    x_space = np.linspace(x_min, x_max, x_size)
+    y_space = np.linspace(y_min, y_max, y_size)
 
     Y, X = np.meshgrid(y_space, x_space)
     
     ax.plot_wireframe(X, Y, q_val)
 
-    ax.set_xlabel(label_x)
-    ax.set_ylabel(label_y)
-    ax.set_zlabel(label_z)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_zlabel(z_label)
 
-def plot_q_val_imshow(ax, q_val, x_min, x_max, y_min, y_max, h_line, v_line):
+def plot_q_val_imshow(ax, q_val, extent, h_line, v_line):
+    assert len(extent) == 4
 
-    extent=[x_min, x_max, y_min, y_max]
+    x_min, x_max, y_min, y_max = extent
+
     ax.imshow(q_val.T, extent=extent, 
         aspect='auto', origin='lower',
         interpolation='gaussian')
@@ -157,49 +168,49 @@ def plot_q_val_imshow(ax, q_val, x_min, x_max, y_min, y_max, h_line, v_line):
     ax.plot([x_min, x_max], [h_line, h_line], color='black')
     ax.plot([v_line, v_line], [y_min, y_max], color='black')
 
-def plot_policy(ax, q_val):
-    pos_size = q_val.shape[0]
-    vel_size = q_val.shape[1]
-    positions = np.linspace(-1.2, 0.5, pos_size)
-    velocities = np.linspace(-0.07, 0.07, vel_size)
+def plot_policy(ax, q_val, extent, h_line, v_line):
+    assert len(extent) == 4
 
-    data_back_p = []
-    data_back_v = []
-    data_stay_p = []
-    data_stay_v = []
-    data_fwd_p = []
-    data_fwd_v = []
+    x_min, x_max, y_min, y_max = extent
 
-    for pi in range(pos_size):
-        for vi in range(vel_size):
+    x_size = q_val.shape[0]
+    y_size = q_val.shape[1]
+    x_space = np.linspace(x_min, x_max, x_size)
+    y_space = np.linspace(y_min, y_max, y_size)
 
-            pos = positions[pi]
-            vel = velocities[vi]
+    data_a0_x = []
+    data_a0_y = []
+    data_a1_x = []
+    data_a1_y = []
+    data_a2_x = []
+    data_a2_y = []
 
-            q_back = q_val[pi, vi, 0]
-            q_stay = q_val[pi, vi, 1]
-            q_fwd = q_val[pi, vi, 2]
+    max_act = np.argmax(q_val, axis=2)
 
-            max_act = np.argmax([q_back, q_stay, q_fwd]) - 1
+    for xi in range(x_size):
+        for yi in range(y_size):
 
-            if max_act == -1:
-                data_back_p.append(pos)
-                data_back_v.append(vel)
-            elif max_act == 0:
-                data_stay_p.append(pos)
-                data_stay_v.append(vel)
-            elif max_act == 1:
-                data_fwd_p.append(pos)
-                data_fwd_v.append(vel)
+            x = x_space[xi]
+            y = y_space[yi]
+
+            if max_act[xi, yi] == 0:
+                data_a0_x.append(x)
+                data_a0_y.append(y)
+            elif max_act[xi, yi] == 1:
+                data_a1_x.append(x)
+                data_a1_y.append(y)
+            elif max_act[xi, yi] == 2:
+                data_a2_x.append(x)
+                data_a2_y.append(y)
             else:
                 raise ValueError('bad')
 
-    ax.scatter(data_back_p, data_back_v, color='red', marker='.')
-    ax.scatter(data_stay_p, data_stay_v, color='blue', marker='.')
-    ax.scatter(data_fwd_p, data_fwd_v, color='green', marker='.')
+    ax.scatter(data_a0_x, data_a0_y, color='red', marker='.')
+    ax.scatter(data_a1_x, data_a1_y, color='blue', marker='.')
+    ax.scatter(data_a2_x, data_a2_y, color='green', marker='.')
 
-    ax.plot([-1.2, 0.5], [0, 0], color='black')
-    ax.plot([-0.5, -0.5], [-0.07, 0.07], color='black')
+    ax.plot([x_min, x_max], [h_line, h_line], color='black')
+    ax.plot([v_line, v_line], [y_min, y_max], color='black')
 
 
 
