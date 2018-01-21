@@ -21,7 +21,17 @@ class NeuralNetwork2:
 
         # output layer
         self.weights_output = np.random.randn(shape[1], shape[2])# * 0.1
-        self.biases_output = np.random.randn(1, shape[2]) - 0
+        self.biases_output = np.random.randn(1, shape[2])
+
+        # # hidden layer
+        # l_0 = np.sqrt(6 / (shape[0] + shape[1]))
+        # self.weights_hidden = np.random.uniform(-l_0, l_0, (shape[0], shape[1]))
+        # self.biases_hidden = np.ones([1, shape[1]]) * 0.1
+
+        # # output layer
+        # l_1 = np.sqrt(6 / (shape[1] + shape[2]))
+        # self.weights_output = np.random.uniform(-l_0, l_0, (shape[1], shape[2]))
+        # self.biases_output = np.ones([1, shape[2]]) * 0.1
 
         self.grad_log = []
         self.w_abs_max = collections.deque(maxlen=5000)
@@ -39,7 +49,10 @@ class NeuralNetwork2:
             return np.multiply(self.fun_sigmoid(x), (1 - self.fun_sigmoid(x)))
         return 1 / (1 + np.exp(-x))
 
-        
+    def fun_relu(self, x, deriv=False):
+        if deriv:
+            1. * (x >= 0)
+        return x * (x >= 0)
 
 
 

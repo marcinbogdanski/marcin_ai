@@ -102,11 +102,8 @@ class TileApproximator:
         self._vel_scale = self._num_of_tillings / (0.07 + 0.07)
 
         self._hashtable = tile_coding.IHT(2048)
-
         self._weights = np.zeros(2048)
-        # self._weights = np.random.randn(2048) - 100
-
-
+        
         max_len = 2000
         self._hist_pos = collections.deque(maxlen=max_len)
         self._hist_vel = collections.deque(maxlen=max_len)
@@ -476,7 +473,7 @@ class Agent:
         #   Log Q values
         #
         if total_step % 1000 == 0:
-            positions = np.linspace(-1.2, 0.49, 64)
+            positions = np.linspace(-1.2, 0.5, 64)
             velocities = np.linspace(-0.07, 0.07, 64)
             actions = np.array([-1, 0, 1])
 

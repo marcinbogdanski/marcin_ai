@@ -120,7 +120,7 @@ def plot_trajectory_2d(ax, hpos, hvel, hact):
 def plot_q_val_wireframe(ax, q_val):
     pos_size = q_val.shape[0]
     vel_size = q_val.shape[1]
-    positions = np.linspace(-1.2, 0.49, pos_size)
+    positions = np.linspace(-1.2, 0.5, pos_size)
     velocities = np.linspace(-0.07, 0.07, vel_size)
     actions = np.array([-1, 0, 1])
 
@@ -136,8 +136,6 @@ def plot_q_val_wireframe(ax, q_val):
 def plot_q_val_imshow(ax, q_val):
 
     Z = np.max(q_val, axis=2)
-    z_min = np.min(q_val)
-    z_max = np.max(q_val)
 
     extent=[-1.2, 0.5, -0.07, 0.07]
     ax.imshow(Z.T, extent=extent, 
@@ -150,7 +148,7 @@ def plot_q_val_imshow(ax, q_val):
 def plot_policy(ax, q_val):
     pos_size = q_val.shape[0]
     vel_size = q_val.shape[1]
-    positions = np.linspace(-1.2, 0.49, pos_size)
+    positions = np.linspace(-1.2, 0.5, pos_size)
     velocities = np.linspace(-0.07, 0.07, vel_size)
 
     data_back_p = []

@@ -121,10 +121,13 @@ def test_run(nb_episodes, nb_iterations,
                     ax_q.clear()
                     plot_q_val(ax_q, agent.Q)
 
-                # plt.pause(0.001)
+                plt.pause(0.001)
 
             
             # print('-------------')
+
+            if total_step >= nb_iterations:
+                return agent
 
             #   ---   time step rolls here   ---
             step += 1
@@ -148,6 +151,8 @@ def test_run(nb_episodes, nb_iterations,
                 print('espiode finished after iteration', step)
                 agent.log(episode, step, total_step)
                 break
+
+
 
 
     return agent
@@ -284,7 +289,7 @@ def test_single(logger):
     np.random.seed(0)
 
     nb_episodes = 1000
-    nb_iterations = None
+    nb_iterations = 50000
 
     
     logger.agent = Log('Agent')
@@ -297,14 +302,14 @@ def test_single(logger):
 
 
     fig = plt.figure()
-    axb = fig.add_subplot(171, projection='3d')
-    axs = fig.add_subplot(172, projection='3d')
-    axf = fig.add_subplot(173, projection='3d')
-    axm = fig.add_subplot(174, projection='3d')
+    axb = None # fig.add_subplot(171, projection='3d')
+    axs = None # fig.add_subplot(172, projection='3d')
+    axf = None # fig.add_subplot(173, projection='3d')
+    axm = fig.add_subplot(141, projection='3d')
     
-    ax_pol = fig.add_subplot(175, projection='3d')
+    ax_pol = fig.add_subplot(142)
     
-    ax_hist = fig.add_subplot(176)
+    ax_hist = fig.add_subplot(143)
 
     ax_w = None # fig.add_subplot(173)
     ax_w2 = None # fig.add_subplot(174)
@@ -312,10 +317,10 @@ def test_single(logger):
     ax_b2 = None # fig.add_subplot(176)
     ax_log = None # fig.add_subplot(154)
 
-    ax_q = fig.add_subplot(177)
+    ax_q = fig.add_subplot(144)
 
     agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
-            approximator='tile', step_size=0.3, e_rand=0.0, 
+            approximator='neural', step_size=0.01, e_rand=0.1, 
             axes=[axb, axs, axf, axm], 
             ax_pol=ax_pol,
             ax_hist=ax_hist, 
@@ -324,19 +329,13 @@ def test_single(logger):
             ax_q=ax_q,
             logger=logger)
 
-    axb.clear()
-    axs.clear()
-    axf.clear()
-    axm.clear()
-    plot_approximator(axb, axs, axf, axm, agent.Q)
-
     plt.show()
 
 def plot_weights(ax, weights):
     ax.hist(weights.flatten())
 
 def plot_policy(ax, approx):
-    positions = np.linspace(-1.2, 0.49, 16)
+    positions = np.linspace(-1.2, 0.5, 16)
     velocities = np.linspace(-0.07, 0.07, 16)
 
     data_back_p = []
@@ -443,7 +442,7 @@ def plot_q_val(ax, approx):
 
 def plot_approximator(ax_back, ax_stay, ax_fwd, ax_max, approx):
 
-    positions = np.linspace(-1.2, 0.49, 32)
+    positions = np.linspace(-1.2, 0.5, 32)
     velocities = np.linspace(-0.07, 0.07, 32)
     actions = np.array([-1, 0, 1])
 
@@ -456,11 +455,11 @@ def plot_approximator(ax_back, ax_stay, ax_fwd, ax_max, approx):
         for y in range(32):
             pos = X[x, y]
             vel = Y[x, y]
-                        
+            
             q_back = approx.estimate((pos, vel), -1)
             q_stay = approx.estimate((pos, vel), 0)
             q_fwd = approx.estimate((pos, vel), 1)
-                
+            
             Z_back[x, y] = q_back
             Z_stay[x, y] = q_stay
             Z_fwd[x, y] = q_fwd
@@ -486,7 +485,7 @@ def main():
     logger = Logger()
     try:
         test_single(logger)
-    except KeyboardInterrupt:
+    finally:
         logger.save('data.log')
         print('log saved')
 
