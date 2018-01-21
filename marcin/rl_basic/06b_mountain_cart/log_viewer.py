@@ -55,7 +55,8 @@ def main():
         At = At_arr[ max(0, i-disp_len) : i + 1 ]
 
         ax_traj.clear()
-        plot_trajectory_2d(ax_traj, St_pos, St_vel, At, extent)
+        plot_trajectory_2d(ax_traj, St_pos, St_vel, At, extent,
+            h_line=0.0, v_line=-0.5)
         ax_traj.set_title('i=' + str(i))
 
 
@@ -85,44 +86,6 @@ def main():
         plt.pause(0.1)
 
     plt.show()
-
-
-def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent):
-    assert len(extent) == 4
-
-    x_min, x_max, y_min, y_max = extent
-
-    data_a0_x = []
-    data_a0_y = []
-    data_a1_x = []
-    data_a1_y = []
-    data_a2_x = []
-    data_a2_y = []
-
-    for i in range(len(x_arr)):
-        if act_arr[i] == -1:
-            data_a0_x.append(x_arr[i])
-            data_a0_y.append(y_arr[i])
-        elif act_arr[i] == 0:
-            data_a1_x.append(x_arr[i])
-            data_a1_y.append(y_arr[i])
-        elif act_arr[i] == 1:
-            data_a2_x.append(x_arr[i])
-            data_a2_y.append(y_arr[i])
-        elif act_arr[i] is None:
-            # terminal state
-            pass
-        else:
-            print('act_arr[i] = ', act_arr[i])
-            raise ValueError('bad')
-
-
-    ax.scatter(data_a0_x, data_a0_y, color='red', marker=',', lw=0, s=1)
-    ax.scatter(data_a1_x, data_a1_y, color='blue', marker=',', lw=0, s=1)
-    ax.scatter(data_a2_x, data_a2_y, color='green', marker=',', lw=0, s=1)
-
-    ax.set_xlim([x_min, x_max])
-    ax.set_ylim([y_min, y_max])
 
 
 def plot_q_val_wireframe(ax, q_val, extent, labels):
@@ -156,6 +119,7 @@ def plot_q_val_wireframe(ax, q_val, extent, labels):
     ax.set_ylabel(y_label)
     ax.set_zlabel(z_label)
 
+
 def plot_q_val_imshow(ax, q_val, extent, h_line, v_line):
     assert len(extent) == 4
 
@@ -167,6 +131,7 @@ def plot_q_val_imshow(ax, q_val, extent, h_line, v_line):
 
     ax.plot([x_min, x_max], [h_line, h_line], color='black')
     ax.plot([v_line, v_line], [y_min, y_max], color='black')
+
 
 def plot_policy(ax, q_val, extent, h_line, v_line):
     assert len(extent) == 4
@@ -213,6 +178,44 @@ def plot_policy(ax, q_val, extent, h_line, v_line):
     ax.plot([v_line, v_line], [y_min, y_max], color='black')
 
 
+def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent, h_line, v_line):
+    assert len(extent) == 4
+
+    x_min, x_max, y_min, y_max = extent
+
+    data_a0_x = []
+    data_a0_y = []
+    data_a1_x = []
+    data_a1_y = []
+    data_a2_x = []
+    data_a2_y = []
+
+    for i in range(len(x_arr)):
+        if act_arr[i] == -1:
+            data_a0_x.append(x_arr[i])
+            data_a0_y.append(y_arr[i])
+        elif act_arr[i] == 0:
+            data_a1_x.append(x_arr[i])
+            data_a1_y.append(y_arr[i])
+        elif act_arr[i] == 1:
+            data_a2_x.append(x_arr[i])
+            data_a2_y.append(y_arr[i])
+        elif act_arr[i] is None:
+            # terminal state
+            pass
+        else:
+            print('act_arr[i] = ', act_arr[i])
+            raise ValueError('bad')
+
+    ax.scatter(data_a0_x, data_a0_y, color='red', marker=',', lw=0, s=1)
+    ax.scatter(data_a1_x, data_a1_y, color='blue', marker=',', lw=0, s=1)
+    ax.scatter(data_a2_x, data_a2_y, color='green', marker=',', lw=0, s=1)
+
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+
+    ax.plot([x_min, x_max], [h_line, h_line], color='black')
+    ax.plot([v_line, v_line], [y_min, y_max], color='black')
 
 
 if __name__ == '__main__':
