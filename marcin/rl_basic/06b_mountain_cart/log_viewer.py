@@ -177,6 +177,9 @@ def plot_policy(ax, q_val, extent, h_line, v_line):
     ax.plot([x_min, x_max], [h_line, h_line], color='black')
     ax.plot([v_line, v_line], [y_min, y_max], color='black')
 
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
+
 
 def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent, h_line, v_line):
     assert len(extent) == 4
@@ -211,11 +214,11 @@ def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent, h_line, v_line):
     ax.scatter(data_a1_x, data_a1_y, color='blue', marker=',', lw=0, s=1)
     ax.scatter(data_a2_x, data_a2_y, color='green', marker=',', lw=0, s=1)
 
-    ax.set_xlim([x_min, x_max])
-    ax.set_ylim([y_min, y_max])
-
     ax.plot([x_min, x_max], [h_line, h_line], color='black')
     ax.plot([v_line, v_line], [y_min, y_max], color='black')
+
+    ax.set_xlim([x_min, x_max])
+    ax.set_ylim([y_min, y_max])
 
 
 if __name__ == '__main__':

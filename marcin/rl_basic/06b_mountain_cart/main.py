@@ -188,7 +188,7 @@ def test_single(logger):
     np.random.seed(0)
 
     nb_episodes = 1000
-    nb_iterations = 50000
+    nb_iterations = 500000
 
     
     logger.agent = Log('Agent')
@@ -219,7 +219,7 @@ def test_single(logger):
     ax_q = fig.add_subplot(144)
 
     agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
-            approximator='tile', step_size=0.3, e_rand=0.0, 
+            approximator='aggregate', step_size=0.3, e_rand=0.0, 
             axes=[axb, axs, axf, axm], 
             ax_pol=ax_pol,
             ax_traj=ax_traj, 
@@ -256,9 +256,9 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
 
 def plot_q_val(ax, approx):
 
-    est_q_back = approx.estimate((-0.5, 0.0), -1)
-    est_q_stay = approx.estimate((-0.5, 0.0), 0)
-    est_q_fwd = approx.estimate((-0.5, 0.0), 1) 
+    est_q_back = approx.estimate((0.4, 0.035), -1)
+    est_q_stay = approx.estimate((0.4, 0.035), 0)
+    est_q_fwd = approx.estimate((0.4, 0.035), 1) 
 
     print('estimates (0, 0):', est_q_back, est_q_stay, est_q_fwd)
 

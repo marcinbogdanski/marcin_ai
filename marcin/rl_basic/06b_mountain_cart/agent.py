@@ -12,11 +12,13 @@ class AggregateApproximator:
     def __init__(self, step_size, log=None):
         self._step_size = step_size
         
+        eps = 1e-5
+
         self._pos_bin_nb = 64
-        self._pos_bins = np.linspace(-1.2, 0.5, self._pos_bin_nb+1)
+        self._pos_bins = np.linspace(-1.2, 0.5+eps, self._pos_bin_nb+1)
 
         self._vel_bin_nb = 64
-        self._vel_bins = np.linspace(-0.07, 0.07, self._vel_bin_nb+1)
+        self._vel_bins = np.linspace(-0.07, 0.07+eps, self._vel_bin_nb+1)
 
         self._action_nb = 3
 
@@ -29,6 +31,10 @@ class AggregateApproximator:
         self._hist_act = collections.deque(maxlen=max_len)
         self._hist_tar = collections.deque(maxlen=max_len)
 
+        self._q_back = collections.deque(maxlen=50)
+        self._q_stay = collections.deque(maxlen=50)
+        self._q_fwd = collections.deque(maxlen=50)
+
     def reset(self):
         self._hist_pos.clear()
         self._hist_vel.clear()
@@ -36,7 +42,6 @@ class AggregateApproximator:
         self._hist_tar.clear()
 
     def _to_idx(self, state, action):
-        # print('_to_idx(state, action)', state, type(state), action, type(action))
         assert isinstance(state, tuple)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
@@ -44,24 +49,17 @@ class AggregateApproximator:
 
         pos, vel = state[0], state[1]
 
-        # print('pos, vel', pos, vel)
-
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
         assert action in [-1, 0, 1]
         act_idx = action + 1
 
-        if pos == 0.5:
-            return None, None, None
-
         pos_idx = np.digitize(pos, self._pos_bins) - 1
         if vel == 0.07:
             vel_idx = self._vel_bin_nb-1
         else:
             vel_idx = np.digitize(vel, self._vel_bins) - 1
-
-        # print('pos_idx, vel_idx', pos_idx, vel_idx)
 
         assert 0 <= pos_idx and pos_idx <= self._pos_bin_nb-1
         assert 0 <= vel_idx and vel_idx <= self._vel_bin_nb-1
@@ -70,16 +68,14 @@ class AggregateApproximator:
 
     def estimate(self, state, action):
         pos_idx, vel_idx, act_idx = self._to_idx(state, action)
-        if pos_idx is None:
-            return 0
-        else:
-            return self._states[pos_idx, vel_idx, act_idx]
+        return self._states[pos_idx, vel_idx, act_idx]
       
 
     def update(self, state, action, target):
-        # print('update(target)', target, type(target))
-        assert isinstance(target, float)
         pos_idx, vel_idx, act_idx = self._to_idx(state, action)
+
+        pos = state[0]
+        assert pos < 0.5  # this should never be called on terminal state
 
         self._hist_pos.append(state[0])
         self._hist_vel.append(state[1])
@@ -116,13 +112,8 @@ class TileApproximator:
 
     def reset(self):
         pass
-        # self._hist_pos.clear()
-        # self._hist_vel.clear()
-        # self._hist_act.clear()
-        # self._hist_tar.clear()
 
     def _test_input(self, state, action):
-        # print('_to_idx(state, action)', state, type(state), action, type(action))
         assert isinstance(state, tuple)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
@@ -130,22 +121,15 @@ class TileApproximator:
 
         pos, vel = state[0], state[1]
 
-        # print('pos, vel', pos, vel)
-
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
         assert action in [-1, 0, 1]
 
-        if pos == 0.5:
-            return None, None, None
-
         return pos, vel, action
 
     def estimate(self, state, action):
         pos, vel, action = self._test_input(state, action)
-        if pos is None:
-            return 0  # terminal state
 
         active_tiles = tile_coding.tiles(
             self._hashtable, self._num_of_tillings,
@@ -157,8 +141,7 @@ class TileApproximator:
 
     def update(self, state, action, target):
         pos, vel, action = self._test_input(state, action)
-        if pos is None:
-            return 0  # terminal state
+        assert pos < 0.5  # this should never be called on terminal state
 
         self._hist_pos.append(pos)
         self._hist_vel.append(vel)
@@ -265,7 +248,7 @@ class NeuralApproximator:
         if pos is None:
             return 0  # terminal state
 
-        # pdb.set_trace()
+        pdb.set_trace()
 
         self._hist_pos.append(pos)
         self._hist_vel.append(vel)
@@ -294,7 +277,7 @@ class NeuralApproximator:
         if pos is None:
             return 0  # terminal state
 
-        # pdb.set_trace()
+        pdb.set_trace()
 
         self._hist_pos.append(pos)
         self._hist_vel.append(vel)
@@ -571,6 +554,7 @@ class Agent:
         St = self._trajectory[t].observation      # evaluated state tuple (x, y)
         St_1 = self._trajectory[t+1].observation  # next state tuple (x, y)
         Rt_1 = self._trajectory[t+1].reward       # next step reward
+        done = self._trajectory[t+1].done
         step = self._step_size
         disc = self._discount
 
@@ -581,15 +565,20 @@ class Agent:
 
         # Q[St, At] = Q[St, At] + step * (Rt_1 + disc * Q[St_1, At_1] - Q[St, At])
 
-        Tt = Rt_1 + disc * self.Q.estimate(St_1, At_1)
+        if not done:
+            Tt = Rt_1 + disc * self.Q.estimate(St_1, At_1)
+        else:
+            Tt = Rt_1
 
         if isinstance(self.Q, NeuralApproximator):
             self.Q.update2(St, At, Rt_1, St_1)
+
 
             # if St_1[0] == 0.5:
             #     pdb.set_trace()
         else:
             self.Q.update(St, At, Tt)
+            
 
     def eval_td_online(self):
         self.eval_td_t(len(self._trajectory) - 2)  # Eval next-to last state
