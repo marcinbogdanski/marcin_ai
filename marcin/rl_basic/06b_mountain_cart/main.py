@@ -73,7 +73,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             agent.log(episode, step, total_step)
 
             if total_step % 1000 == 0:
-                print('e_rand', agent._epsilon_random, 'step_size', agent._step_size)
+                print('e_rand', agent._epsilon_random, 
+                    'step_size', agent._step_size)
 
                 extent = (-1, 0.5, -0.07, 0.07)
 

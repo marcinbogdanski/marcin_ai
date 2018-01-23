@@ -211,28 +211,27 @@ class NeuralApproximator:
         assert len(est) == 1
         return est[0]  # return 1d array
 
-
-
-    def update(self, memory):
-
-        if len(memory._hist_St) < 32:
-            return
-
-        idx = np.random.choice(range(len(memory._hist_St)), 32)
-        idx[31] = len(memory._hist_St) - 1
+    def update(self, batch):
+        assert isinstance(batch, list)
+        assert len(batch) > 0
+        assert len(batch[0]) == 5
 
         inputs = []
         targets = []
-        for i in idx:
-            pp = memory._hist_St[i][0]
-            vv = memory._hist_St[i][1]
-            aa = memory._hist_At[i]
+        for tup in batch:
+            St = tup[0]
+            At = tup[1]
+            Rt_1 = tup[2]
+            St_1 = tup[3]
+            done = tup[4]
 
-            rr_n = memory._hist_Rt_1[i]
-            pp_n = memory._hist_St_1[i][0]
-            vv_n = memory._hist_St_1[i][1]
+            pp = St[0]
+            vv = St[1]
+            aa = At
 
-            is_done = memory._hist_done[i]
+            rr_n = Rt_1
+            pp_n = St_1[0]
+            vv_n = St_1[1]
 
             pp += self._pos_offset
             pp *= self._pos_scale
@@ -246,7 +245,7 @@ class NeuralApproximator:
             est_n = self._nn.forward(np.array([[pp_n, vv_n]]))
             q_n = np.max(est_n)
 
-            if is_done:
+            if done:
                 tt = rr_n 
             else:
                 tt = rr_n + self._discount * q_n
@@ -262,6 +261,8 @@ class NeuralApproximator:
         targets = np.array(targets)
 
         self._nn.train_batch(inputs, targets, self._step_size)
+
+
 
 
 class Memory:
@@ -302,10 +303,22 @@ class Memory:
         self._hist_done.append(done)
 
     def length(self):
-        return len(self._hist.St)
+        return len(self._hist_St)
 
     def get_batch(self, batch_len):
-        pass
+        indices = np.random.choice(range(len(self._hist_St)), 32)
+        indices[31] = len(self._hist_St) - 1
+
+        batch = []
+        for idx in indices:
+            tup = (self._hist_St[idx],
+                   self._hist_At[idx],
+                   self._hist_Rt_1[idx],
+                   self._hist_St_1[idx],
+                   self._hist_done[idx])
+            batch.append(tup)
+
+        return batch
 
 class HistoryData:
     """One piece of agent trajectory"""
@@ -515,7 +528,9 @@ class Agent:
 
             self._memory.append(St, At, Rt_1, St_1, done)
 
-            self.Q.update(self._memory)
+            if self._memory.length() >= 32:
+                batch = self._memory.get_batch(32)
+                self.Q.update(batch)
 
         else:
             if done:
