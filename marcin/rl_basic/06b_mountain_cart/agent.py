@@ -29,7 +29,6 @@ class AggregateApproximator:
         self._hist_pos = collections.deque(maxlen=max_len)
         self._hist_vel = collections.deque(maxlen=max_len)
         self._hist_act = collections.deque(maxlen=max_len)
-        self._hist_tar = collections.deque(maxlen=max_len)
 
         self._q_back = collections.deque(maxlen=50)
         self._q_stay = collections.deque(maxlen=50)
@@ -39,7 +38,6 @@ class AggregateApproximator:
         self._hist_pos.clear()
         self._hist_vel.clear()
         self._hist_act.clear()
-        self._hist_tar.clear()
 
     def _to_idx(self, state, action):
         assert isinstance(state, tuple)
@@ -80,7 +78,6 @@ class AggregateApproximator:
         self._hist_pos.append(state[0])
         self._hist_vel.append(state[1])
         self._hist_act.append(action)
-        self._hist_tar.append(target)
         
         est = self.estimate(state, action)
         
@@ -104,7 +101,6 @@ class TileApproximator:
         self._hist_pos = collections.deque(maxlen=max_len)
         self._hist_vel = collections.deque(maxlen=max_len)
         self._hist_act = collections.deque(maxlen=max_len)
-        self._hist_tar = collections.deque(maxlen=max_len)
 
         self._q_back = collections.deque(maxlen=50)
         self._q_stay = collections.deque(maxlen=50)
@@ -146,7 +142,6 @@ class TileApproximator:
         self._hist_pos.append(pos)
         self._hist_vel.append(vel)
         self._hist_act.append(action)
-        self._hist_tar.append(target)
 
         active_tiles = tile_coding.tiles(
             self._hashtable, self._num_of_tillings,
@@ -178,7 +173,6 @@ class NeuralApproximator:
         self._hist_pos = collections.deque(maxlen=max_len)
         self._hist_vel = collections.deque(maxlen=max_len)
         self._hist_act = collections.deque(maxlen=max_len)
-        self._hist_tar = collections.deque(maxlen=max_len)
 
         self._hist_rew_next = collections.deque(maxlen=max_len)
         self._hist_pos_next = collections.deque(maxlen=max_len)
@@ -198,37 +192,26 @@ class NeuralApproximator:
 
     def reset(self):
         pass
-        # self._hist_pos.clear()
-        # self._hist_vel.clear()
-        # self._hist_act.clear()
-        # self._hist_tar.clear()
 
 
     def _test_input(self, state, action):
         # print('_to_idx(state, action)', state, type(state), action, type(action))
-        assert isinstance(state, tuple)
+        assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
         assert isinstance(action, int) or isinstance(action, np.int64)
 
         pos, vel = state[0], state[1]
 
-        # print('pos, vel', pos, vel)
-
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
         assert action in [0, 1, 2]
 
-        if pos == 0.5:
-            return None, None, None
-
         return pos, vel, action
 
     def estimate(self, state, action):
         pos, vel, action = self._test_input(state, action)
-        if pos is None:
-            return 0  # terminal state
 
         pos += self._pos_offset
         pos *= self._pos_scale
@@ -240,73 +223,8 @@ class NeuralApproximator:
 
         return est[0, action]
 
-    def update(self, state, action, target):
-        self.update_replay(state, action, target)
 
-    def update_single(self, state, action, target):
-        pos, vel, action = self._test_input(state, action)
-        if pos is None:
-            return 0  # terminal state
-
-        pdb.set_trace()
-
-        self._hist_pos.append(pos)
-        self._hist_vel.append(vel)
-        self._hist_act.append(action)
-        self._hist_tar.append(target)
-
-        pos += self._pos_offset
-        pos *= self._pos_scale
-        vel *= self._vel_scale
-
-        est = self._nn.forward(np.array([[pos, vel]]))
-
-        # do not update other action predicitons
-        assert action in [0, 1, 2]
-        est[0, action] = target
-
-        batch = [ (np.array([[pos, vel]]), est) ]
-
-        self._nn.train_batch(batch, self._step_size)
-
-        
-    def update_replay(self, state, action, target):
-        pos, vel, action = self._test_input(state, action)
-        if pos is None:
-            return 0  # terminal state
-
-        pdb.set_trace()
-
-        self._hist_pos.append(pos)
-        self._hist_vel.append(vel)
-        self._hist_act.append(action)
-        self._hist_tar.append(target)
-
-        if len(self._hist_pos) < 32:
-            return
-
-        idx = np.random.choice(range(len(self._hist_pos)), 32)
-
-        batch = []
-        for i in idx:
-            pp = self._hist_pos[i]
-            vv = self._hist_vel[i]
-            aa = self._hist_act[i]
-            tt = self._hist_tar[i]
-
-            pp += self._pos_offset
-            pp *= self._pos_scale
-            vv *= self._vel_scale
-
-            est = self._nn.forward(np.array([[pp, vv]]))
-            assert aa in [-1, 0, 1]
-            est[0, aa+1] = tt
-
-            batch.append( (np.array([[pp, vv]]), np.array(est)) )
-
-        self._nn.train_batch(batch, self._step_size)
-
-    def update2(self, state, action, reward, state_next):
+    def update(self, state, action, reward, state_next):
         pos, vel, action = self._test_input(state, action)
         if pos is None:
             return 0  # current state is terminal
@@ -319,7 +237,6 @@ class NeuralApproximator:
         self._hist_pos.append(pos)
         self._hist_vel.append(vel)
         self._hist_act.append(action)
-        self._hist_tar.append(0)
 
         assert reward in [-1, 0]
         pos_next = state_next[0]
@@ -329,7 +246,8 @@ class NeuralApproximator:
         assert -0.07 <= vel_next and vel_next <= 0.07
 
         if pos_next == 0.5:
-            assert reward == 0
+            # assert reward == 0
+            pass
 
         self._hist_rew_next.append(reward)
         self._hist_pos_next.append(pos_next)
@@ -583,11 +501,9 @@ class Agent:
 
 
         if isinstance(self.Q, NeuralApproximator):
-            self.Q.update2(St, At, Rt_1, St_1)
 
+            self.Q.update(St, At, Rt_1, St_1)
 
-            # if St_1[0] == 0.5:
-            #     pdb.set_trace()
         else:
             if done:
                 Tt = Rt_1
