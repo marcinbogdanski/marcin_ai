@@ -76,54 +76,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 print('e_rand', agent._epsilon_random, 
                     'step_size', agent._step_size)
 
-                extent = (-1, 0.5, -0.07, 0.07)
-
-                if logger.q_val.data['q_val'][-1] is not None:
-                    q_val = logger.q_val.data['q_val'][-1]
-                    q_max = np.max(q_val, axis=2)
-
-                    if ax_qmax_wf is not None:
-                        ax_qmax_wf.clear()
-                        plot_q_val_wireframe(ax_qmax_wf, q_max,
-                            extent, ('pos', 'vel', 'q_max'))
-
-                    if ax_qmax_im is not None:
-                        ax_qmax_im.clear()
-                        plot_q_val_imshow(ax_qmax_im, q_max,
-                            extent, h_line=0.0, v_line=-0.5)
-                    
-                    if ax_policy is not None:
-                        ax_policy.clear()
-                        plot_policy(ax_policy, q_val,
-                            extent, h_line=0.0, v_line=-0.5)
-
-                if ax_trajectory is not None:
-                    Rt_arr = logger.mem.data['Rt']
-                    St_pos_arr = logger.mem.data['St_pos']
-                    St_vel_arr = logger.mem.data['St_vel']
-                    At_arr = logger.mem.data['At']
-                    done = logger.mem.data['done']
-
-                    disp_len = 1000
-
-                    i = total_step
-                    Rt = Rt_arr[ max(0, i-disp_len) : i + 1 ]
-                    St_pos = St_pos_arr[ max(0, i-disp_len) : i + 1 ]
-                    St_vel = St_vel_arr[ max(0, i-disp_len) : i + 1 ]
-                    At = At_arr[ max(0, i-disp_len) : i + 1 ]
-
-                    ax_trajectory.clear()
-                    plot_trajectory_2d(ax_trajectory, 
-                        St_pos, St_vel, At, extent, h_line=0.0, v_line=-0.5)
-
-
-                if ax_q_series is not None:
-                    ax_q_series.clear()
-                    t_steps = logger.q_val.total_steps[0:total_step:100]
-                    ser_E0 = logger.q_val.data['series_E0'][0:total_step:100]
-                    ser_E1 = logger.q_val.data['series_E1'][0:total_step:100]
-                    ser_E2 = logger.q_val.data['series_E2'][0:total_step:100]
-                    plot_q_series(ax_q_series, t_steps, ser_E0, ser_E1, ser_E2)
+                plot_mountain_car(logger, total_step, ax_qmax_wf, ax_qmax_im, 
+                    ax_policy, ax_trajectory, ax_q_series)
 
                 plt.pause(0.001)
 
@@ -150,13 +104,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 agent.log(episode, step, total_step)
                 break
 
-
-
-
     return
-
-
-
 
 
 

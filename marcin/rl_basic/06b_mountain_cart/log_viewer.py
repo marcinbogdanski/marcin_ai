@@ -24,23 +24,49 @@ def main():
     print(logger.approx)
 
     fig = plt.figure()
-    ax_q_max_wr = fig.add_subplot(141, projection='3d')
-    ax_q_max_im = fig.add_subplot(142)
-    ax_pol = fig.add_subplot(143)
-    ax_traj = fig.add_subplot(144)
-
+    ax_q_max_wr = fig.add_subplot(151, projection='3d')
+    ax_q_max_im = fig.add_subplot(152)
+    ax_policy = fig.add_subplot(153)
+    ax_trajectory = fig.add_subplot(154)
+    ax_q_series = fig.add_subplot(155)
 
 
     skip = 1000
 
-    for i in range(0, len(logger.mem.total_steps), skip):
-        print(i)
+    for total_step in range(0, len(logger.mem.total_steps), skip):
+        print(total_step)
 
-        extent = (-1, 0.5, -0.07, 0.07)
+        plot_mountain_car(logger, total_step,
+            ax_q_max_wr, ax_q_max_im, ax_policy, ax_trajectory, ax_q_series)
 
-        #
-        #   Plot trajectory
-        #
+        plt.pause(0.1)
+
+    plt.show()
+
+def plot_mountain_car(logger, current_total_step, 
+    ax_qmax_wf, ax_qmax_im, ax_policy, ax_trajectory, ax_q_series):
+    extent = (-1, 0.5, -0.07, 0.07)
+
+    if logger.q_val.data['q_val'][current_total_step] is not None:
+        q_val = logger.q_val.data['q_val'][current_total_step]
+        q_max = np.max(q_val, axis=2)
+
+        if ax_qmax_wf is not None:
+            ax_qmax_wf.clear()
+            plot_q_val_wireframe(ax_qmax_wf, q_max,
+                extent, ('pos', 'vel', 'q_max'))
+
+        if ax_qmax_im is not None:
+            ax_qmax_im.clear()
+            plot_q_val_imshow(ax_qmax_im, q_max,
+                extent, h_line=0.0, v_line=-0.5)
+        
+        if ax_policy is not None:
+            ax_policy.clear()
+            plot_policy(ax_policy, q_val,
+                extent, h_line=0.0, v_line=-0.5)
+
+    if ax_trajectory is not None:
         Rt_arr = logger.mem.data['Rt']
         St_pos_arr = logger.mem.data['St_pos']
         St_vel_arr = logger.mem.data['St_vel']
@@ -49,47 +75,24 @@ def main():
 
         disp_len = 1000
 
+        i = current_total_step
         Rt = Rt_arr[ max(0, i-disp_len) : i + 1 ]
         St_pos = St_pos_arr[ max(0, i-disp_len) : i + 1 ]
         St_vel = St_vel_arr[ max(0, i-disp_len) : i + 1 ]
         At = At_arr[ max(0, i-disp_len) : i + 1 ]
 
-        ax_traj.clear()
-        plot_trajectory_2d(ax_traj, St_pos, St_vel, At, extent,
-            h_line=0.0, v_line=-0.5)
-        ax_traj.set_title('i=' + str(i))
+        ax_trajectory.clear()
+        plot_trajectory_2d(ax_trajectory, 
+            St_pos, St_vel, At, extent, h_line=0.0, v_line=-0.5)
 
-
-        #
-        #   Plot Q
-        #
-        if logger.q_val.data['q_val'][i] is not None:
-
-            q_val = logger.q_val.data['q_val'][i]
-            q_max = np.max(q_val, axis=2)
-
-            ax_q_max_wr.clear()
-            plot_q_val_wireframe(ax_q_max_wr, q_max,
-                extent, ('pos', 'vel', 'q_max'))
-            ax_q_max_wr.set_title('i=' + str(i))
-
-            ax_q_max_im.clear()
-            plot_q_val_imshow(ax_q_max_im, q_max, 
-                extent, h_line=0.0, v_line=-0.5)
-            ax_q_max_im.set_title('i=' + str(i))
-
-            ax_pol.clear()
-            plot_policy(ax_pol, q_val,
-                extent, h_line=0.0, v_line=-0.5)
-            ax_pol.set_title('i=' + str(i))
-
-        #
-        #   Plot Q Series
-        #
-
-        plt.pause(0.1)
-
-    plt.show()
+    if ax_q_series is not None:
+        ax_q_series.clear()
+        i = current_total_step
+        t_steps = logger.q_val.total_steps[0:i:100]
+        ser_E0 = logger.q_val.data['series_E0'][0:i:100]
+        ser_E1 = logger.q_val.data['series_E1'][0:i:100]
+        ser_E2 = logger.q_val.data['series_E2'][0:i:100]
+        plot_q_series(ax_q_series, t_steps, ser_E0, ser_E1, ser_E2)
 
 
 def plot_q_val_wireframe(ax, q_val, extent, labels):
