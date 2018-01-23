@@ -70,11 +70,9 @@ class AggregateApproximator:
         return self._states[pos_idx, vel_idx, act_idx]
 
     def estimate_all(self, state):
-        result = np.zeros_like(self._action_space)
+        result = np.zeros(len(self._action_space))
         for i in range(len(self._action_space)):
-            pos_idx, vel_idx, act_idx = \
-                self._to_idx(state, self._action_space[i])
-            result[i] = self._states[pos_idx, vel_idx, act_idx]
+            result[i] = self.estimate(state, self._action_space[i])
         return result
       
 
@@ -152,13 +150,10 @@ class TileApproximator:
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
-        result = np.zeros_like(self._action_space)
+        result = np.zeros(len(self._action_space))
         for i in range(len(self._action_space)):
             action = self._action_space[i]
-            active_tiles = tile_coding.tiles(
-                self._hashtable, self._num_of_tillings,
-                [self._pos_scale * pos, self._vel_scale * vel], [action])
-            result[i] = np.sum(self._weights[active_tiles])
+            result[i] = self.estimate(state, action)
         return result
 
 
@@ -456,7 +451,7 @@ class Agent:
                     vel = velocities[vi]
                     state[0] = pos
                     state[1] = vel
-                    q = self.Q.estimate_all(state)                 
+                    q = self.Q.estimate_all(state)
                     for ai in range(len(actions)):
                         act = actions[ai]
                         q_val[pi, vi, ai] = q[ai]
