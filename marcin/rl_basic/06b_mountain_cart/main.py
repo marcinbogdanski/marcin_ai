@@ -11,27 +11,37 @@ from mountain_car import MountainCarEnv
 from agent import Agent
 
 from logger import Logger, Log
-from log_viewer import plot_q_val_wireframe
-from log_viewer import plot_q_val_imshow
-from log_viewer import plot_policy
-from log_viewer import plot_trajectory_2d
-from log_viewer import plot_q_series
+from log_viewer import plot_mountain_car
 
 
 def test_run(nb_episodes, nb_total_steps, expl_start,
-    approximator, step_size, e_rand, 
-    ax_qmax_wf=None, ax_qmax_im=None, ax_policy=None, ax_trajectory=None,
-    ax_q_series=None, logger=None):
 
+    agent_discount,
+    agent_nb_rand_steps,
+    agent_e_rand_start,
+    agent_e_rand_target,
+    agent_e_rand_decay,
+
+    mem_size_max,
+
+    approximator, step_size, batch_size,
+    ax_qmax_wf=None, ax_qmax_im=None, ax_policy=None, ax_trajectory=None,
+    ax_stats=None, ax_q_series=None, logger=None):
 
     action_space = [0, 1, 2]  # move left, do nothing, move right
 
     # env = gym.make('MountainCar-v0')
     env = MountainCarEnv(log=logger.env)
     agent = Agent(action_space=action_space,
+                discount=agent_discount,
+                nb_rand_steps=agent_nb_rand_steps,
+                e_rand_start=agent_e_rand_start,
+                e_rand_target=agent_e_rand_target,
+                e_rand_decay=agent_e_rand_decay,
+                mem_size_max=mem_size_max,
                 approximator=approximator,
                 step_size=step_size,
-                e_rand=e_rand,
+                batch_size=batch_size,
                 log_agent=logger.agent,
                 log_q_val=logger.q_val,
                 log_mem=logger.mem,
@@ -62,9 +72,6 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                                 done=None)
 
         while True:
-            
-            if agent._epsilon_random > 0.1:
-                agent._epsilon_random -= 1.0 / 100000
 
             action = agent.pick_action(obs)
 
@@ -77,7 +84,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                     'step_size', agent._step_size)
 
                 plot_mountain_car(logger, total_step, ax_qmax_wf, ax_qmax_im, 
-                    ax_policy, ax_trajectory, ax_q_series)
+                    ax_policy, ax_trajectory, ax_stats, ax_q_series)
 
                 plt.pause(0.001)
 
@@ -85,6 +92,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
             if total_step >= nb_total_steps:
                 return
+
+            agent.advance_one_step()
 
             #   ---   time step rolls here   ---
             step += 1
@@ -127,23 +136,34 @@ def test_single(logger):
     axs = None # fig.add_subplot(172, projection='3d')
     axf = None # fig.add_subplot(173, projection='3d')
     
-    ax_qmax_wf = fig.add_subplot(151, projection='3d')
-    ax_qmax_im = fig.add_subplot(152)
-    ax_policy = fig.add_subplot(153)
-    ax_trajectory = fig.add_subplot(154)
-    ax_q_series = fig.add_subplot(155)
+    ax_qmax_wf = fig.add_subplot(161, projection='3d')
+    ax_qmax_im = fig.add_subplot(162)
+    ax_policy = fig.add_subplot(163)
+    ax_trajectory = fig.add_subplot(164)
+    ax_stats = fig.add_subplot(165)
+    ax_q_series = fig.add_subplot(166)
 
     test_run(
             nb_episodes=None,
-            nb_total_steps=200000,
-            expl_start=True,
+            nb_total_steps=300000,
+            expl_start=False,
+
+            agent_discount=0.99,
+            agent_nb_rand_steps=5000,
+            agent_e_rand_start=1.0,
+            agent_e_rand_target=0.1,
+            agent_e_rand_decay=1.0/5000,
+
+            mem_size_max=5000,
+
             approximator='neural',
-            step_size=0.01,
-            e_rand=0.1,
+            step_size=0.001,
+            batch_size=128,
             ax_qmax_wf=ax_qmax_wf, 
             ax_qmax_im=ax_qmax_im,
             ax_policy=ax_policy,
             ax_trajectory=ax_trajectory, 
+            ax_stats=ax_stats,
             ax_q_series=ax_q_series,
             logger=logger)
 

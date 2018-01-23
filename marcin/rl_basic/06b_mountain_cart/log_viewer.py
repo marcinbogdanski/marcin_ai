@@ -24,11 +24,12 @@ def main():
     print(logger.approx)
 
     fig = plt.figure()
-    ax_q_max_wr = fig.add_subplot(151, projection='3d')
-    ax_q_max_im = fig.add_subplot(152)
-    ax_policy = fig.add_subplot(153)
-    ax_trajectory = fig.add_subplot(154)
-    ax_q_series = fig.add_subplot(155)
+    ax_q_max_wr = fig.add_subplot(161, projection='3d')
+    ax_q_max_im = fig.add_subplot(162)
+    ax_policy = fig.add_subplot(163)
+    ax_trajectory = fig.add_subplot(164)
+    ax_stats = fig.add_subplot(165)
+    ax_q_series = fig.add_subplot(166)
 
 
     skip = 1000
@@ -44,7 +45,7 @@ def main():
     plt.show()
 
 def plot_mountain_car(logger, current_total_step, 
-    ax_qmax_wf, ax_qmax_im, ax_policy, ax_trajectory, ax_q_series):
+    ax_qmax_wf, ax_qmax_im, ax_policy, ax_trajectory, ax_stats, ax_q_series):
     extent = (-1, 0.5, -0.07, 0.07)
 
     if logger.q_val.data['q_val'][current_total_step] is not None:
@@ -84,6 +85,23 @@ def plot_mountain_car(logger, current_total_step,
         ax_trajectory.clear()
         plot_trajectory_2d(ax_trajectory, 
             St_pos, St_vel, At, extent, h_line=0.0, v_line=-0.5)
+
+    if ax_stats is not None:
+        ax_stats.clear()
+        i = current_total_step
+
+        t_steps = logger.agent.total_steps[0:i:1]
+        ser_e_rand = logger.agent.data['e_rand'][0:i:1]
+        ser_rand_act = logger.agent.data['rand_act'][0:i:1]
+        ser_mem_size = logger.agent.data['mem_size'][0:i:1]
+
+        arr = logger.agent.data['rand_act'][max(0, i-1000):i]
+        nz = np.count_nonzero(arr)
+        print('RAND: ', nz, ' / ', len(arr))
+
+        # ax_stats.plot(t_steps, ser_e_rand, label='e_rand', color='red')
+        ax_stats.plot(t_steps, ser_rand_act, label='rand_act', color='blue')
+        ax_stats.legend()
 
     if ax_q_series is not None:
         ax_q_series.clear()

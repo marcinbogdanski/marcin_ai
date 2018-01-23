@@ -267,6 +267,7 @@ class NeuralApproximator:
 
 class Memory:
     def __init__(self, max_len):
+        self.max_len = max_len
         self._hist_St = collections.deque(maxlen=max_len)
         self._hist_At = collections.deque(maxlen=max_len)
         self._hist_Rt_1 = collections.deque(maxlen=max_len)
@@ -335,9 +336,33 @@ class HistoryData:
 
 
 class Agent:
-    def __init__(self, action_space, approximator,
-        step_size=0.1, e_rand=0.0, 
+    def __init__(self, action_space,
+        discount,
+        nb_rand_steps,
+        e_rand_start,
+        e_rand_target,
+        e_rand_decay,
+
+        mem_size_max,
+
+        approximator,
+        step_size,
+        batch_size,
         log_agent=None, log_q_val=None, log_mem=None, log_approx=None):
+
+        # usually gamma in literature
+        self._discount = discount
+
+        # if true, exec random action until memory is full
+        self._nb_rand_steps = nb_rand_steps  
+
+        # policy parameter, 0 => always greedy
+        self._epsilon_random = e_rand_start
+        self._epsilon_random_start = e_rand_start
+        self._epsilon_random_target = e_rand_target
+        self._epsilon_random_decay = e_rand_decay
+
+        self._this_step_rand_act = False
 
         if approximator == 'aggregate':
             self.Q = AggregateApproximator(
@@ -346,17 +371,17 @@ class Agent:
             self.Q = TileApproximator(
                 step_size, action_space, log=log_approx)
         elif approximator == 'neural':
-            self.Q = NeuralApproximator(step_size, 0.99, log=log_approx)
+            self.Q = NeuralApproximator(step_size, discount, log=log_approx)
         else:
             raise ValueError('Unknown approximator')
 
-        self._memory = Memory(max_len=500)
+        self._memory = Memory(max_len=mem_size_max)
 
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
-        self._discount = 0.99         # usually noted as gamma in literature
+        self._batch_size = batch_size
 
-        self._epsilon_random = e_rand  # policy parameter, 0 => always greedy
+        
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
@@ -364,11 +389,24 @@ class Agent:
 
         self._force_random_action = False
 
+        self._curr_total_step = 0
+
         self.log_agent = log_agent
         if log_agent is not None:
-            log_agent.add_param('step_size', self._step_size)
-            log_agent.add_param('epsilon_random', self._epsilon_random)
             log_agent.add_param('discount', self._discount)
+            log_agent.add_param('nb_rand_steps', self._nb_rand_steps)
+            
+            log_agent.add_param('e_rand_start', self._epsilon_random_start)
+            log_agent.add_param('e_rand_target', self._epsilon_random_target)
+            log_agent.add_param('e_rand_decay', self._epsilon_random_decay)
+
+            log_agent.add_param('step_size', self._step_size)
+            log_agent.add_param('batch_size', self._batch_size)
+
+            log_agent.add_data_item('e_rand')
+            log_agent.add_data_item('rand_act')
+            log_agent.add_data_item('mem_size')
+            
 
         self.log_q_val = log_q_val
         if log_q_val is not None:
@@ -379,6 +417,7 @@ class Agent:
 
         self.log_mem = log_mem
         if log_mem is not None:
+            log_mem.add_param('max_size', mem_size_max)
             log_mem.add_data_item('Rt')
             log_mem.add_data_item('St_pos')
             log_mem.add_data_item('St_vel')
@@ -392,6 +431,14 @@ class Agent:
         self._force_random_action = expl_start
 
     def log(self, episode, step, total_step):
+
+        #
+        #   Log agent
+        #
+        self.log_agent.append(episode, step, total_step,
+            e_rand=self._epsilon_random,
+            rand_act=self._this_step_rand_act,
+            mem_size=self._memory.length())
 
         #
         #   Log memory
@@ -433,19 +480,33 @@ class Agent:
             q_val=q_val,
             series_E0=est[0], series_E1=est[1], series_E2=est[2])
 
+    def advance_one_step(self):
+        self._curr_total_step += 1
+
+        if self._curr_total_step > self._nb_rand_steps:
+            if self._epsilon_random > self._epsilon_random_target:
+                self._epsilon_random -= self._epsilon_random_decay
+
 
     def pick_action(self, obs):
-        assert isinstance(obs, np.ndarray)          
+        assert isinstance(obs, np.ndarray)
+
+        if self._curr_total_step < self._nb_rand_steps:
+            self._this_step_rand_act = True
+            return np.random.choice(self._action_space)
 
         if self._force_random_action:
             self._force_random_action = False
+            self._this_step_rand_act = True
             return np.random.choice(self._action_space)
 
         if np.random.rand() < self._epsilon_random:
             # pick random action
+            self._this_step_rand_act = True
             res = np.random.choice(self._action_space)
 
         else:
+            self._this_step_rand_act = False
             # act greedy
             max_Q = float('-inf')
             max_action = None
@@ -523,14 +584,17 @@ class Agent:
         if At_1 is None:
             At_1 = self.pick_action(St)
 
+        self._memory.append(St, At, Rt_1, St_1, done)
+
+        if self._curr_total_step < self._nb_rand_steps:
+            # no lerninng during initial random phase
+            return
+
 
         if isinstance(self.Q, NeuralApproximator):
 
-            self._memory.append(St, At, Rt_1, St_1, done)
-
-            if self._memory.length() >= 32:
-                batch = self._memory.get_batch(32)
-                self.Q.update(batch)
+            batch = self._memory.get_batch(self._batch_size)
+            self.Q.update(batch)
 
         else:
             if done:
