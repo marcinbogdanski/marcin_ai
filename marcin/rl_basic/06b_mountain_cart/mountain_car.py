@@ -17,7 +17,7 @@ class MountainCarEnv:
             log.add_param('vel_max', 0.07)
             log.add_param('start_pos_min', -0.6)
             log.add_param('start_pos_max', -0.4)
-            log.add_param('max_steps', '+inf')
+            log.add_param('max_steps', float('+inf'))
             log.add_param('target_pos', 0.5)
 
 
@@ -62,9 +62,4 @@ class MountainCarEnv:
 
     def print_env(self):
         print('Env pos/vel: ', self._pos, self._vel)
-
-
-
-
-
 

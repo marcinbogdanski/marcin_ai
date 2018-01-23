@@ -17,16 +17,16 @@ from log_viewer import plot_policy
 from log_viewer import plot_trajectory_2d
 
 
-def test_run(nb_episodes, nb_iterations, expl_start,
+def test_run(nb_episodes, nb_total_steps, expl_start,
     approximator, step_size, e_rand, 
-    axes=None, ax_qmax_im=None, ax_pol=None, ax_traj=None, ax_w=None,
-    ax_log=None, ax_q=None, logger=None):
+    ax_qmax_wf=None, ax_qmax_im=None, ax_policy=None, ax_trajectory=None,
+    ax_q_series=None, logger=None):
 
 
     action_space = [0, 1, 2]  # move left, do nothing, move right
 
-    #env = MountainCarEnv(log=logger.env)
-    env = gym.make('MountainCar-v0')
+    # env = gym.make('MountainCar-v0')
+    env = MountainCarEnv(log=logger.env)
     agent = Agent(action_space=action_space,
                 approximator=approximator,
                 step_size=step_size,
@@ -39,48 +39,39 @@ def test_run(nb_episodes, nb_iterations, expl_start,
     #
     #   Initialise loggers
     #
+    episode = -1
     total_step = -1
-
-    # RMSE = []    # root mean-squared error
-    for episode in range(nb_episodes):
+    while True:
+        episode += 1
+        if nb_episodes is not None and episode > nb_episodes:
+            break
         
         step = 0
         total_step += 1
 
-        print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
+        print('episode:', episode, '/', nb_episodes,
+            'step', step, 'total_step', total_step)
 
-        # obs = env.reset(expl_start=expl_start)
-        obs = env.reset()
+        # obs = env.reset()
+        obs = env.reset(expl_start=expl_start)
         agent.reset(expl_start=expl_start)
 
         agent.append_trajectory(observation=obs,
                                 reward=None,
                                 done=None)
 
-        time_pick = 0
-
         while True:
             
             if agent._epsilon_random > 0.1:
                 agent._epsilon_random -= 1.0 / 100000
 
-            # print(i)
-
-            time_start = time.time()
             action = agent.pick_action(obs)
-            time_pick += time.time() - time_start
 
             agent.append_action(action=action)
 
-
-            # print('AGENT logging', total_step, len(logger.q_val.data['q_val']))
             agent.log(episode, step, total_step)
 
-
-            if total_step % 1000 == 0 and (axes is not None or ax_traj is not None):
-
-                print('time_pick', time_pick)
-
+            if total_step % 1000 == 0:
                 print('e_rand', agent._epsilon_random, 'step_size', agent._step_size)
 
                 extent = (-1, 0.5, -0.07, 0.07)
@@ -89,10 +80,9 @@ def test_run(nb_episodes, nb_iterations, expl_start,
                     q_val = logger.q_val.data['q_val'][-1]
                     q_max = np.max(q_val, axis=2)
 
-                    ax_q_max = axes[3]
-                    if ax_q_max is not None:
-                        ax_q_max.clear()
-                        plot_q_val_wireframe(axes[3], q_max,
+                    if ax_qmax_wf is not None:
+                        ax_qmax_wf.clear()
+                        plot_q_val_wireframe(ax_qmax_wf, q_max,
                             extent, ('pos', 'vel', 'q_max'))
 
                     if ax_qmax_im is not None:
@@ -100,12 +90,12 @@ def test_run(nb_episodes, nb_iterations, expl_start,
                         plot_q_val_imshow(ax_qmax_im, q_max,
                             extent, h_line=0.0, v_line=-0.5)
                     
-                    if ax_pol is not None:
-                        ax_pol.clear()
-                        plot_policy(ax_pol, q_val,
+                    if ax_policy is not None:
+                        ax_policy.clear()
+                        plot_policy(ax_policy, q_val,
                             extent, h_line=0.0, v_line=-0.5)
 
-                if ax_traj is not None:
+                if ax_trajectory is not None:
                     Rt_arr = logger.mem.data['Rt']
                     St_pos_arr = logger.mem.data['St_pos']
                     St_vel_arr = logger.mem.data['St_vel']
@@ -120,50 +110,25 @@ def test_run(nb_episodes, nb_iterations, expl_start,
                     St_vel = St_vel_arr[ max(0, i-disp_len) : i + 1 ]
                     At = At_arr[ max(0, i-disp_len) : i + 1 ]
 
-                    ax_traj.clear()
-                    plot_trajectory_2d(ax_traj, St_pos, St_vel, At, extent,
-                        h_line=0.0, v_line=-0.5)
+                    ax_trajectory.clear()
+                    plot_trajectory_2d(ax_trajectory, 
+                        St_pos, St_vel, At, extent, h_line=0.0, v_line=-0.5)
 
 
-                # if ax_w is not None:
-                #     if ax_w[0] is not None:
-                #         ax_w[0].clear()
-                #         plot_weights(ax_w[0], agent.Q._nn.weights_hidden)
-                #     if ax_w[1] is not None:
-                #         ax_w[1].clear()
-                #         plot_weights(ax_w[1], agent.Q._nn.biases_hidden)
-                #     if ax_w[2] is not None:
-                #         ax_w[2].clear()
-                #         plot_weights(ax_w[2], agent.Q._nn.weights_output)
-                #     if ax_w[3] is not None:
-                #         ax_w[3].clear()
-                #         plot_weights(ax_w[3], agent.Q._nn.biases_output)
-
-                # if ax_log is not None:
-                #     ax_log.clear()
-                #     #ax_log.plot(agent.Q._nn.w_abs_max, color='red')
-                #     #ax_log.plot(agent.Q._nn.b_abs_max, color='green')
-                #     #ax_log.plot(agent.Q._nn.w2_abs_max, color='orange')
-                #     ax_log.plot(agent.Q._nn.b2_abs_max, color='blue')
-
-                if ax_q is not None:
-                    ax_q.clear()
-                    plot_q_val(ax_q, agent.Q)
+                if ax_q_series is not None:
+                    ax_q_series.clear()
+                    plot_q_series(ax_q_series, agent.Q)
 
                 plt.pause(0.001)
 
             
-            # print('-------------')
 
-            if total_step >= nb_iterations:
-                return agent
+            if total_step >= nb_total_steps:
+                return
 
             #   ---   time step rolls here   ---
             step += 1
             total_step += 1
-
-            # print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
-            
 
             obs, reward, done, _ = env.step(action)
 
@@ -182,7 +147,7 @@ def test_run(nb_episodes, nb_iterations, expl_start,
 
 
 
-    return agent
+    return
 
 
 
@@ -192,9 +157,6 @@ def test_run(nb_episodes, nb_iterations, expl_start,
 def test_single(logger):
 
     np.random.seed(0)
-
-    nb_episodes =   1500000
-    nb_iterations = 1500000
 
     
     logger.agent = Log('Agent')
@@ -210,37 +172,28 @@ def test_single(logger):
     axb = None # fig.add_subplot(171, projection='3d')
     axs = None # fig.add_subplot(172, projection='3d')
     axf = None # fig.add_subplot(173, projection='3d')
-    axm = fig.add_subplot(151, projection='3d')
-
+    
+    ax_qmax_wf = fig.add_subplot(151, projection='3d')
     ax_qmax_im = fig.add_subplot(152)
-    
-    ax_pol = fig.add_subplot(153)
-    
-    ax_traj = fig.add_subplot(154)
+    ax_policy = fig.add_subplot(153)
+    ax_trajectory = fig.add_subplot(154)
+    ax_q_series = fig.add_subplot(155)
 
-    ax_w = None # fig.add_subplot(173)
-    ax_w2 = None # fig.add_subplot(174)
-    ax_b = None # fig.add_subplot(175)
-    ax_b2 = None # fig.add_subplot(176)
-    ax_log = None # fig.add_subplot(154)
-
-    ax_q = fig.add_subplot(155)
-
-    agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
-            expl_start=True, approximator='tile', step_size=0.3, e_rand=0.0,
-            axes=[axb, axs, axf, axm], 
+    test_run(
+            nb_episodes=1500000,
+            nb_total_steps=1500000,
+            expl_start=True,
+            approximator='tile',
+            step_size=0.3,
+            e_rand=0.0,
+            ax_qmax_wf=ax_qmax_wf, 
             ax_qmax_im=ax_qmax_im,
-            ax_pol=ax_pol,
-            ax_traj=ax_traj, 
-            ax_w=[ax_w, ax_b, ax_w2, ax_b2], 
-            ax_log=ax_log,
-            ax_q=ax_q,
+            ax_policy=ax_policy,
+            ax_trajectory=ax_trajectory, 
+            ax_q_series=ax_q_series,
             logger=logger)
 
     plt.show()
-
-def plot_weights(ax, weights):
-    ax.hist(weights.flatten())
 
 
 
@@ -263,7 +216,7 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
     ax.scatter(r_pos, r_vel, r_tar)
 
 
-def plot_q_val(ax, approx):
+def plot_q_series(ax, approx):
 
     est_q_back = approx.estimate(np.array([0.4, 0.035]), 0)
     est_q_stay = approx.estimate(np.array([0.4, 0.035]), 1)
