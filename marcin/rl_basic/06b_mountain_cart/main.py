@@ -15,6 +15,7 @@ from log_viewer import plot_q_val_wireframe
 from log_viewer import plot_q_val_imshow
 from log_viewer import plot_policy
 from log_viewer import plot_trajectory_2d
+from log_viewer import plot_q_series
 
 
 def test_run(nb_episodes, nb_total_steps, expl_start,
@@ -117,7 +118,11 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
                 if ax_q_series is not None:
                     ax_q_series.clear()
-                    plot_q_series(ax_q_series, agent.Q)
+                    t_steps = logger.q_val.total_steps[0:total_step:100]
+                    ser_E0 = logger.q_val.data['series_E0'][0:total_step:100]
+                    ser_E1 = logger.q_val.data['series_E1'][0:total_step:100]
+                    ser_E2 = logger.q_val.data['series_E2'][0:total_step:100]
+                    plot_q_series(ax_q_series, t_steps, ser_E0, ser_E1, ser_E2)
 
                 plt.pause(0.001)
 
@@ -180,12 +185,12 @@ def test_single(logger):
     ax_q_series = fig.add_subplot(155)
 
     test_run(
-            nb_episodes=1500000,
-            nb_total_steps=1500000,
+            nb_episodes=None,
+            nb_total_steps=200000,
             expl_start=True,
-            approximator='tile',
-            step_size=0.3,
-            e_rand=0.0,
+            approximator='neural',
+            step_size=0.001,
+            e_rand=0.1,
             ax_qmax_wf=ax_qmax_wf, 
             ax_qmax_im=ax_qmax_im,
             ax_policy=ax_policy,
@@ -214,26 +219,6 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
 
     # ax.scatter(hpos[::10], hvel[::10], -htarget[::10])
     ax.scatter(r_pos, r_vel, r_tar)
-
-
-def plot_q_series(ax, approx):
-
-    est_q_back = approx.estimate(np.array([0.4, 0.035]), 0)
-    est_q_stay = approx.estimate(np.array([0.4, 0.035]), 1)
-    est_q_fwd = approx.estimate(np.array([0.4, 0.035]), 2) 
-
-    print('estimates (0, 0):', est_q_back, est_q_stay, est_q_fwd)
-
-    approx._q_back.append( est_q_back )
-    approx._q_stay.append( est_q_stay )
-    approx._q_fwd.append( est_q_fwd )
-
-    # x = list(range(len(approx._q_back)))
-
-    ax.plot(approx._q_back, color='red')
-    ax.plot(approx._q_stay, color='blue')
-    ax.plot(approx._q_fwd, color='green')
-
 
 
 def main():

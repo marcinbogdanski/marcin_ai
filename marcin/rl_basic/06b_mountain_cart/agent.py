@@ -26,20 +26,6 @@ class AggregateApproximator:
         self._states = np.zeros([self._pos_bin_nb,
             self._vel_bin_nb, self._action_nb])
 
-        max_len = 2000
-        self._hist_pos = collections.deque(maxlen=max_len)
-        self._hist_vel = collections.deque(maxlen=max_len)
-        self._hist_act = collections.deque(maxlen=max_len)
-
-        self._q_back = collections.deque(maxlen=50)
-        self._q_stay = collections.deque(maxlen=50)
-        self._q_fwd = collections.deque(maxlen=50)
-
-    def reset(self):
-        self._hist_pos.clear()
-        self._hist_vel.clear()
-        self._hist_act.clear()
-
     def _to_idx(self, state, action):
         assert isinstance(state, tuple)
         assert isinstance(state[0], float)
@@ -81,10 +67,6 @@ class AggregateApproximator:
 
         pos = state[0]
         assert pos < 0.5  # this should never be called on terminal state
-
-        self._hist_pos.append(state[0])
-        self._hist_vel.append(state[1])
-        self._hist_act.append(action)
         
         est = self.estimate(state, action)
         
@@ -107,16 +89,6 @@ class TileApproximator:
         self._weights = np.zeros(2048)
         
         max_len = 2000
-        self._hist_pos = collections.deque(maxlen=max_len)
-        self._hist_vel = collections.deque(maxlen=max_len)
-        self._hist_act = collections.deque(maxlen=max_len)
-
-        self._q_back = collections.deque(maxlen=50)
-        self._q_stay = collections.deque(maxlen=50)
-        self._q_fwd = collections.deque(maxlen=50)
-
-    def reset(self):
-        pass
 
     def _test_input(self, state, action):
         assert isinstance(state, np.ndarray)
@@ -161,10 +133,6 @@ class TileApproximator:
     def update(self, state, action, target):
         pos, vel, action = self._test_input(state, action)
         assert pos < 0.5  # this should never be called on terminal state
-
-        self._hist_pos.append(pos)
-        self._hist_vel.append(vel)
-        self._hist_act.append(action)
 
         active_tiles = tile_coding.tiles(
             self._hashtable, self._num_of_tillings,
@@ -229,13 +197,6 @@ class NeuralApproximator:
         self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
         self._vel_scale = 2 / 0.14  # maps vel to -1..1
 
-        max_len = 500
-        
-
-        self._q_back = collections.deque(maxlen=50)
-        self._q_stay = collections.deque(maxlen=50)
-        self._q_fwd = collections.deque(maxlen=50)
-
         if log is not None:
             log.add_param('type', 'neural network')
             log.add_param('nb_inputs', 2)
@@ -244,24 +205,19 @@ class NeuralApproximator:
             log.add_param('out_size', 3)
             log.add_param('out_act', 'linear')
 
-    def reset(self):
-        pass
-
 
     def _test_input(self, state, action):
         assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
         assert isinstance(action, int) or isinstance(action, np.int64)
-
         pos, vel = state[0], state[1]
-
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
-
         assert action in [0, 1, 2]
 
         return pos, vel, action
+
 
     def estimate(self, state, action):
         pos, vel, action = self._test_input(state, action)
@@ -295,17 +251,7 @@ class NeuralApproximator:
 
 
 
-    def update(self, state, action, reward, state_next, memory):
-        pos, vel, action = self._test_input(state, action)
-
-        assert pos < 0.5
-        assert reward in [-1]
-        pos_next = state_next[0]
-        vel_next = state_next[1]
-
-        assert -1.2 <= pos_next and pos_next <= 0.5
-        assert -0.07 <= vel_next and vel_next <= 0.07
-       
+    def update(self, memory):
 
         if len(memory._hist_St) < 32:
             return
@@ -404,6 +350,9 @@ class Agent:
         self.log_q_val = log_q_val
         if log_q_val is not None:
             log_q_val.add_data_item('q_val')
+            log_q_val.add_data_item('series_E0') # Q at point [0.4, 0.035]
+            log_q_val.add_data_item('series_E1')
+            log_q_val.add_data_item('series_E2')
 
         self.log_mem = log_mem
         if log_mem is not None:
@@ -418,8 +367,6 @@ class Agent:
         self._trajectory = []        # Agent saves history on it's way
 
         self._force_random_action = expl_start
-
-        self.Q.reset()
 
     def log(self, episode, step, total_step):
 
@@ -455,10 +402,13 @@ class Agent:
                     for ai in range(len(actions)):
                         act = actions[ai]
                         q_val[pi, vi, ai] = q[ai]
-
-            self.log_q_val.append(episode, step, total_step, q_val=q_val)
         else:
-            self.log_q_val.append(episode, step, total_step, q_val=None)
+            q_val=None
+
+        est = self.Q.estimate_all(np.array([0.4, 0.035]))
+        self.log_q_val.append(episode, step, total_step,
+            q_val=q_val,
+            series_E0=est[0], series_E1=est[1], series_E2=est[2])
 
 
     def pick_action(self, obs):
@@ -555,7 +505,7 @@ class Agent:
 
             self._memory.append(St, At, Rt_1, St_1, done)
 
-            self.Q.update(St, At, Rt_1, St_1, self._memory)
+            self.Q.update(self._memory)
 
         else:
             if done:

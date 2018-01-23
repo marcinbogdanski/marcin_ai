@@ -83,6 +83,10 @@ def main():
                 extent, h_line=0.0, v_line=-0.5)
             ax_pol.set_title('i=' + str(i))
 
+        #
+        #   Plot Q Series
+        #
+
         plt.pause(0.1)
 
     plt.show()
@@ -219,6 +223,14 @@ def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent, h_line, v_line):
 
     ax.set_xlim([x_min, x_max])
     ax.set_ylim([y_min, y_max])
+
+def plot_q_series(ax, t_steps, ser_0, ser_1, ser_2):
+
+    # x = list(range(len(approx._q_back)))
+
+    ax.plot(t_steps, ser_0, color='red')
+    ax.plot(t_steps, ser_1, color='blue')
+    ax.plot(t_steps, ser_2, color='green')
 
 
 if __name__ == '__main__':
