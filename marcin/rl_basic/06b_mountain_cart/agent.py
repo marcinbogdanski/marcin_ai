@@ -265,8 +265,6 @@ class NeuralApproximator:
         assert action in [-1, 0, 1]
         est[0, action+1] = target
 
-
-
         batch = [ (np.array([[pos, vel]]), est) ]
 
         self._nn.train_batch(batch, self._step_size)
@@ -313,6 +311,8 @@ class NeuralApproximator:
         if pos is None:
             return 0  # current state is terminal
 
+        assert pos < 0.5
+
         # if state_next[0] == 0.5:
         #     pdb.set_trace()
 
@@ -351,6 +351,11 @@ class NeuralApproximator:
             pp_n = self._hist_pos_next[i]
             vv_n = self._hist_vel_next[i]
 
+            if pp_n == 0.5:
+                is_done = True
+            else:
+                is_done = False
+
             pp += self._pos_offset
             pp *= self._pos_scale
             vv *= self._vel_scale
@@ -363,9 +368,7 @@ class NeuralApproximator:
             est_n = self._nn.forward(np.array([[pp_n, vv_n]]))
             q_n = np.max(est_n)
 
-            if pp_n == 0.5:
-                pdb.set_trace()
-                # next state is terminal
+            if is_done:
                 tt = rr_n 
             else:
                 tt = rr_n + self._discount * q_n
@@ -416,6 +419,8 @@ class Agent:
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
 
+        self._force_random_action = False
+
         self.log_agent = log_agent
         if log_agent is not None:
             log_agent.add_param('step_size', self._step_size)
@@ -434,9 +439,11 @@ class Agent:
             log_mem.add_data_item('At')
             log_mem.add_data_item('done')
 
-    def reset(self):
+    def reset(self, expl_start=False):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
+
+        self._force_random_action = expl_start
 
         self.Q.reset()
 
@@ -480,6 +487,9 @@ class Agent:
     def pick_action(self, obs):
         assert isinstance(obs, tuple)          
 
+        if self._force_random_action:
+            self._force_random_action = False
+            return np.random.choice(self._action_space)
 
         if np.random.rand() < self._epsilon_random:
             # pick random action
@@ -565,10 +575,7 @@ class Agent:
 
         # Q[St, At] = Q[St, At] + step * (Rt_1 + disc * Q[St_1, At_1] - Q[St, At])
 
-        if not done:
-            Tt = Rt_1 + disc * self.Q.estimate(St_1, At_1)
-        else:
-            Tt = Rt_1
+
 
         if isinstance(self.Q, NeuralApproximator):
             self.Q.update2(St, At, Rt_1, St_1)
@@ -577,6 +584,11 @@ class Agent:
             # if St_1[0] == 0.5:
             #     pdb.set_trace()
         else:
+            if done:
+                Tt = Rt_1
+            else:
+                Tt = Rt_1 + disc * self.Q.estimate(St_1, At_1)                
+
             self.Q.update(St, At, Tt)
             
 

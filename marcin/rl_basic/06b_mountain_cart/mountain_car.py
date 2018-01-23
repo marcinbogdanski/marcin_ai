@@ -21,10 +21,14 @@ class MountainCarEnv:
             log.add_param('target_pos', 0.5)
 
 
-    def reset(self):
+    def reset(self, expl_start=False):
         self.t_step = 0
-        self._pos = np.random.uniform(-0.6, -0.4)
-        self._vel = 0.0
+        if expl_start == True:
+            self._pos = np.random.uniform(-1.2, 0.5)
+            self._vel = np.random.uniform(-0.07, 0.07)
+        else:
+            self._pos = np.random.uniform(-0.6, -0.4)
+            self._vel = 0.0
         self._done = False
 
         return (self._pos, self._vel)
@@ -47,7 +51,7 @@ class MountainCarEnv:
 
         if self._pos == 0.5:
             obs = (self._pos, self._vel)
-            reward = 0
+            reward = -1
             self._done = True
             return (obs, reward, self._done)
         else:

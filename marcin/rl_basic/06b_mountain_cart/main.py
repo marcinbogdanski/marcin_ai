@@ -15,9 +15,9 @@ from log_viewer import plot_policy
 from log_viewer import plot_trajectory_2d
 
 
-def test_run(nb_episodes, nb_iterations, 
+def test_run(nb_episodes, nb_iterations, expl_start,
     approximator, step_size, e_rand, 
-    axes=None, ax_pol=None, ax_traj=None, ax_w=None,
+    axes=None, ax_qmax_im=None, ax_pol=None, ax_traj=None, ax_w=None,
     ax_log=None, ax_q=None, logger=None):
 
 
@@ -46,8 +46,8 @@ def test_run(nb_episodes, nb_iterations,
 
         print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
 
-        obs = env.reset()
-        agent.reset()
+        obs = env.reset(expl_start=expl_start)
+        agent.reset(expl_start=expl_start)
 
         agent.append_trajectory(t_step=step,
                                 observation=obs,
@@ -91,6 +91,11 @@ def test_run(nb_episodes, nb_iterations,
                         ax_q_max.clear()
                         plot_q_val_wireframe(axes[3], q_max,
                             extent, ('pos', 'vel', 'q_max'))
+
+                    if ax_qmax_im is not None:
+                        ax_qmax_im.clear()
+                        plot_q_val_imshow(ax_qmax_im, q_max,
+                            extent, h_line=0.0, v_line=-0.5)
                     
                     if ax_pol is not None:
                         ax_pol.clear()
@@ -166,9 +171,7 @@ def test_run(nb_episodes, nb_iterations,
 
             agent.eval_td_online()
             
-            if done or step >= 5000:
-                if step >= 5000:
-                    agent._epsilon_random = min(1.0, agent._epsilon_random + 1/10.0)
+            if done or step >= 200:
                 print('espiode finished after iteration', step)
                 agent.log(episode, step, total_step)
                 break
@@ -187,8 +190,8 @@ def test_single(logger):
 
     np.random.seed(0)
 
-    nb_episodes = 1000
-    nb_iterations = 500000
+    nb_episodes =   1500000
+    nb_iterations = 1500000
 
     
     logger.agent = Log('Agent')
@@ -204,11 +207,13 @@ def test_single(logger):
     axb = None # fig.add_subplot(171, projection='3d')
     axs = None # fig.add_subplot(172, projection='3d')
     axf = None # fig.add_subplot(173, projection='3d')
-    axm = fig.add_subplot(141, projection='3d')
+    axm = fig.add_subplot(151, projection='3d')
+
+    ax_qmax_im = fig.add_subplot(152)
     
-    ax_pol = fig.add_subplot(142)
+    ax_pol = fig.add_subplot(153)
     
-    ax_traj = fig.add_subplot(143)
+    ax_traj = fig.add_subplot(154)
 
     ax_w = None # fig.add_subplot(173)
     ax_w2 = None # fig.add_subplot(174)
@@ -216,11 +221,12 @@ def test_single(logger):
     ax_b2 = None # fig.add_subplot(176)
     ax_log = None # fig.add_subplot(154)
 
-    ax_q = fig.add_subplot(144)
+    ax_q = fig.add_subplot(155)
 
     agent = test_run(nb_episodes=nb_episodes, nb_iterations=nb_iterations,
-            approximator='aggregate', step_size=0.3, e_rand=0.0, 
+            expl_start=True, approximator='tile', step_size=0.3, e_rand=0.0,
             axes=[axb, axs, axf, axm], 
+            ax_qmax_im=ax_qmax_im,
             ax_pol=ax_pol,
             ax_traj=ax_traj, 
             ax_w=[ax_w, ax_b, ax_w2, ax_b2], 
