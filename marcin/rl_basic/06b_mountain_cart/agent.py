@@ -9,8 +9,9 @@ import neural_mini
 
 
 class AggregateApproximator:
-    def __init__(self, step_size, log=None):
+    def __init__(self, step_size, action_space, log=None):
         self._step_size = step_size
+        self._action_space = action_space
         
         eps = 1e-5
 
@@ -67,6 +68,14 @@ class AggregateApproximator:
     def estimate(self, state, action):
         pos_idx, vel_idx, act_idx = self._to_idx(state, action)
         return self._states[pos_idx, vel_idx, act_idx]
+
+    def estimate_all(self, state):
+        result = np.zeros_like(self._action_space)
+        for i in range(len(self._action_space)):
+            pos_idx, vel_idx, act_idx = \
+                self._to_idx(state, self._action_space[i])
+            result[i] = self._states[pos_idx, vel_idx, act_idx]
+        return result
       
 
     def update(self, state, action, target):
@@ -87,9 +96,11 @@ class AggregateApproximator:
 
 class TileApproximator:
 
-    def __init__(self, step_size, log=None):
+    def __init__(self, step_size, action_space, log=None):
         self._num_of_tillings = 8
         self._step_size = step_size / self._num_of_tillings
+
+        self._action_space = action_space
 
         self._pos_scale = self._num_of_tillings / (0.5 + 1.2)
         self._vel_scale = self._num_of_tillings / (0.07 + 0.07)
@@ -129,10 +140,27 @@ class TileApproximator:
 
         active_tiles = tile_coding.tiles(
             self._hashtable, self._num_of_tillings,
-            [self._pos_scale * pos, self._vel_scale * vel],
-            [action])
+            [self._pos_scale * pos, self._vel_scale * vel], [action])
 
         return np.sum(self._weights[active_tiles])
+
+    def estimate_all(self, state):
+        assert isinstance(state, np.ndarray)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        pos, vel = state[0], state[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        result = np.zeros_like(self._action_space)
+        for i in range(len(self._action_space)):
+            action = self._action_space[i]
+            active_tiles = tile_coding.tiles(
+                self._hashtable, self._num_of_tillings,
+                [self._pos_scale * pos, self._vel_scale * vel], [action])
+            result[i] = np.sum(self._weights[active_tiles])
+        return result
+
 
 
     def update(self, state, action, target):
@@ -253,6 +281,24 @@ class NeuralApproximator:
 
         return est[0, action]
 
+    def estimate_all(self, state):
+        assert isinstance(state, np.ndarray)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        pos, vel = state[0], state[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._nn.forward(np.array([[pos, vel]]))
+        # _nn.forward(..) returns 2d array, even if only 1 long
+        assert len(est) == 1
+        return est[0]  # return 1d array
+
+
 
     def update(self, state, action, reward, state_next, memory):
         pos, vel, action = self._test_input(state, action)
@@ -330,9 +376,11 @@ class Agent:
         log_agent=None, log_q_val=None, log_mem=None, log_approx=None):
 
         if approximator == 'aggregate':
-            self.Q = AggregateApproximator(step_size, log=log_approx)
+            self.Q = AggregateApproximator(
+                step_size, action_space, log=log_approx)
         elif approximator == 'tile':
-            self.Q = TileApproximator(step_size, log=log_approx)
+            self.Q = TileApproximator(
+                step_size, action_space, log=log_approx)
         elif approximator == 'neural':
             self.Q = NeuralApproximator(step_size, 0.99, log=log_approx)
         else:
@@ -404,16 +452,14 @@ class Agent:
 
             for pi in range(len(positions)):
                 for vi in range(len(velocities)):
+                    pos = positions[pi]
+                    vel = velocities[vi]
+                    state[0] = pos
+                    state[1] = vel
+                    q = self.Q.estimate_all(state)                 
                     for ai in range(len(actions)):
-                        pos = positions[pi]
-                        vel = velocities[vi]
                         act = actions[ai]
-
-                        state[0] = pos
-                        state[1] = vel
-
-                        q = self.Q.estimate(state, act)
-                        q_val[pi, vi, ai] = q
+                        q_val[pi, vi, ai] = q[ai]
 
             self.log_q_val.append(episode, step, total_step, q_val=q_val)
         else:
