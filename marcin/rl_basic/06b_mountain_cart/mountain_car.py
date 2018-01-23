@@ -31,7 +31,7 @@ class MountainCarEnv:
             self._vel = 0.0
         self._done = False
 
-        return (self._pos, self._vel)
+        return np.array([self._pos, self._vel], dtype=float)
 
 
     def step(self, action):
@@ -50,14 +50,14 @@ class MountainCarEnv:
             self._vel = 0.0
 
         if self._pos == 0.5:
-            obs = (self._pos, self._vel)
+            obs = np.array([self._pos, self._vel], dtype=float)
             reward = -1
             self._done = True
-            return (obs, reward, self._done)
+            return (obs, reward, self._done, None)
         else:
-            obs = (self._pos, self._vel)
+            obs = np.array([self._pos, self._vel], dtype=float)
             reward = -1
-            return (obs, reward, self._done)
+            return (obs, reward, self._done, None)
 
 
     def print_env(self):

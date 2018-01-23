@@ -5,7 +5,9 @@ from mpl_toolkits.mplot3d import axes3d
 import time
 import pdb
 
+import gym
 from mountain_car import MountainCarEnv
+
 from agent import Agent
 
 from logger import Logger, Log
@@ -23,7 +25,8 @@ def test_run(nb_episodes, nb_iterations, expl_start,
 
     action_space = [0, 1, 2]  # move left, do nothing, move right
 
-    env = MountainCarEnv(log=logger.env)
+    #env = MountainCarEnv(log=logger.env)
+    env = gym.make('MountainCar-v0')
     agent = Agent(action_space=action_space,
                 approximator=approximator,
                 step_size=step_size,
@@ -46,11 +49,11 @@ def test_run(nb_episodes, nb_iterations, expl_start,
 
         print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
 
-        obs = env.reset(expl_start=expl_start)
+        # obs = env.reset(expl_start=expl_start)
+        obs = env.reset()
         agent.reset(expl_start=expl_start)
 
-        agent.append_trajectory(t_step=step,
-                                observation=obs,
+        agent.append_trajectory(observation=obs,
                                 reward=None,
                                 done=None)
 
@@ -162,9 +165,9 @@ def test_run(nb_episodes, nb_iterations, expl_start,
             # print('episode:', episode, '/', nb_episodes, 'step', step, 'total_step', total_step)
             
 
-            obs, reward, done = env.step(action)
+            obs, reward, done, _ = env.step(action)
 
-            agent.append_trajectory(t_step=env.t_step,
+            agent.append_trajectory(
                         observation=obs,
                         reward=reward,
                         done=done)
@@ -262,9 +265,9 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
 
 def plot_q_val(ax, approx):
 
-    est_q_back = approx.estimate((0.4, 0.035), 0)
-    est_q_stay = approx.estimate((0.4, 0.035), 1)
-    est_q_fwd = approx.estimate((0.4, 0.035), 2) 
+    est_q_back = approx.estimate(np.array([0.4, 0.035]), 0)
+    est_q_stay = approx.estimate(np.array([0.4, 0.035]), 1)
+    est_q_fwd = approx.estimate(np.array([0.4, 0.035]), 2) 
 
     print('estimates (0, 0):', est_q_back, est_q_stay, est_q_fwd)
 

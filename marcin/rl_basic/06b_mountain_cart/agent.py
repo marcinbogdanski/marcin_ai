@@ -114,7 +114,7 @@ class TileApproximator:
         pass
 
     def _test_input(self, state, action):
-        assert isinstance(state, tuple)
+        assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
         assert isinstance(action, int) or isinstance(action, np.int64)
@@ -384,16 +384,16 @@ class NeuralApproximator:
 
 class HistoryData:
     """One piece of agent trajectory"""
-    def __init__(self, t_step, observation, reward, done):
-        self.t_step = t_step
+    def __init__(self, observation, reward, done):
+        assert isinstance(observation, np.ndarray)
         self.observation = observation
         self.reward = reward
         self.action = None
         self.done = done
 
     def __str__(self):
-        return '{0}: obs={1}, rew={2} done={3}   act={4}'.format(
-            self.t_step, self.observation, self.reward, self.done, self.action)
+        return 'obs={0}, rew={1} done={2}   act={3}'.format(
+            self.observation, self.reward, self.done, self.action)
 
 
 class Agent:
@@ -469,6 +469,8 @@ class Agent:
 
             q_val = np.zeros([len(positions), len(velocities), len(actions)])
 
+            state = np.array([0, 0], dtype=float)
+
             for pi in range(len(positions)):
                 for vi in range(len(velocities)):
                     for ai in range(len(actions)):
@@ -476,7 +478,10 @@ class Agent:
                         vel = velocities[vi]
                         act = actions[ai]
 
-                        q = self.Q.estimate((pos, vel), act)
+                        state[0] = pos
+                        state[1] = vel
+
+                        q = self.Q.estimate(state, act)
                         q_val[pi, vi, ai] = q
 
             self.log_q_val.append(episode, step, total_step, q_val=q_val)
@@ -485,7 +490,7 @@ class Agent:
 
 
     def pick_action(self, obs):
-        assert isinstance(obs, tuple)          
+        assert isinstance(obs, np.ndarray)          
 
         if self._force_random_action:
             self._force_random_action = False
@@ -515,9 +520,9 @@ class Agent:
 
 
 
-    def append_trajectory(self, t_step, observation, reward, done):
+    def append_trajectory(self, observation, reward, done):
         self._trajectory.append(
-            HistoryData(t_step, observation, reward, done))
+            HistoryData(observation, reward, done))
 
     def append_action(self, action):
         if len(self._trajectory) != 0:
