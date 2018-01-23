@@ -8,6 +8,9 @@ class NeuralNetwork2:
         Arg:
             shape - 3-tuple: (nb_inputs, nb_hidden, nb_outputs)
         '''
+        self.nb_inputs = shape[0]
+        self.nb_hidden = shape[1]
+        self.nb_outputs = shape[2]
 
         if len(shape) != 3:
             raise ValueError('This implementation supports only 2 layer NN')
@@ -120,38 +123,22 @@ class NeuralNetwork2:
 
         return res_b, res_w
 
-    def train_batch(self, batch, eta):
-        if(len(batch)) == 0:
-            return
+    def train_batch(self, inputs, targets, eta):
+        assert isinstance(inputs, np.ndarray)
+        assert isinstance(targets, np.ndarray)
+        assert inputs.ndim == 2
+        assert targets.ndim == 2
+        assert inputs.shape[1] == self.nb_inputs
+        assert targets.shape[1] == self.nb_outputs
+        assert len(inputs) == len(targets)
+        assert len(inputs) != 0
+        
+        del_b, del_w = self.backward(inputs, targets)
 
-        data = []
-        labels = []
-        for b in batch:
-            data.append(b[0][0])
-            labels.append(b[1][0])
-
-        data = np.array(data)
-        labels = np.array(labels)
-
-
-        del_b, del_w = self.backward(data, labels)
-
-        self.weights_hidden += -eta / len(batch) * del_w[0]
-        self.weights_output += -eta / len(batch) * del_w[1]
-        self.biases_hidden += -eta / len(batch) * del_b[0]
-        self.biases_output += -eta / len(batch) * del_b[1]
-
-
-    def train_SGD(self, data, batch_size, eta, callback=None):
-        temp_shuffled = data[:]
-        np.random.shuffle(temp_shuffled)
-
-        for k in range(0, len(temp_shuffled), batch_size):
-            data_batch = temp_shuffled[k:k + batch_size]
-            self.train_batch(data_batch, eta)
-            
-            if callback is not None:
-                callback(self)
+        self.weights_hidden += -eta / len(inputs) * del_w[0]
+        self.weights_output += -eta / len(inputs) * del_w[1]
+        self.biases_hidden += -eta / len(inputs) * del_b[0]
+        self.biases_output += -eta / len(inputs) * del_b[1]
 
     def evaluate(self, data):
         total_error = 0

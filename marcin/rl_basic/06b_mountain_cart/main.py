@@ -189,7 +189,7 @@ def test_single(logger):
             nb_total_steps=200000,
             expl_start=True,
             approximator='neural',
-            step_size=0.001,
+            step_size=0.01,
             e_rand=0.1,
             ax_qmax_wf=ax_qmax_wf, 
             ax_qmax_im=ax_qmax_im,

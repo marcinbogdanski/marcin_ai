@@ -146,44 +146,6 @@ class TileApproximator:
         for tile in active_tiles:
             self._weights[tile] += delta
 
-class Memory:
-    def __init__(self, max_len):
-        self._hist_St = collections.deque(maxlen=max_len)
-        self._hist_At = collections.deque(maxlen=max_len)
-        self._hist_Rt_1 = collections.deque(maxlen=max_len)
-        self._hist_St_1 = collections.deque(maxlen=max_len)
-        self._hist_done = collections.deque(maxlen=max_len)
-
-    def append(self, St, At, Rt_1, St_1, done):
-        assert isinstance(St, np.ndarray)
-        assert isinstance(St[0], float)
-        assert isinstance(St[1], float)
-        assert isinstance(At, int) or isinstance(At, np.int64)
-        assert isinstance(Rt_1, int)
-        assert isinstance(St_1, np.ndarray)
-        assert isinstance(St_1[0], float)
-        assert isinstance(St_1[1], float)
-        assert isinstance(done, bool)
-
-        pos, vel = St[0], St[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        assert At in [0, 1, 2]
-
-        assert Rt_1 in [-1]
-
-        pos, vel = St_1[0], St_1[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        self._hist_St.append(St)
-        self._hist_At.append(At)
-        self._hist_Rt_1.append(Rt_1)
-        self._hist_St_1.append(St_1)
-        self._hist_done.append(done)
-        
-
 
 class NeuralApproximator:
 
@@ -259,7 +221,8 @@ class NeuralApproximator:
         idx = np.random.choice(range(len(memory._hist_St)), 32)
         idx[31] = len(memory._hist_St) - 1
 
-        batch = []
+        inputs = []
+        targets = []
         for i in idx:
             pp = memory._hist_St[i][0]
             vv = memory._hist_St[i][1]
@@ -289,13 +252,60 @@ class NeuralApproximator:
                 tt = rr_n + self._discount * q_n
 
             assert aa in [0, 1, 2]
+            assert est.shape[0] == 1
             est[0, aa] = tt
 
-            batch.append( (np.array([[pp, vv]]), np.array(est)) )
+            inputs.append([pp, vv])
+            targets.append(est[0])
 
-        self._nn.train_batch(batch, self._step_size)
+        inputs = np.array(inputs)
+        targets = np.array(targets)
+
+        self._nn.train_batch(inputs, targets, self._step_size)
 
 
+class Memory:
+    def __init__(self, max_len):
+        self._hist_St = collections.deque(maxlen=max_len)
+        self._hist_At = collections.deque(maxlen=max_len)
+        self._hist_Rt_1 = collections.deque(maxlen=max_len)
+        self._hist_St_1 = collections.deque(maxlen=max_len)
+        self._hist_done = collections.deque(maxlen=max_len)
+
+    def append(self, St, At, Rt_1, St_1, done):
+        assert isinstance(St, np.ndarray)
+        assert isinstance(St[0], float)
+        assert isinstance(St[1], float)
+        assert isinstance(At, int) or isinstance(At, np.int64)
+        assert isinstance(Rt_1, int)
+        assert isinstance(St_1, np.ndarray)
+        assert isinstance(St_1[0], float)
+        assert isinstance(St_1[1], float)
+        assert isinstance(done, bool)
+
+        pos, vel = St[0], St[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        assert At in [0, 1, 2]
+
+        assert Rt_1 in [-1]
+
+        pos, vel = St_1[0], St_1[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        self._hist_St.append(St)
+        self._hist_At.append(At)
+        self._hist_Rt_1.append(Rt_1)
+        self._hist_St_1.append(St_1)
+        self._hist_done.append(done)
+
+    def length(self):
+        return len(self._hist.St)
+
+    def get_batch(self, batch_len):
+        pass
 
 class HistoryData:
     """One piece of agent trajectory"""
