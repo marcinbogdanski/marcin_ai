@@ -155,6 +155,43 @@ class TileApproximator:
         for tile in active_tiles:
             self._weights[tile] += delta
 
+class Memory:
+    def __init__(self, max_len):
+        self._hist_St = collections.deque(maxlen=max_len)
+        self._hist_At = collections.deque(maxlen=max_len)
+        self._hist_Rt_1 = collections.deque(maxlen=max_len)
+        self._hist_St_1 = collections.deque(maxlen=max_len)
+        self._hist_done = collections.deque(maxlen=max_len)
+
+    def append(self, St, At, Rt_1, St_1, done):
+        assert isinstance(St, np.ndarray)
+        assert isinstance(St[0], float)
+        assert isinstance(St[1], float)
+        assert isinstance(At, int) or isinstance(At, np.int64)
+        assert isinstance(Rt_1, int)
+        assert isinstance(St_1, np.ndarray)
+        assert isinstance(St_1[0], float)
+        assert isinstance(St_1[1], float)
+        assert isinstance(done, bool)
+
+        pos, vel = St[0], St[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        assert At in [0, 1, 2]
+
+        assert Rt_1 in [-1]
+
+        pos, vel = St_1[0], St_1[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        self._hist_St.append(St)
+        self._hist_At.append(At)
+        self._hist_Rt_1.append(Rt_1)
+        self._hist_St_1.append(St_1)
+        self._hist_done.append(done)
+        
 
 
 class NeuralApproximator:
@@ -170,13 +207,7 @@ class NeuralApproximator:
         self._vel_scale = 2 / 0.14  # maps vel to -1..1
 
         max_len = 500
-        self._hist_pos = collections.deque(maxlen=max_len)
-        self._hist_vel = collections.deque(maxlen=max_len)
-        self._hist_act = collections.deque(maxlen=max_len)
-
-        self._hist_rew_next = collections.deque(maxlen=max_len)
-        self._hist_pos_next = collections.deque(maxlen=max_len)
-        self._hist_vel_next = collections.deque(maxlen=max_len)
+        
 
         self._q_back = collections.deque(maxlen=50)
         self._q_stay = collections.deque(maxlen=50)
@@ -195,7 +226,6 @@ class NeuralApproximator:
 
 
     def _test_input(self, state, action):
-        # print('_to_idx(state, action)', state, type(state), action, type(action))
         assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
@@ -224,55 +254,35 @@ class NeuralApproximator:
         return est[0, action]
 
 
-    def update(self, state, action, reward, state_next):
+    def update(self, state, action, reward, state_next, memory):
         pos, vel, action = self._test_input(state, action)
-        if pos is None:
-            return 0  # current state is terminal
 
         assert pos < 0.5
-
-        # if state_next[0] == 0.5:
-        #     pdb.set_trace()
-
-        self._hist_pos.append(pos)
-        self._hist_vel.append(vel)
-        self._hist_act.append(action)
-
-        assert reward in [-1, 0]
+        assert reward in [-1]
         pos_next = state_next[0]
         vel_next = state_next[1]
 
         assert -1.2 <= pos_next and pos_next <= 0.5
         assert -0.07 <= vel_next and vel_next <= 0.07
+       
 
-        if pos_next == 0.5:
-            # assert reward == 0
-            pass
-
-        self._hist_rew_next.append(reward)
-        self._hist_pos_next.append(pos_next)
-        self._hist_vel_next.append(vel_next)
-
-        if len(self._hist_pos) < 32:
+        if len(memory._hist_St) < 32:
             return
 
-        idx = np.random.choice(range(len(self._hist_pos)), 32)
-        idx[31] = len(self._hist_pos) - 1
+        idx = np.random.choice(range(len(memory._hist_St)), 32)
+        idx[31] = len(memory._hist_St) - 1
 
         batch = []
         for i in idx:
-            pp = self._hist_pos[i]
-            vv = self._hist_vel[i]
-            aa = self._hist_act[i]
+            pp = memory._hist_St[i][0]
+            vv = memory._hist_St[i][1]
+            aa = memory._hist_At[i]
 
-            rr_n = self._hist_rew_next[i]
-            pp_n = self._hist_pos_next[i]
-            vv_n = self._hist_vel_next[i]
+            rr_n = memory._hist_Rt_1[i]
+            pp_n = memory._hist_St_1[i][0]
+            vv_n = memory._hist_St_1[i][1]
 
-            if pp_n == 0.5:
-                is_done = True
-            else:
-                is_done = False
+            is_done = memory._hist_done[i]
 
             pp += self._pos_offset
             pp *= self._pos_scale
@@ -328,6 +338,8 @@ class Agent:
         else:
             raise ValueError('Unknown approximator')
 
+        self._memory = Memory(max_len=500)
+
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
         self._discount = 0.99         # usually noted as gamma in literature
@@ -336,6 +348,7 @@ class Agent:
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
+                                     # this resets every new episode
 
         self._force_random_action = False
 
@@ -496,13 +509,12 @@ class Agent:
         if At_1 is None:
             At_1 = self.pick_action(St)
 
-        # Q[St, At] = Q[St, At] + step * (Rt_1 + disc * Q[St_1, At_1] - Q[St, At])
-
-
 
         if isinstance(self.Q, NeuralApproximator):
 
-            self.Q.update(St, At, Rt_1, St_1)
+            self._memory.append(St, At, Rt_1, St_1, done)
+
+            self.Q.update(St, At, Rt_1, St_1, self._memory)
 
         else:
             if done:
