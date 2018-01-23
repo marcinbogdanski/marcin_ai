@@ -194,13 +194,13 @@ def plot_trajectory_2d(ax, x_arr, y_arr, act_arr, extent, h_line, v_line):
     data_a2_y = []
 
     for i in range(len(x_arr)):
-        if act_arr[i] == -1:
+        if act_arr[i] == 0:
             data_a0_x.append(x_arr[i])
             data_a0_y.append(y_arr[i])
-        elif act_arr[i] == 0:
+        elif act_arr[i] == 1:
             data_a1_x.append(x_arr[i])
             data_a1_y.append(y_arr[i])
-        elif act_arr[i] == 1:
+        elif act_arr[i] == 2:
             data_a2_x.append(x_arr[i])
             data_a2_y.append(y_arr[i])
         elif act_arr[i] is None:

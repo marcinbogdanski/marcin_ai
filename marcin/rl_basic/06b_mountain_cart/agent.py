@@ -52,8 +52,8 @@ class AggregateApproximator:
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
-        assert action in [-1, 0, 1]
-        act_idx = action + 1
+        assert action in [0, 1, 2]
+        act_idx = action
 
         pos_idx = np.digitize(pos, self._pos_bins) - 1
         if vel == 0.07:
@@ -124,7 +124,7 @@ class TileApproximator:
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
-        assert action in [-1, 0, 1]
+        assert action in [0, 1, 2]
 
         return pos, vel, action
 
@@ -218,7 +218,7 @@ class NeuralApproximator:
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
 
-        assert action in [-1, 0, 1]
+        assert action in [0, 1, 2]
 
         if pos == 0.5:
             return None, None, None
@@ -236,9 +236,9 @@ class NeuralApproximator:
 
         est = self._nn.forward(np.array([[pos, vel]]))
 
-        assert action in [-1, 0, 1]
+        assert action in [0, 1, 2]
 
-        return est[0, action+1]
+        return est[0, action]
 
     def update(self, state, action, target):
         self.update_replay(state, action, target)
@@ -262,8 +262,8 @@ class NeuralApproximator:
         est = self._nn.forward(np.array([[pos, vel]]))
 
         # do not update other action predicitons
-        assert action in [-1, 0, 1]
-        est[0, action+1] = target
+        assert action in [0, 1, 2]
+        est[0, action] = target
 
         batch = [ (np.array([[pos, vel]]), est) ]
 
@@ -373,8 +373,8 @@ class NeuralApproximator:
             else:
                 tt = rr_n + self._discount * q_n
 
-            assert aa in [-1, 0, 1]
-            est[0, aa+1] = tt
+            assert aa in [0, 1, 2]
+            est[0, aa] = tt
 
             batch.append( (np.array([[pp, vv]]), np.array(est)) )
 
@@ -465,7 +465,7 @@ class Agent:
         if total_step % 1000 == 0:
             positions = np.linspace(-1.2, 0.5, 64)
             velocities = np.linspace(-0.07, 0.07, 64)
-            actions = np.array([-1, 0, 1])
+            actions = np.array([0, 1, 2])
 
             q_val = np.zeros([len(positions), len(velocities), len(actions)])
 

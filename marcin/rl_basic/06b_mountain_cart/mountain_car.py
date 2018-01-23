@@ -36,11 +36,11 @@ class MountainCarEnv:
 
     def step(self, action):
         assert self._done == False
-        assert action in [-1, 0, 1]
+        assert action in [0, 1, 2]
 
         self.t_step += 1
 
-        self._vel = self._vel + 0.001*action - 0.0025*np.cos(3*self._pos)
+        self._vel = self._vel + 0.001*(action-1) - 0.0025*np.cos(3*self._pos)
         self._vel = min(max(self._vel, -0.07), 0.07)
 
         self._pos = self._pos + self._vel

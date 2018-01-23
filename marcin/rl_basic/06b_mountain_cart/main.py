@@ -21,7 +21,7 @@ def test_run(nb_episodes, nb_iterations, expl_start,
     ax_log=None, ax_q=None, logger=None):
 
 
-    action_space = [-1, 0, 1]  # move left, do nothing, move right
+    action_space = [0, 1, 2]  # move left, do nothing, move right
 
     env = MountainCarEnv(log=logger.env)
     agent = Agent(action_space=action_space,
@@ -262,9 +262,9 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
 
 def plot_q_val(ax, approx):
 
-    est_q_back = approx.estimate((0.4, 0.035), -1)
-    est_q_stay = approx.estimate((0.4, 0.035), 0)
-    est_q_fwd = approx.estimate((0.4, 0.035), 1) 
+    est_q_back = approx.estimate((0.4, 0.035), 0)
+    est_q_stay = approx.estimate((0.4, 0.035), 1)
+    est_q_fwd = approx.estimate((0.4, 0.035), 2) 
 
     print('estimates (0, 0):', est_q_back, est_q_stay, est_q_fwd)
 
