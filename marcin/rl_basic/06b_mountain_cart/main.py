@@ -146,7 +146,7 @@ def test_single(logger):
     test_run(
             nb_episodes=None,
             nb_total_steps=300000,
-            expl_start=False,
+            expl_start=True,
 
             agent_discount=0.99,
             agent_nb_rand_steps=5000,
@@ -158,7 +158,7 @@ def test_single(logger):
 
             approximator='neural',
             step_size=0.001,
-            batch_size=128,
+            batch_size=64,
             ax_qmax_wf=ax_qmax_wf, 
             ax_qmax_im=ax_qmax_im,
             ax_policy=ax_policy,

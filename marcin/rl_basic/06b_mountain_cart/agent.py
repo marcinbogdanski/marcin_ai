@@ -6,6 +6,10 @@ import pdb
 import tile_coding
 import neural_mini
 
+from keras import Sequential
+from keras.layers import Dense
+from keras.optimizers import RMSprop, sgd
+
 
 
 class AggregateApproximator:
@@ -149,9 +153,134 @@ class TileApproximator:
 
 class NeuralApproximator:
 
-    def __init__(self, step_size, discount, log=None):
+    def __init__(self, step_size, discount, batch_size, log=None):
         self._step_size = step_size
         self._discount = discount
+        self._batch_size = batch_size
+
+        self._model = Sequential()
+        self._model.add(Dense(output_dim=64, activation='sigmoid', input_dim=2))
+        self._model.add(Dense(output_dim=3, activation='linear'))
+        # self._model.compile(loss='mse', optimizer=RMSprop(lr=0.00025))
+        self._model.compile(loss='mse', optimizer=sgd(lr=0.01))
+
+        self._pos_offset = 0.35
+        self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
+        self._vel_scale = 2 / 0.14  # maps vel to -1..1
+
+        if log is not None:
+            log.add_param('type', 'keras sequential')
+            log.add_param('nb_inputs', 2)
+            log.add_param('hid_1_size', 64)
+            log.add_param('hid_1_act', 'relu')
+            log.add_param('out_size', 3)
+            log.add_param('out_act', 'linear')
+
+
+    def _test_input(self, state, action):
+        assert isinstance(state, np.ndarray)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        assert isinstance(action, int) or isinstance(action, np.int64)
+        pos, vel = state[0], state[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+        assert action in [0, 1, 2]
+
+        return pos, vel, action
+
+
+    def estimate(self, state, action):
+        pos, vel, action = self._test_input(state, action)
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._model.predict(np.array([[pos, vel]]))
+
+        assert action in [0, 1, 2]
+
+        return est[0, action]
+
+    def estimate_all(self, state):
+        assert isinstance(state, np.ndarray)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        pos, vel = state[0], state[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._model.predict(np.array([[pos, vel]]))
+        # _nn.forward(..) returns 2d array, even if only 1 long
+        assert len(est) == 1
+        return est[0]  # return 1d array
+
+    def update(self, batch):
+        assert isinstance(batch, list)
+        assert len(batch) > 0
+        assert len(batch[0]) == 5
+
+        inputs = []
+        targets = []
+        for tup in batch:
+            St = tup[0]
+            At = tup[1]
+            Rt_1 = tup[2]
+            St_1 = tup[3]
+            done = tup[4]
+
+            pp = St[0]
+            vv = St[1]
+            aa = At
+
+            rr_n = Rt_1
+            pp_n = St_1[0]
+            vv_n = St_1[1]
+
+            pp += self._pos_offset
+            pp *= self._pos_scale
+            vv *= self._vel_scale
+
+            pp_n += self._pos_offset
+            pp_n *= self._pos_scale
+            vv_n *= self._vel_scale
+
+            est = self._model.predict(np.array([[pp, vv]]))
+            est_n = self._model.predict(np.array([[pp_n, vv_n]]))
+            q_n = np.max(est_n)
+
+            if done:
+                tt = rr_n 
+            else:
+                tt = rr_n + self._discount * q_n
+
+            assert aa in [0, 1, 2]
+            assert est.shape[0] == 1
+            est[0, aa] = tt
+
+            inputs.append([pp, vv])
+            targets.append(est[0])
+
+        inputs = np.array(inputs)
+        targets = np.array(targets)
+
+        self._model.fit(inputs, targets, 
+            batch_size=self._batch_size,
+            nb_epoch=1, verbose=0)
+
+
+
+class KerasApproximator:
+
+    def __init__(self, step_size, discount, batch_size, log=None):
+        self._step_size = step_size
+        self._discount = discount
+        self._batch_size = batch_size
 
         self._nn = neural_mini.NeuralNetwork2([2, 128, 3])
 
@@ -371,7 +500,11 @@ class Agent:
             self.Q = TileApproximator(
                 step_size, action_space, log=log_approx)
         elif approximator == 'neural':
-            self.Q = NeuralApproximator(step_size, discount, log=log_approx)
+            self.Q = NeuralApproximator(
+                step_size, discount, batch_size, log=log_approx)
+        elif approximator == 'keras':
+            self.Q = KerasApproximator(
+                step_size, discount, batch_size, log=log_approx)
         else:
             raise ValueError('Unknown approximator')
 
@@ -486,6 +619,8 @@ class Agent:
         if self._curr_total_step > self._nb_rand_steps:
             if self._epsilon_random > self._epsilon_random_target:
                 self._epsilon_random -= self._epsilon_random_decay
+            if self._epsilon_random < self._epsilon_random_target:
+                self._epsilon_random = self._epsilon_random_target
 
 
     def pick_action(self, obs):
