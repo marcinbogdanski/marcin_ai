@@ -1,6 +1,12 @@
 import numpy as np
 
-class NeuralNetwork2:
+from keras import Sequential
+from keras.layers import Dense
+from keras.optimizers import sgd
+
+import pdb
+
+class NeuralKeras:
     def __init__(self, shape):
         '''Simplest possible 2-layer perceptron
 
@@ -14,51 +20,64 @@ class NeuralNetwork2:
         self.nb_inputs = shape[0]
         self.nb_hidden = shape[1]
         self.nb_outputs = shape[2]
+
+        self.layer_hid = Dense(
+            shape[1], 
+            input_shape=(shape[0], ), 
+            activation='sigmoid')
+
+        self.layer_out = Dense(
+            shape[2], 
+            activation='sigmoid'
+            )
         
-        self.weights = [None, None]
-        self.biases = [None, None]
-
-        # hidden layer
-        self.weights_hidden = np.random.randn(shape[0], shape[1])
-        self.biases_hidden = np.random.randn(1, shape[1])
-
-        # output layer
-        self.weights_output = np.random.randn(shape[1], shape[2])
-        self.biases_output = np.random.randn(1, shape[2])
+        
+        self.model = Sequential()
+        self.model.add(self.layer_hid)
+        self.model.add(self.layer_out)
+        self.model.compile(sgd(lr=0.3), "mse")
 
     def get_weights(self, layer):
         if layer == 0:
-            return self.weights_hidden
+            return self.layer_hid.get_weights()[0]
         elif layer == 1:
-            return self.weights_output
+            return self.layer_out.get_weights()[0]
         else:
             raise ValueError('Only layers 0 and 1 are supported')
 
     def get_biases(self, layer):
         if layer == 0:
-            return self.biases_hidden
+            return np.reshape(self.layer_hid.get_weights()[1], (1, -1))
         elif layer == 1:
-            return self.biases_output
+            return np.reshape(self.layer_out.get_weights()[1], (1, -1))
         else:
             raise ValueError('Only layers 0 and 1 are supported')
         
     def set_weights(self, layer, value):
         if layer == 0:
-            assert self.weights_hidden.shape == value.shape
-            self.weights_hidden = value
+            res = self.layer_hid.get_weights()
+            assert res[0].shape == value.shape
+            res[0] = value
+            self.layer_hid.set_weights(res)
         elif layer == 1:
-            assert self.weights_output.shape == value.shape
-            self.weights_output = value
+            res = self.layer_out.get_weights()
+            assert res[0].shape == value.shape
+            res[0] = value
+            self.layer_out.set_weights(res)
         else:
             raise ValueError('Only layers 0 and 1 are supported')
 
     def set_biases(self, layer, value):
         if layer == 0:
-            assert self.biases_hidden.shape == value.shape
-            self.biases_hidden = value
+            res = self.layer_hid.get_weights()
+            assert res[1].shape[0] == value.shape[1]
+            res[1] = value.flatten()
+            self.layer_hid.set_weights(res)
         elif layer == 1:
-            assert self.biases_output.shape == value.shape
-            self.biases_output = value
+            res = self.layer_out.get_weights()
+            assert res[1].shape[0] == value.shape[1]
+            res[1] = value.flatten()
+            self.layer_out.set_weights(res)
         else:
             raise ValueError('Only layers 0 and 1 are supported')
 
@@ -74,17 +93,7 @@ class NeuralNetwork2:
         assert len(data) > 0
         assert data.shape[1] == self.nb_inputs
 
-        # hidden layer
-        temp = np.dot(data, self.weights_hidden)
-        inputs_hidden = np.add(temp, self.biases_hidden)
-        outputs_hidden = self.fun_sigmoid(inputs_hidden)
-
-        # output layer
-        temp = np.dot(outputs_hidden, self.weights_output)
-        inputs_output =  np.add(temp, self.biases_output)
-        outputs_output = self.fun_sigmoid(inputs_output)
-
-        return outputs_output
+        return self.model.predict(data)
 
     def backward(self, data, labels):
         assert isinstance(data, np.ndarray)
@@ -144,12 +153,7 @@ class NeuralNetwork2:
         assert isinstance(eta, float)
         assert eta >= 0
 
-        del_b, del_w = self.backward(data, labels)
-
-        self.weights_hidden += -eta / len(data) * del_w[0]
-        self.weights_output += -eta / len(data) * del_w[1]
-        self.biases_hidden += -eta / len(data) * del_b[0]
-        self.biases_output += -eta / len(data) * del_b[1]
+        self.model.train_on_batch(data, labels)
 
 
     def train_SGD(self, data, labels, batch_size, eta, callback=None):
@@ -168,15 +172,8 @@ class NeuralNetwork2:
         assert isinstance(eta, float)
         assert eta >= 0
 
-        indices = np.array(range(len(data)))
-        np.random.shuffle(indices)
-
-        for k in range(0, len(indices), batch_size):
-            idx = indices[k:k + batch_size]
-            self.train_batch(data[idx], labels[idx], eta)
-
-            if callback is not None:
-                callback(self)
+        # This doesn't replicate results from other libraries
+        self.model.fit(data, labels, batch_size=batch_size, nb_epoch=1)
 
     def evaluate(self, data):
         total_error = 0

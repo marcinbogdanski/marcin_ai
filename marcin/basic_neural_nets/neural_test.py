@@ -2,16 +2,23 @@ import unittest
 import neural
 import neural_mini
 import neural_tf
+import neural_keras
+import time
 import random
 import numpy as np
 
 import backprop_nndl as nndl  # ground truth 
 
 
+import theano
+print(theano.config)
+
 #IMPLEMENTATION = 'neural'
 #IMPLEMENTATION = 'mini'
-IMPLEMENTATION = 'tensor'
+#IMPLEMENTATION = 'tensor'
+IMPLEMENTATION = 'keras'
 #IMPLEMENTATION = 'reference'
+
 
 print('IMPLEMENTATION:', IMPLEMENTATION)
 
@@ -26,15 +33,15 @@ class NeuralTest(unittest.TestCase):
         #   Define weights for testing
         #
         weights_0 = np.array( [ [ 0.1, 0.4, 0.7 ],
-                                [ 0.2, 0.5, 0.8 ] ] )
+                                [ 0.2, 0.5, 0.8 ] ], dtype=np.float32 )
                                  
-        biases_0 = np.array( [ [ 0.3, 0.6, 0.9 ] ] )
+        biases_0 = np.array( [ [ 0.3, 0.6, 0.9 ] ], dtype=np.float32 )
         
         weights_1 = np.array( [ [ 1.0 ], 
                                 [ 1.1 ],
-                                [ 1.2 ] ] )
+                                [ 1.2 ] ], dtype=np.float32)
 
-        biases_1 = np.array( [ [ 1.3 ] ] )
+        biases_1 = np.array( [ [ 1.3 ] ], dtype=np.float32 )
         
         #
         #   Define test data
@@ -43,6 +50,15 @@ class NeuralTest(unittest.TestCase):
                           (  np.array( [[0.1, 0.9]] ),  np.array( [[1]] )  ),
                           (  np.array( [[0.9, 0.1]] ),  np.array( [[1]] )  ),
                           (  np.array( [[0.9, 0.9]] ),  np.array( [[0]] )  ) ]
+
+        self.inputs = np.array([[0.1, 0.1],
+                                [0.1, 0.9],
+                                [0.9, 0.1],
+                                [0.9, 0.9]])
+        self.targets = np.array([[0.0],
+                                 [1.0],
+                                 [1.0],
+                                 [0.0]])
                         
                         
         if IMPLEMENTATION == 'neural':
@@ -52,6 +68,8 @@ class NeuralTest(unittest.TestCase):
         elif IMPLEMENTATION == 'tensor':
             neural_tf.reset_default_graph()
             self.nn = neural_tf.NeuralNetworkTF( (2, 3, 1) )
+        elif IMPLEMENTATION == 'keras':
+            self.nn = neural_keras.NeuralKeras( (2, 3, 1) )
         elif IMPLEMENTATION == 'reference':
             self.nn = nndl.Network( (2, 3, 1) )  # reference neural network
             
@@ -80,6 +98,16 @@ class NeuralTest(unittest.TestCase):
         self.nn.set_biases(0, biases_0)
         self.nn.set_weights(1, weights_1)
         self.nn.set_biases(1, biases_1)
+
+        nn_weights_0 = self.nn.get_weights(0)
+        nn_biases_0 = self.nn.get_biases(0)
+        nn_weights_1 = self.nn.get_weights(1)
+        nn_biases_1 = self.nn.get_biases(1)
+
+        self.assertEqual(nn_weights_0.tolist(), weights_0.tolist())
+        self.assertEqual(nn_biases_0.tolist(), biases_0.tolist())
+        self.assertEqual(nn_weights_1.tolist(), weights_1.tolist())
+        self.assertEqual(nn_biases_1.tolist(), biases_1.tolist())
     
     def tearDown(self):
         if IMPLEMENTATION == 'tensor':
@@ -118,8 +146,11 @@ class NeuralTest(unittest.TestCase):
     def test_train_SGD(self):
     
         for i in range(1000):
-            if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
+            if IMPLEMENTATION in ['neural']:
                 self.nn.train_SGD(self.data_vec, 
+                                  batch_size=2, eta=5.0)
+            elif IMPLEMENTATION in ['mini', 'tensor', 'keras']:
+                self.nn.train_SGD(self.inputs, self.targets,
                                   batch_size=2, eta=5.0)
             elif IMPLEMENTATION == 'reference':
                 self.nn.SGD(self.data_vec, epochs=1, 
@@ -127,14 +158,6 @@ class NeuralTest(unittest.TestCase):
             else:
                 raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
                 
-            #if i % 10 == 0:
-            #    if IMPLEMENTATION == 'neural':
-            #        res = self.nn.evaluate(self.data_vec)
-            #        #self.nn.vis_2D(1, 0)
-            #    else:
-            #        res = self.nn.eval_err(self.data_vec)
-            #        #self.nn.vis_2D(2, 0)
-            #    print(i, res)
                     
         
         if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
@@ -150,8 +173,14 @@ class NeuralTest(unittest.TestCase):
         
     def test_train_batch(self):
                 
-        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
+        if IMPLEMENTATION in ['neural']:
             self.nn.train_batch(self.data_vec, eta=0.3)
+            weights_0 = self.nn.get_weights(0)
+            biases_0 = self.nn.get_biases(0)
+            weights_1 = self.nn.get_weights(1)
+            biases_1 = self.nn.get_biases(1)
+        elif IMPLEMENTATION in ['mini', 'tensor', 'keras']:
+            self.nn.train_batch(self.inputs, self.targets, eta=0.3)
             weights_0 = self.nn.get_weights(0)
             biases_0 = self.nn.get_biases(0)
             weights_1 = self.nn.get_weights(1)
@@ -185,7 +214,7 @@ class NeuralTest(unittest.TestCase):
         data = self.data_vec[1][0]
         label = self.data_vec[1][1]
                 
-        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor', 'keras']:
             res_b, res_w = self.nn.backward( data, label )
         elif IMPLEMENTATION == 'reference':
             res_b, res_w = self.nn.backprop( data, label )  # reference impl.
@@ -224,7 +253,7 @@ class NeuralTest(unittest.TestCase):
         
     def test_forward(self):
 
-        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor', 'keras']:
             data = np.array( [[0.1, 0.9]] )
             res = self.nn.forward(data)
         elif IMPLEMENTATION == 'reference':
@@ -239,7 +268,7 @@ class NeuralTest(unittest.TestCase):
         self.assertAlmostEqual( res[0][0], 0.977165764059, places=6 )
         
         
-        if IMPLEMENTATION in ['neural', 'mini', 'tensor']:
+        if IMPLEMENTATION in ['neural', 'mini', 'tensor', 'keras']:
             data = np.array( [[0.1, 0.9]] )
             res = self.nn.forward(data)
             self.assertIsInstance( res, np.ndarray )
@@ -256,6 +285,58 @@ class NeuralTest(unittest.TestCase):
             pass # skip this test
         else:
             raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
+
+    def test_speed(self):
+
+        inputs = 10
+        hidden = 256
+        outputs = 10
+
+        dims = (inputs, hidden, outputs)
+
+        if IMPLEMENTATION == 'neural':
+            self.nn = neural.NeuralNetwork( dims, init='norm' )
+        elif IMPLEMENTATION == 'mini':
+            self.nn = neural_mini.NeuralNetwork2( dims )
+        elif IMPLEMENTATION == 'tensor':
+            neural_tf.reset_default_graph()
+            self.nn = neural_tf.NeuralNetworkTF( dims )
+        elif IMPLEMENTATION == 'keras':
+            self.nn = neural_keras.NeuralKeras( dims )
+        elif IMPLEMENTATION == 'reference':
+            self.nn = nndl.Network( dims )  # reference neural network
+            
+            self.data_vec = [ (it[0].T, it[1]) for it in self.data_vec ]
+        else:
+            raise ValueError('Unknown implementation: ' + IMPLEMENTATION)
+
+        
+
+        # data = np.random.uniform(-1.0, 1.0, size=(100000, 10))
+        # labels = np.random.randint(0, 2, size=(100000, 10)).astype(float)
+
+        # self.nn.train_SGD(data, labels, batch_size=100, eta=0.001)
+
+        dtype = np.float32
+
+        data = np.random.uniform(-1.0, 1.0, size=(1000000, 10)).astype(dtype)
+        labels = np.random.randint(0, 2, size=(1000000, 10)).astype(dtype)
+
+        print(data.dtype)
+        print(labels.dtype)
+
+        ts = time.time()
+
+        for i in range(1000):
+            chunk_start = i*1000
+            chunk_end = i*1000 + 1000
+            self.nn.train_batch(data[chunk_start:chunk_end], 
+                                labels[chunk_start:chunk_end], eta=0.001)
+
+        span = time.time() - ts
+
+        print('Training time:', span)
+
 
 if __name__ == '__main__':
     unittest.main()

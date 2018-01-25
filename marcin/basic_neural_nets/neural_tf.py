@@ -17,6 +17,9 @@ class NeuralNetworkTF(object):
         Arg:
             shape - 3-tuple: (nb_inputs, nb_hidden, nb_outputs)
         '''
+        self.nb_inputs = layers[0]
+        self.nb_hidden = layers[1]
+        self.nb_outputs = layers[2]
 
 
         # Input to sigmoid function 
@@ -187,10 +190,28 @@ class NeuralNetworkTF(object):
 
 
     def forward(self, data):
+        assert isinstance(data, np.ndarray)
+        assert data.ndim == 2
+        assert len(data) > 0
+        assert data.shape[1] == self.nb_inputs
+
         return self.sess.run(self.outputs_from_output,
                              feed_dict={self.data_in: data})
 
     def backward(self, data, labels, eta=0.0, apply_deltas=True):
+        assert isinstance(data, np.ndarray)
+        assert data.ndim == 2
+        assert len(data) > 0
+        assert data.shape[1] == self.nb_inputs
+
+        assert isinstance(labels, np.ndarray)
+        assert labels.ndim == 2
+        assert len(labels) == len(data)
+        assert labels.shape[1] == self.nb_outputs
+
+        assert isinstance(eta, float)
+        assert isinstance(apply_deltas, bool)
+
         lenn = self.sess.run(self.data_in_len, 
             feed_dict={self.data_in: data, self.data_targets: labels})
 
@@ -218,41 +239,47 @@ class NeuralNetworkTF(object):
 
         return res_b, res_w
 
-    def apply_deltas(self, eta):
-        assert self
+    def train_batch(self, data, labels, eta):
+        assert isinstance(data, np.ndarray)
+        assert data.ndim == 2
+        assert len(data) > 0
+        assert data.shape[1] == self.nb_inputs
 
-    def train_batch(self, batch, eta):
-        if(len(batch)) == 0:
-            return
+        assert isinstance(labels, np.ndarray)
+        assert labels.ndim == 2
+        assert len(labels) == len(data)
+        assert labels.shape[1] == self.nb_outputs
 
-        data = []
-        labels = []
-        for b in batch:
-            data.append(b[0][0])
-            labels.append(b[1][0])
-
-        data = np.array(data)
-        labels = np.array(labels)
+        assert isinstance(eta, float)
+        assert eta >= 0
 
         del_b, del_w = self.backward(data, labels, eta)
 
         return del_b, del_w
 
-        #self.weights_hidden += -eta / len(batch) * del_w[0]
-        #self.weights_output += -eta / len(batch) * del_w[1]
-        #self.biases_hidden += -eta / len(batch) * del_b[0]
-        #self.biases_output += -eta / len(batch) * del_b[1]
 
-        #self.writer = tf.summary.FileWriter('logdir', self.sess.graph)
-        #self.writer.flush()  # necessary?
+    def train_SGD(self, data, labels, batch_size, eta, callback=None):
+        assert isinstance(data, np.ndarray)
+        assert data.ndim == 2
+        assert len(data) > 0
+        assert data.shape[1] == self.nb_inputs
 
-    def train_SGD(self, data, batch_size, eta, callback=None):
-        temp_shuffled = data[:]
-        np.random.shuffle(temp_shuffled)
+        assert isinstance(labels, np.ndarray)
+        assert labels.ndim == 2
+        assert len(labels) == len(data)
+        assert labels.shape[1] == self.nb_outputs
 
-        for k in range(0, len(temp_shuffled), batch_size):
-            data_batch = temp_shuffled[k:k + batch_size]
-            del_b, del_w = self.train_batch(data_batch, eta)
+        assert isinstance(batch_size, int)
+        assert batch_size > 0
+        assert isinstance(eta, float)
+        assert eta >= 0
+
+        indices = np.array(range(len(data)))
+        np.random.shuffle(indices)
+
+        for k in range(0, len(indices), batch_size):
+            idx = indices[k:k + batch_size]
+            del_b, del_w = self.train_batch(data[idx], labels[idx], eta)
 
             if callback is not None:
                 callback(self)
