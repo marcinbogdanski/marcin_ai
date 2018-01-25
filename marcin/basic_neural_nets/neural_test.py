@@ -10,8 +10,6 @@ import numpy as np
 import backprop_nndl as nndl  # ground truth 
 
 
-import theano
-print(theano.config)
 
 #IMPLEMENTATION = 'neural'
 #IMPLEMENTATION = 'mini'
@@ -325,9 +323,24 @@ class NeuralTest(unittest.TestCase):
         print(data.dtype)
         print(labels.dtype)
 
+        
+
         ts = time.time()
 
-        for i in range(1000):
+        for i in range(100):
+            chunk_start = i*1000
+            chunk_end = i*1000 + 1000
+            self.nn.forward(data[chunk_start:chunk_end])
+
+        span = time.time() - ts
+
+        print('Predict time:', span)
+
+
+
+        ts = time.time()
+
+        for i in range(100):
             chunk_start = i*1000
             chunk_end = i*1000 + 1000
             self.nn.train_batch(data[chunk_start:chunk_end], 
@@ -337,6 +350,8 @@ class NeuralTest(unittest.TestCase):
 
         print('Training time:', span)
 
+
+        
 
 if __name__ == '__main__':
     unittest.main()

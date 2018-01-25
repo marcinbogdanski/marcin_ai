@@ -93,7 +93,7 @@ class NeuralKeras:
         assert len(data) > 0
         assert data.shape[1] == self.nb_inputs
 
-        return self.model.predict(data)
+        return self.model.predict(data, batch_size=len(data))
 
     def backward(self, data, labels):
         assert isinstance(data, np.ndarray)
