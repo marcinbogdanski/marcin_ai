@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import collections
+import time
 import pdb
 
 import tile_coding
@@ -158,130 +159,6 @@ class NeuralApproximator:
         self._discount = discount
         self._batch_size = batch_size
 
-        self._model = Sequential()
-        self._model.add(Dense(output_dim=64, activation='sigmoid', input_dim=2))
-        self._model.add(Dense(output_dim=3, activation='linear'))
-        # self._model.compile(loss='mse', optimizer=RMSprop(lr=0.00025))
-        self._model.compile(loss='mse', optimizer=sgd(lr=0.01))
-
-        self._pos_offset = 0.35
-        self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
-        self._vel_scale = 2 / 0.14  # maps vel to -1..1
-
-        if log is not None:
-            log.add_param('type', 'keras sequential')
-            log.add_param('nb_inputs', 2)
-            log.add_param('hid_1_size', 64)
-            log.add_param('hid_1_act', 'relu')
-            log.add_param('out_size', 3)
-            log.add_param('out_act', 'linear')
-
-
-    def _test_input(self, state, action):
-        assert isinstance(state, np.ndarray)
-        assert isinstance(state[0], float)
-        assert isinstance(state[1], float)
-        assert isinstance(action, int) or isinstance(action, np.int64)
-        pos, vel = state[0], state[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-        assert action in [0, 1, 2]
-
-        return pos, vel, action
-
-
-    def estimate(self, state, action):
-        pos, vel, action = self._test_input(state, action)
-
-        pos += self._pos_offset
-        pos *= self._pos_scale
-        vel *= self._vel_scale
-
-        est = self._model.predict(np.array([[pos, vel]]))
-
-        assert action in [0, 1, 2]
-
-        return est[0, action]
-
-    def estimate_all(self, state):
-        assert isinstance(state, np.ndarray)
-        assert isinstance(state[0], float)
-        assert isinstance(state[1], float)
-        pos, vel = state[0], state[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        pos += self._pos_offset
-        pos *= self._pos_scale
-        vel *= self._vel_scale
-
-        est = self._model.predict(np.array([[pos, vel]]))
-        # _nn.forward(..) returns 2d array, even if only 1 long
-        assert len(est) == 1
-        return est[0]  # return 1d array
-
-    def update(self, batch):
-        assert isinstance(batch, list)
-        assert len(batch) > 0
-        assert len(batch[0]) == 5
-
-        inputs = []
-        targets = []
-        for tup in batch:
-            St = tup[0]
-            At = tup[1]
-            Rt_1 = tup[2]
-            St_1 = tup[3]
-            done = tup[4]
-
-            pp = St[0]
-            vv = St[1]
-            aa = At
-
-            rr_n = Rt_1
-            pp_n = St_1[0]
-            vv_n = St_1[1]
-
-            pp += self._pos_offset
-            pp *= self._pos_scale
-            vv *= self._vel_scale
-
-            pp_n += self._pos_offset
-            pp_n *= self._pos_scale
-            vv_n *= self._vel_scale
-
-            est = self._model.predict(np.array([[pp, vv]]))
-            est_n = self._model.predict(np.array([[pp_n, vv_n]]))
-            q_n = np.max(est_n)
-
-            if done:
-                tt = rr_n 
-            else:
-                tt = rr_n + self._discount * q_n
-
-            assert aa in [0, 1, 2]
-            assert est.shape[0] == 1
-            est[0, aa] = tt
-
-            inputs.append([pp, vv])
-            targets.append(est[0])
-
-        inputs = np.array(inputs)
-        targets = np.array(targets)
-
-        self._model.fit(inputs, targets, 
-            batch_size=self._batch_size,
-            nb_epoch=1, verbose=0)
-
-
-
-class KerasApproximator:
-
-    def __init__(self, step_size, discount, batch_size, log=None):
-        self._step_size = step_size
-        self._discount = discount
-        self._batch_size = batch_size
-
         self._nn = neural_mini.NeuralNetwork2([2, 128, 3])
 
         self._pos_offset = 0.35
@@ -340,11 +217,12 @@ class KerasApproximator:
         assert len(est) == 1
         return est[0]  # return 1d array
 
-    def update(self, batch):
+    def update(self, batch, timing_dict):
         assert isinstance(batch, list)
         assert len(batch) > 0
         assert len(batch[0]) == 5
 
+        time_start = time.time()
         inputs = []
         targets = []
         for tup in batch:
@@ -370,8 +248,14 @@ class KerasApproximator:
             pp_n *= self._pos_scale
             vv_n *= self._vel_scale
 
-            est = self._nn.forward(np.array([[pp, vv]]))
-            est_n = self._nn.forward(np.array([[pp_n, vv_n]]))
+            inp = np.array([[pp, vv]])
+            inp_n = np.array([[pp_n, vv_n]])
+
+            time_pred = time.time()
+            est = self._nn.forward(inp)
+            est_n = self._nn.forward(inp_n)
+            timing_dict['      update_loop_pred'] += time.time() - time_pred
+
             q_n = np.max(est_n)
 
             if done:
@@ -385,13 +269,264 @@ class KerasApproximator:
 
             inputs.append([pp, vv])
             targets.append(est[0])
+        timing_dict['    update_loop'] += time.time() - time_start
 
+        time_start = time.time()
         inputs = np.array(inputs)
         targets = np.array(targets)
+        timing_dict['    update_convert_numpy'] += time.time() - time_start
 
+        time_start = time.time()
         self._nn.train_batch(inputs, targets, self._step_size)
+        timing_dict['    update_train_on_batch'] += time.time() - time_start
+
+    def update2(self, batch, timing_dict):
+        assert isinstance(batch, list)
+        assert len(batch) > 0
+        assert len(batch[0]) == 5
+
+        time_start = time.time()
+        inputs = np.zeros([len(batch), 2], dtype=np.float32)
+        actions = np.zeros([len(batch)], dtype=np.int8)
+        rewards_n = np.zeros([len(batch), 1], dtype=np.float32)
+        inputs_n = np.zeros([len(batch), 2], dtype=np.float32)
+        not_dones = np.zeros([len(batch), 1], dtype=np.bool)
+        timing_dict['    update2_create_arr'] += time.time() - time_start
+
+        time_start = time.time()
+        for i, tup in enumerate(batch):
+            St = tup[0]
+            At = tup[1]
+            Rt_1 = tup[2]
+            St_1 = tup[3]
+            done = tup[4]
+
+            inputs[i] = St
+            actions[i] = At
+            rewards_n[i] = Rt_1
+            inputs_n[i] = St_1
+            not_dones[i] = not done
+
+            assert At in [0, 1, 2]
+        timing_dict['    update2_loop'] += time.time() - time_start
+
+        time_start = time.time()
+        inputs[:,0] += self._pos_offset
+        inputs[:,0] *= self._pos_scale
+        inputs[:,1] *= self._vel_scale
+        inputs_n[:,0] += self._pos_offset
+        inputs_n[:,0] *= self._pos_scale
+        inputs_n[:,1] *= self._vel_scale
+        timing_dict['    update2_scale'] += time.time() - time_start
+
+        time_start = time.time()
+        targets = self._nn.forward(inputs)
+        est_n = self._nn.forward(inputs_n)
+        timing_dict['    update2_predict'] += time.time() - time_start
+
+        time_start = time.time()
+        q_n = np.max(est_n, axis=1, keepdims=True)
+        tt = rewards_n + (not_dones * self._discount * q_n)
+        targets[np.arange(len(targets)), actions] = tt.flatten()
+        timing_dict['    update2_post'] += time.time() - time_start
+
+        time_start = time.time()
+        self._nn.train_batch(inputs, targets, self._step_size)
+        timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
 
+
+class KerasApproximator:
+
+    def __init__(self, step_size, discount, batch_size, log=None):
+        self._step_size = step_size
+        self._discount = discount
+        self._batch_size = batch_size
+
+        self._model = Sequential()
+        # self._model.add(Dense(output_dim=128, activation='sigmoid', input_dim=2))
+        # self._model.add(Dense(output_dim=3, activation='linear'))
+        self._model.add(Dense(activation='sigmoid', input_dim=2, units=128))
+        self._model.add(Dense(activation='linear', units=3))
+        # self._model.compile(loss='mse', optimizer=RMSprop(lr=0.00025))
+        self._model.compile(loss='mse', optimizer=sgd(lr=0.01))
+
+        self._pos_offset = 0.35
+        self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
+        self._vel_scale = 2 / 0.14  # maps vel to -1..1
+
+        if log is not None:
+            log.add_param('type', 'keras sequential')
+            log.add_param('nb_inputs', 2)
+            log.add_param('hid_1_size', 128)
+            log.add_param('hid_1_act', 'sigmoid')
+            log.add_param('out_size', 3)
+            log.add_param('out_act', 'linear')
+
+
+    def _test_input(self, state, action):
+        assert isinstance(state, np.ndarray)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        assert isinstance(action, int) or isinstance(action, np.int64)
+        pos, vel = state[0], state[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+        assert action in [0, 1, 2]
+
+        return pos, vel, action
+
+
+    def estimate(self, state, action):
+        pos, vel, action = self._test_input(state, action)
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._model.predict(np.array([[pos, vel]]))
+
+        assert action in [0, 1, 2]
+
+        return est[0, action]
+
+    def estimate_all(self, state):
+        assert isinstance(state, np.ndarray)
+        assert isinstance(state[0], float)
+        assert isinstance(state[1], float)
+        pos, vel = state[0], state[1]
+        assert -1.2 <= pos and pos <= 0.5
+        assert -0.07 <= vel and vel <= 0.07
+
+        pos += self._pos_offset
+        pos *= self._pos_scale
+        vel *= self._vel_scale
+
+        est = self._model.predict(np.array([[pos, vel]]))
+        # _nn.forward(..) returns 2d array, even if only 1 long
+        assert len(est) == 1
+        return est[0]  # return 1d array
+
+    def update(self, batch, timing_dict):
+        assert isinstance(batch, list)
+        assert len(batch) > 0
+        assert len(batch[0]) == 5
+
+        time_start = time.time()
+        inputs = []
+        targets = []
+        for tup in batch:
+            St = tup[0]
+            At = tup[1]
+            Rt_1 = tup[2]
+            St_1 = tup[3]
+            done = tup[4]
+
+            pp = St[0]
+            vv = St[1]
+            aa = At
+
+            rr_n = Rt_1
+            pp_n = St_1[0]
+            vv_n = St_1[1]
+
+            pp += self._pos_offset
+            pp *= self._pos_scale
+            vv *= self._vel_scale
+
+            pp_n += self._pos_offset
+            pp_n *= self._pos_scale
+            vv_n *= self._vel_scale
+
+            inp = np.array([[pp, vv]])
+            inp_n = np.array([[pp_n, vv_n]])
+
+            time_pred = time.time()
+            est = self._model.predict(inp, batch_size=len(inp))
+            est_n = self._model.predict(inp_n, batch_size=len(inp_n))
+            timing_dict['      update_loop_pred'] += time.time() - time_pred
+            q_n = np.max(est_n)
+
+            if done:
+                tt = rr_n 
+            else:
+                tt = rr_n + self._discount * q_n
+
+            assert aa in [0, 1, 2]
+            assert est.shape[0] == 1
+            est[0, aa] = tt
+
+            inputs.append([pp, vv])
+            targets.append(est[0])
+        timing_dict['    update_loop'] += time.time() - time_start
+
+        time_start = time.time()
+        inputs = np.array(inputs)
+        targets = np.array(targets)
+        timing_dict['    update_convert_numpy'] += time.time() - time_start
+
+        # self._model.fit(inputs, targets, 
+        #     batch_size=self._batch_size,
+        #     nb_epoch=1, verbose=1)
+
+        time_start = time.time()
+        self._model.train_on_batch(inputs, targets)
+        timing_dict['    update_train_on_batch'] += time.time() - time_start
+
+
+    def update2(self, batch, timing_dict):
+        assert isinstance(batch, list)
+        assert len(batch) > 0
+        assert len(batch[0]) == 5
+
+        time_start = time.time()
+        inputs = np.zeros([len(batch), 2], dtype=np.float32)
+        actions = np.zeros([len(batch)], dtype=np.int8)
+        rewards_n = np.zeros([len(batch), 1], dtype=np.float32)
+        inputs_n = np.zeros([len(batch), 2], dtype=np.float32)
+        not_dones = np.zeros([len(batch), 1], dtype=np.bool)
+        timing_dict['    update2_create_arr'] += time.time() - time_start
+
+        time_start = time.time()
+        for i, tup in enumerate(batch):
+            St = tup[0]
+            At = tup[1]
+            Rt_1 = tup[2]
+            St_1 = tup[3]
+            done = tup[4]
+
+            inputs[i] = St
+            actions[i] = At
+            rewards_n[i] = Rt_1
+            inputs_n[i] = St_1
+            not_dones[i] = not done
+
+            assert At in [0, 1, 2]
+        timing_dict['    update2_loop'] += time.time() - time_start
+
+        time_start = time.time()
+        inputs[:,0] += self._pos_offset
+        inputs[:,0] *= self._pos_scale
+        inputs[:,1] *= self._vel_scale
+        inputs_n[:,0] += self._pos_offset
+        inputs_n[:,0] *= self._pos_scale
+        inputs_n[:,1] *= self._vel_scale
+        timing_dict['    update2_scale'] += time.time() - time_start
+
+        time_start = time.time()
+        targets = self._model.predict(inputs, batch_size=len(inputs))
+        est_n = self._model.predict(inputs_n, batch_size=len(inputs))
+        timing_dict['    update2_predict'] += time.time() - time_start
+
+        time_start = time.time()
+        q_n = np.max(est_n, axis=1, keepdims=True)
+        tt = rewards_n + (not_dones * self._discount * q_n)
+        targets[np.arange(len(targets)), actions] = tt.flatten()
+        timing_dict['    update2_post'] += time.time() - time_start
+
+        time_start = time.time()
+        self._model.train_on_batch(inputs, targets)
+        timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
 
 class Memory:
@@ -436,8 +571,8 @@ class Memory:
         return len(self._hist_St)
 
     def get_batch(self, batch_len):
-        indices = np.random.choice(range(len(self._hist_St)), 32)
-        indices[31] = len(self._hist_St) - 1
+        indices = np.random.choice(range(len(self._hist_St)), batch_len)
+        indices[batch_len-1] = len(self._hist_St) - 1
 
         batch = []
         for idx in indices:
@@ -685,7 +820,7 @@ class Agent:
 
 
 
-    def eval_td_t(self, t):
+    def eval_td_t(self, t, timing_dict):
         """TD update state-value for single state in trajectory
 
         This assumesss time step t+1 is availalbe in the trajectory
@@ -702,6 +837,7 @@ class Agent:
 
         """
 
+        time_start = time.time()
 
         Q = self.Q    # Action value array, shape: [world_size, action_space]
 
@@ -725,11 +861,18 @@ class Agent:
             # no lerninng during initial random phase
             return
 
+        timing_dict['  eval_td_start'] += time.time() - time_start
 
-        if isinstance(self.Q, NeuralApproximator):
+        if isinstance(self.Q, NeuralApproximator) or \
+            isinstance(self.Q, KerasApproximator):
 
+            time_start = time.time()
             batch = self._memory.get_batch(self._batch_size)
-            self.Q.update(batch)
+            timing_dict['  eval_td_get_batch'] += time.time() - time_start
+
+            time_start = time.time()
+            self.Q.update2(batch, timing_dict)
+            timing_dict['  eval_td_update'] += time.time() - time_start
 
         else:
             if done:
@@ -740,6 +883,6 @@ class Agent:
             self.Q.update(St, At, Tt)
             
 
-    def eval_td_online(self):
-        self.eval_td_t(len(self._trajectory) - 2)  # Eval next-to last state
+    def eval_td_online(self, timing_dict):
+        self.eval_td_t(len(self._trajectory) - 2, timing_dict)  # Eval next-to last state
 
