@@ -61,14 +61,8 @@ class AggregateApproximator:
     def estimate(self, state, action):
         pos_idx, vel_idx, act_idx = self._to_idx(state, action)
         return self._states[pos_idx, vel_idx, act_idx]
-
-    def estimate_all(self, state):
-        result = np.zeros(len(self._action_space))
-        for i in range(len(self._action_space)):
-            result[i] = self.estimate(state, self._action_space[i])
-        return result
     
-    def estimate_all_2(self, states):
+    def estimate_all(self, states):
         assert isinstance(states, np.ndarray)
         assert states.ndim == 2
         assert len(states) > 0
@@ -139,21 +133,7 @@ class TileApproximator:
 
         return np.sum(self._weights[active_tiles])
 
-    def estimate_all(self, state):
-        assert isinstance(state, np.ndarray)
-        assert isinstance(state[0], float)
-        assert isinstance(state[1], float)
-        pos, vel = state[0], state[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        result = np.zeros(len(self._action_space))
-        for i in range(len(self._action_space)):
-            action = self._action_space[i]
-            result[i] = self.estimate(state, action)
-        return result
-
-    def estimate_all_2(self, states):
+    def estimate_all(self, states):
         assert isinstance(states, np.ndarray)
         assert states.ndim == 2
         assert len(states) > 0
@@ -236,24 +216,7 @@ class NeuralApproximator:
 
         return est[0, action]
 
-    def estimate_all(self, state):
-        assert isinstance(state, np.ndarray)
-        assert isinstance(state[0], float)
-        assert isinstance(state[1], float)
-        pos, vel = state[0], state[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        pos += self._pos_offset
-        pos *= self._pos_scale
-        vel *= self._vel_scale
-
-        est = self._nn.forward(np.array([[pos, vel]]))
-        # _nn.forward(..) returns 2d array, even if only 1 long
-        assert len(est) == 1
-        return est[0]  # return 1d array
-
-    def estimate_all_2(self, states):
+    def estimate_all(self, states):
         assert isinstance(states, np.ndarray)
         assert states.ndim == 2
         assert len(states) > 0
@@ -455,24 +418,7 @@ class KerasApproximator:
 
         return est[0, action]
 
-    def estimate_all(self, state):
-        assert isinstance(state, np.ndarray)
-        assert isinstance(state[0], float)
-        assert isinstance(state[1], float)
-        pos, vel = state[0], state[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        pos += self._pos_offset
-        pos *= self._pos_scale
-        vel *= self._vel_scale
-
-        est = self._model.predict(np.array([[pos, vel]]))
-        # _nn.forward(..) returns 2d array, even if only 1 long
-        assert len(est) == 1
-        return est[0]  # return 1d array
-
-    def estimate_all_2(self, states):
+    def estimate_all(self, states):
         assert isinstance(states, np.ndarray)
         assert states.ndim == 2
         assert len(states) > 0
@@ -807,27 +753,6 @@ class Agent:
             velocities = np.linspace(-0.07, 0.07, 64)
             actions = np.array([0, 1, 2])
 
-            # OLD WAY
-
-            q_val = np.zeros([len(positions), len(velocities), len(actions)])
-
-            state = np.array([0, 0], dtype=float)
-
-            for pi in range(len(positions)):
-                for vi in range(len(velocities)):
-                    pos = positions[pi]
-                    vel = velocities[vi]
-                    state[0] = pos
-                    state[1] = vel
-                    q = self.Q.estimate_all(state)
-                    for ai in range(len(actions)):
-                        q_val[pi, vi, ai] = q[ai]
-        
-            print('old way:')
-            print(q_val[3:6,3:6])
-
-            # NEW WAY
-
             num_tests = len(positions) * len(velocities)
             pi_skip = len(velocities)
             states = np.zeros([num_tests, 2])
@@ -837,8 +762,7 @@ class Agent:
                     states[pi*pi_skip + vi, 1] = velocities[vi]
 
 
-            q_list = self.Q.estimate_all_2(states)
-
+            q_list = self.Q.estimate_all(states)
             q_val = np.zeros([len(positions), len(velocities), len(actions)])
             
             for si in range(len(states)):    
@@ -846,18 +770,18 @@ class Agent:
                 vi = si %pi_skip
                 q_val[pi, vi] = q_list[si]
 
-            print('new way:')
-            print(q_val[3:6,3:6])
 
         else:
             q_val=None
 
         
-
-        est = self.Q.estimate_all(np.array([0.4, 0.035]))
+        #
+        #   Log Q series
+        #
+        est = self.Q.estimate_all(np.array([[0.4, 0.035]]))
         self.log_q_val.append(episode, step, total_step,
             q_val=q_val,
-            series_E0=est[0], series_E1=est[1], series_E2=est[2])
+            series_E0=est[0, 0], series_E1=est[0, 1], series_E2=est[0, 2])
 
     def advance_one_step(self):
         self._curr_total_step += 1
