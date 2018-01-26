@@ -188,6 +188,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
 def test_single(logger):
 
+    # NOTE: there is another seed initialized to 0 on tensorflow import
     np.random.seed(0)
 
     
@@ -228,7 +229,7 @@ def test_single(logger):
 
     test_run(
             nb_episodes=None,
-            nb_total_steps=100000,
+            nb_total_steps=2000,
             expl_start=True,
 
             agent_discount=0.99,

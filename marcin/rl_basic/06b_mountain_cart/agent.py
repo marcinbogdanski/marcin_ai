@@ -11,6 +11,7 @@ import neural_mini
 # from keras.layers import Dense
 # from keras.optimizers import RMSprop, sgd
 import tensorflow as tf
+tf.set_random_seed(0)
 
 
 
@@ -33,7 +34,7 @@ class AggregateApproximator:
             self._vel_bin_nb, self._action_nb])
 
     def _to_idx(self, state, action):
-        assert isinstance(state, tuple)
+        assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
         assert isinstance(state[1], float)
         assert isinstance(action, int) or isinstance(action, np.int64)
@@ -66,7 +67,25 @@ class AggregateApproximator:
         for i in range(len(self._action_space)):
             result[i] = self.estimate(state, self._action_space[i])
         return result
-      
+    
+    def estimate_all_2(self, states):
+        assert isinstance(states, np.ndarray)
+        assert states.ndim == 2
+        assert len(states) > 0
+        assert states.shape[1] == 2   # pos, vel
+        assert states.dtype == np.float32 or states.dtype == np.float64
+        assert np.min(states, axis=0)[0] >= -1.2  # pos
+        assert np.max(states, axis=0)[0] <= 0.5  # pos
+        assert np.min(states, axis=0)[1] >= -0.07  # vel
+        assert np.max(states, axis=0)[1] <= 0.07  # vel
+
+        result = np.zeros( [len(states), len(self._action_space)], dtype=float)
+        for si in range(len(states)):
+            for i in range(len(self._action_space)):
+                action = self._action_space[i]
+                result[si, i] = self.estimate(states[si], action)
+
+        return result
 
     def update(self, state, action, target):
         pos_idx, vel_idx, act_idx = self._to_idx(state, action)
@@ -134,6 +153,24 @@ class TileApproximator:
             result[i] = self.estimate(state, action)
         return result
 
+    def estimate_all_2(self, states):
+        assert isinstance(states, np.ndarray)
+        assert states.ndim == 2
+        assert len(states) > 0
+        assert states.shape[1] == 2   # pos, vel
+        assert states.dtype == np.float32 or states.dtype == np.float64
+        assert np.min(states, axis=0)[0] >= -1.2  # pos
+        assert np.max(states, axis=0)[0] <= 0.5  # pos
+        assert np.min(states, axis=0)[1] >= -0.07  # vel
+        assert np.max(states, axis=0)[1] <= 0.07  # vel
+
+        result = np.zeros( [len(states), len(self._action_space)], dtype=float)
+        for si in range(len(states)):
+            for i in range(len(self._action_space)):
+                action = self._action_space[i]
+                result[si, i] = self.estimate(states[si], action)
+
+        return result
 
 
     def update(self, state, action, target):
@@ -215,6 +252,24 @@ class NeuralApproximator:
         # _nn.forward(..) returns 2d array, even if only 1 long
         assert len(est) == 1
         return est[0]  # return 1d array
+
+    def estimate_all_2(self, states):
+        assert isinstance(states, np.ndarray)
+        assert states.ndim == 2
+        assert len(states) > 0
+        assert states.shape[1] == 2   # pos, vel
+        assert states.dtype == np.float32 or states.dtype == np.float64
+        assert np.min(states, axis=0)[0] >= -1.2  # pos
+        assert np.max(states, axis=0)[0] <= 0.5  # pos
+        assert np.min(states, axis=0)[1] >= -0.07  # vel
+        assert np.max(states, axis=0)[1] <= 0.07  # vel
+
+        states[:,0] += self._pos_offset
+        states[:,0] *= self._pos_scale
+        states[:,1] *= self._vel_scale
+
+        est = self._nn.forward(states)
+        return est  # return 2d array
 
     def update(self, batch, timing_dict):
         assert isinstance(batch, list)
@@ -416,6 +471,24 @@ class KerasApproximator:
         # _nn.forward(..) returns 2d array, even if only 1 long
         assert len(est) == 1
         return est[0]  # return 1d array
+
+    def estimate_all_2(self, states):
+        assert isinstance(states, np.ndarray)
+        assert states.ndim == 2
+        assert len(states) > 0
+        assert states.shape[1] == 2   # pos, vel
+        assert states.dtype == np.float32 or states.dtype == np.float64
+        assert np.min(states, axis=0)[0] >= -1.2  # pos
+        assert np.max(states, axis=0)[0] <= 0.5  # pos
+        assert np.min(states, axis=0)[1] >= -0.07  # vel
+        assert np.max(states, axis=0)[1] <= 0.07  # vel
+
+        states[:,0] += self._pos_offset
+        states[:,0] *= self._pos_scale
+        states[:,1] *= self._vel_scale
+
+        est = self._model.predict(states, batch_size=len(states))
+        return est  # return 2d array
 
     def update(self, batch, timing_dict):
         assert isinstance(batch, list)
@@ -734,6 +807,8 @@ class Agent:
             velocities = np.linspace(-0.07, 0.07, 64)
             actions = np.array([0, 1, 2])
 
+            # OLD WAY
+
             q_val = np.zeros([len(positions), len(velocities), len(actions)])
 
             state = np.array([0, 0], dtype=float)
@@ -746,10 +821,38 @@ class Agent:
                     state[1] = vel
                     q = self.Q.estimate_all(state)
                     for ai in range(len(actions)):
-                        act = actions[ai]
                         q_val[pi, vi, ai] = q[ai]
+        
+            print('old way:')
+            print(q_val[3:6,3:6])
+
+            # NEW WAY
+
+            num_tests = len(positions) * len(velocities)
+            pi_skip = len(velocities)
+            states = np.zeros([num_tests, 2])
+            for pi in range(len(positions)):
+                for vi in range(len(velocities)):
+                    states[pi*pi_skip + vi, 0] = positions[pi]
+                    states[pi*pi_skip + vi, 1] = velocities[vi]
+
+
+            q_list = self.Q.estimate_all_2(states)
+
+            q_val = np.zeros([len(positions), len(velocities), len(actions)])
+            
+            for si in range(len(states)):    
+                pi = si//pi_skip
+                vi = si %pi_skip
+                q_val[pi, vi] = q_list[si]
+
+            print('new way:')
+            print(q_val[3:6,3:6])
+
         else:
             q_val=None
+
+        
 
         est = self.Q.estimate_all(np.array([0.4, 0.035]))
         self.log_q_val.append(episode, step, total_step,
