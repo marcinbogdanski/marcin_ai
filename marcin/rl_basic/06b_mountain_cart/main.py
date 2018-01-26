@@ -76,21 +76,21 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     for string in timing_arr:
         timing_dict[string] = 0
 
-    time_total_start = time.time()
-
     #
     #   Initialise loggers
     #
     episode = -1
     total_step = -1
     while True:
-
+        
         episode += 1
         if nb_episodes is not None and episode > nb_episodes:
             break
 
         if nb_total_steps is not None and total_step >= nb_total_steps:
             break
+
+        time_total_start = time.time()
         
         step = 0
         total_step += 1
@@ -127,8 +127,15 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
             time_start = time.time()
             if total_step % 1000 == 0:
+
+                print()
+
                 print('e_rand', agent._epsilon_random, 
                     'step_size', agent._step_size)
+
+                print(str.upper(approximator))
+                for key in timing_arr:
+                    print(key, round(timing_dict[key], 3))
 
                 plot_mountain_car(logger, total_step, ax_qmax_wf, ax_qmax_im, 
                     ax_policy, ax_trajectory, ax_stats, ax_q_series)
@@ -170,7 +177,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 timing_dict['main_agent_log'] += time.time() - time_start
                 break
 
-    timing_dict['total'] += time.time() - time_total_start
+        timing_dict['total'] += time.time() - time_total_start
 
     return
 
@@ -200,25 +207,27 @@ def test_single(logger):
     ax_qmax_im = fig.add_subplot(162)
     ax_policy = fig.add_subplot(163)
     ax_trajectory = fig.add_subplot(164)
-    ax_stats = fig.add_subplot(165)
+    ax_stats = None # fig.add_subplot(165)
     ax_q_series = fig.add_subplot(166)
+
+    approximator='keras'
 
     test_run(
             nb_episodes=None,
-            nb_total_steps=500,
+            nb_total_steps=100000,
             expl_start=True,
 
             agent_discount=0.99,
-            agent_nb_rand_steps=16,
+            agent_nb_rand_steps=64,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1.0/5000,
 
             mem_size_max=5000,
 
-            approximator='keras',
+            approximator=approximator,
             step_size=0.001,
-            batch_size=128,
+            batch_size=64,
             ax_qmax_wf=ax_qmax_wf, 
             ax_qmax_im=ax_qmax_im,
             ax_policy=ax_policy,
@@ -229,8 +238,10 @@ def test_single(logger):
             timing_arr=timing_arr,
             timing_dict=timing_dict)
 
+    print()
+    print(str.upper(approximator))
     for key in timing_arr:
-        print(key, timing_dict[key])
+        print(key, round(timing_dict[key], 3))
 
     plt.show()
 

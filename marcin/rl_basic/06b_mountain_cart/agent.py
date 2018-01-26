@@ -7,9 +7,10 @@ import pdb
 import tile_coding
 import neural_mini
 
-from keras import Sequential
-from keras.layers import Dense
-from keras.optimizers import RMSprop, sgd
+# from keras import Sequential
+# from keras.layers import Dense
+# from keras.optimizers import RMSprop, sgd
+import tensorflow as tf
 
 
 
@@ -173,7 +174,6 @@ class NeuralApproximator:
             log.add_param('out_size', 3)
             log.add_param('out_act', 'linear')
 
-
     def _test_input(self, state, action):
         assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
@@ -185,7 +185,6 @@ class NeuralApproximator:
         assert action in [0, 1, 2]
 
         return pos, vel, action
-
 
     def estimate(self, state, action):
         pos, vel, action = self._test_input(state, action)
@@ -335,7 +334,6 @@ class NeuralApproximator:
         timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
 
-
 class KerasApproximator:
 
     def __init__(self, step_size, discount, batch_size, log=None):
@@ -343,13 +341,25 @@ class KerasApproximator:
         self._discount = discount
         self._batch_size = batch_size
 
-        self._model = Sequential()
-        # self._model.add(Dense(output_dim=128, activation='sigmoid', input_dim=2))
-        # self._model.add(Dense(output_dim=3, activation='linear'))
-        self._model.add(Dense(activation='sigmoid', input_dim=2, units=128))
-        self._model.add(Dense(activation='linear', units=3))
-        # self._model.compile(loss='mse', optimizer=RMSprop(lr=0.00025))
-        self._model.compile(loss='mse', optimizer=sgd(lr=0.01))
+        # self._model = Sequential()
+        # # self._model.add(Dense(output_dim=128, activation='sigmoid', input_dim=2))
+        # # self._model.add(Dense(output_dim=3, activation='linear'))
+        # self._model.add(Dense(activation='sigmoid', input_dim=2, units=128))
+        # self._model.add(Dense(activation='linear', units=3))
+        # # self._model.compile(loss='mse', optimizer=RMSprop(lr=0.00025))
+        # self._model.compile(loss='mse', optimizer=sgd(lr=0.01))
+
+
+        # self._model = tf.keras.models.Sequential()
+        # self._model.add(tf.keras.layers.Dense(activation='sigmoid', input_dim=2, units=128))
+        # self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
+        # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.01))
+
+        self._model = tf.keras.models.Sequential()
+        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=128))
+        # self._model.add(tf.keras.layers.Dense(activation='relu', units=128))
+        self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
+        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.001))
 
         self._pos_offset = 0.35
         self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
@@ -473,7 +483,6 @@ class KerasApproximator:
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update_train_on_batch'] += time.time() - time_start
 
-
     def update2(self, batch, timing_dict):
         assert isinstance(batch, list)
         assert len(batch) > 0
@@ -527,7 +536,6 @@ class KerasApproximator:
         time_start = time.time()
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update2_train_on_batch'] += time.time() - time_start
-
 
 class Memory:
     def __init__(self, max_len):

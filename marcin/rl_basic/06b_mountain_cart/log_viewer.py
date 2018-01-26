@@ -24,12 +24,12 @@ def main():
     print(logger.approx)
 
     fig = plt.figure()
-    ax_q_max_wr = fig.add_subplot(161, projection='3d')
-    ax_q_max_im = fig.add_subplot(162)
-    ax_policy = fig.add_subplot(163)
-    ax_trajectory = fig.add_subplot(164)
-    ax_stats = fig.add_subplot(165)
-    ax_q_series = fig.add_subplot(166)
+    ax_q_max_wr = fig.add_subplot(151, projection='3d')
+    ax_q_max_im = fig.add_subplot(152)
+    ax_policy = fig.add_subplot(153)
+    ax_trajectory = fig.add_subplot(154)
+    ax_stats = None # fig.add_subplot(165)
+    ax_q_series = fig.add_subplot(155)
 
 
     skip = 1000
@@ -38,7 +38,8 @@ def main():
         print(total_step)
 
         plot_mountain_car(logger, total_step,
-            ax_q_max_wr, ax_q_max_im, ax_policy, ax_trajectory, ax_q_series)
+            ax_q_max_wr, ax_q_max_im, ax_policy, ax_trajectory,
+            ax_stats, ax_q_series)
 
         plt.pause(0.1)
 
