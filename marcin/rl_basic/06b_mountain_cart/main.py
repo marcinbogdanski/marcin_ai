@@ -137,10 +137,13 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 for key in timing_arr:
                     print(key, round(timing_dict[key], 3))
 
-                plot_mountain_car(logger, total_step, ax_qmax_wf, ax_qmax_im, 
-                    ax_policy, ax_trajectory, ax_stats, ax_q_series)
+                if ax_qmax_wf is not None or ax_qmax_im is not None \
+                    or ax_policy is not None or ax_trajectory is not None \
+                    or ax_stats is not None or ax_q_series is not None:
 
-                plt.pause(0.001)
+                    plot_mountain_car(logger, total_step, ax_qmax_wf, ax_qmax_im, 
+                        ax_policy, ax_trajectory, ax_stats, ax_q_series)
+                    plt.pause(0.001)
             timing_dict['main_plot'] += time.time() - time_start
             
 
@@ -197,18 +200,29 @@ def test_single(logger):
     timing_arr = []
     timing_dict = {}
 
+    plotting_on = False
 
-    fig = plt.figure()
-    axb = None # fig.add_subplot(171, projection='3d')
-    axs = None # fig.add_subplot(172, projection='3d')
-    axf = None # fig.add_subplot(173, projection='3d')
-    
-    ax_qmax_wf = fig.add_subplot(161, projection='3d')
-    ax_qmax_im = fig.add_subplot(162)
-    ax_policy = fig.add_subplot(163)
-    ax_trajectory = fig.add_subplot(164)
-    ax_stats = None # fig.add_subplot(165)
-    ax_q_series = fig.add_subplot(166)
+    if plotting_on:
+        fig = plt.figure()
+        axb = None # fig.add_subplot(171, projection='3d')
+        axs = None # fig.add_subplot(172, projection='3d')
+        axf = None # fig.add_subplot(173, projection='3d')
+        ax_qmax_wf = fig.add_subplot(161, projection='3d')
+        ax_qmax_im = fig.add_subplot(162)
+        ax_policy = fig.add_subplot(163)
+        ax_trajectory = fig.add_subplot(164)
+        ax_stats = None # fig.add_subplot(165)
+        ax_q_series = fig.add_subplot(166)
+    else:
+        axb = None
+        axs = None
+        axf = None
+        ax_qmax_wf = None
+        ax_qmax_im = None
+        ax_policy = None
+        ax_trajectory = None
+        ax_stats = None
+        ax_q_series = None
 
     approximator='keras'
 
@@ -243,7 +257,8 @@ def test_single(logger):
     for key in timing_arr:
         print(key, round(timing_dict[key], 3))
 
-    plt.show()
+    if plotting_on:
+        plt.show()
 
 
 
