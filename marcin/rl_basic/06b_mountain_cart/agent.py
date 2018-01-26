@@ -542,8 +542,10 @@ class KerasApproximator:
         timing_dict['    update2_scale'] += time.time() - time_start
 
         time_start = time.time()
-        targets = self._model.predict(inputs, batch_size=len(inputs))
-        est_n = self._model.predict(inputs_n, batch_size=len(inputs))
+        # Join arrays for single predict() call (double speed improvement)
+        inputs_joint = np.concatenate((inputs, inputs_n))
+        result_joint = self._model.predict(inputs_joint, batch_size=len(inputs_joint))
+        targets, est_n = np.split(result_joint, 2)
         timing_dict['    update2_predict'] += time.time() - time_start
 
         time_start = time.time()
