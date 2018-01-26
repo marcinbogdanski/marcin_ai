@@ -494,10 +494,6 @@ class KerasApproximator:
         targets = np.array(targets)
         timing_dict['    update_convert_numpy'] += time.time() - time_start
 
-        # self._model.fit(inputs, targets, 
-        #     batch_size=self._batch_size,
-        #     nb_epoch=1, verbose=1)
-
         time_start = time.time()
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update_train_on_batch'] += time.time() - time_start
@@ -876,29 +872,22 @@ class Agent:
 
         time_start = time.time()
 
-        Q = self.Q    # Action value array, shape: [world_size, action_space]
-
         # Shortcuts for more compact notation:
 
         St = self._trajectory[t].observation      # evaluated state tuple (x, y)
+        At = self._trajectory[t].action
         St_1 = self._trajectory[t+1].observation  # next state tuple (x, y)
         Rt_1 = self._trajectory[t+1].reward       # next step reward
         done = self._trajectory[t+1].done
-        step = self._step_size
-        disc = self._discount
-
-        At = self._trajectory[t].action
-        At_1 = self._trajectory[t+1].action
-        if At_1 is None:
-            At_1 = self.pick_action(St)
-
         self._memory.append(St, At, Rt_1, St_1, done)
 
         if self._curr_total_step < self._nb_rand_steps:
             # no lerninng during initial random phase
+            timing_dict['  eval_td_start'] += time.time() - time_start
             return
 
         timing_dict['  eval_td_start'] += time.time() - time_start
+
 
         if isinstance(self.Q, NeuralApproximator) or \
             isinstance(self.Q, KerasApproximator):
@@ -915,7 +904,10 @@ class Agent:
             if done:
                 Tt = Rt_1
             else:
-                Tt = Rt_1 + disc * self.Q.estimate(St_1, At_1)                
+                At_1 = self._trajectory[t+1].action
+                if At_1 is None:
+                    At_1 = self.pick_action(St)
+                Tt = Rt_1 + self._discount * self.Q.estimate(St_1, At_1)                
 
             self.Q.update(St, At, Tt)
             
