@@ -429,6 +429,8 @@ class KerasApproximator:
         assert np.min(states, axis=0)[1] >= -0.07  # vel
         assert np.max(states, axis=0)[1] <= 0.07  # vel
 
+        states = np.array(states)
+
         states[:,0] += self._pos_offset
         states[:,0] *= self._pos_scale
         states[:,1] *= self._vel_scale
@@ -790,9 +792,15 @@ class Agent:
             if self._epsilon_random < self._epsilon_random_target:
                 self._epsilon_random = self._epsilon_random_target
 
+    def _rand_argmax(self, vector):
+        """ Argmax that chooses randomly among eligible maximum indices. """
+        vmax = np.max(vector)
+        indices = np.nonzero(vector == vmax)[0]
+        return np.random.choice(indices)
 
     def pick_action(self, obs):
         assert isinstance(obs, np.ndarray)
+        assert obs.shape == (2, )
 
         if self._curr_total_step < self._nb_rand_steps:
             self._this_step_rand_act = True
@@ -811,19 +819,25 @@ class Agent:
         else:
             self._this_step_rand_act = False
             # act greedy
-            max_Q = float('-inf')
-            max_action = None
+            
+            # max_Q = float('-inf')
+            # max_action = None
+            # possible_actions = []
+            # for action in self._action_space:
+            #     q = self.Q.estimate(obs, action)
+            #     if q > max_Q:
+            #         possible_actions.clear()
+            #         possible_actions.append(action)
+            #         max_Q = q
+            #     elif q == max_Q:
+            #         possible_actions.append(action)
+            # res = np.random.choice(possible_actions)
 
-            possible_actions = []
-            for action in self._action_space:
-                q = self.Q.estimate(obs, action)
-                if q > max_Q:
-                    possible_actions.clear()
-                    possible_actions.append(action)
-                    max_Q = q
-                elif q == max_Q:
-                    possible_actions.append(action)
-            res = np.random.choice(possible_actions)
+            obs = obs.reshape([1, 2])
+            q_arr = self.Q.estimate_all(obs).flatten()
+            index = self._rand_argmax(q_arr)
+            res = self._action_space[index]
+
 
         return res
 

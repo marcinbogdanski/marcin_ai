@@ -229,7 +229,7 @@ def test_single(logger):
 
     test_run(
             nb_episodes=None,
-            nb_total_steps=2000,
+            nb_total_steps=10000,
             expl_start=True,
 
             agent_discount=0.99,
