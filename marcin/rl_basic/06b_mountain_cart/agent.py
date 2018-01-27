@@ -378,7 +378,9 @@ class KerasApproximator:
         self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=128))
         # self._model.add(tf.keras.layers.Dense(activation='relu', units=128))
         self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
-        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.001))
+        # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.001))
+        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=0.00025))
+        
 
         self._pos_offset = 0.35
         self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN

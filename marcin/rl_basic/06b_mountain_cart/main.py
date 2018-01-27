@@ -233,16 +233,16 @@ def test_single(logger):
 
     test_run(
             nb_episodes=None,
-            nb_total_steps=10000,
-            expl_start=True,
+            nb_total_steps=300000,
+            expl_start=False,
 
             agent_discount=0.99,
-            agent_nb_rand_steps=64,
+            agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1.0/5000,
 
-            mem_size_max=5000,
+            mem_size_max=100000,
 
             approximator=approximator,
             step_size=0.001,
