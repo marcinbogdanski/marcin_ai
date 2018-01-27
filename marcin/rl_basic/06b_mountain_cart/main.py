@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 
+import subprocess
+import socket
+import datetime
+
 import time
 import pdb
 
@@ -11,7 +15,7 @@ from mountain_car import MountainCarEnv
 from agent import Agent
 
 from logger import Logger, Log
-from log_viewer import plot_mountain_car
+from log_viewer import Plotter
 
 
 def test_run(nb_episodes, nb_total_steps, expl_start,
@@ -25,8 +29,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     mem_size_max,
 
     approximator, step_size, batch_size,
-    ax_qmax_wf=None, ax_qmax_im=None, ax_policy=None, ax_trajectory=None,
-    ax_stats=None, ax_q_series=None, logger=None, 
+    plotter=None,
+    logger=None, 
     timing_arr=None, timing_dict=None):
 
     action_space = [0, 1, 2]  # move left, do nothing, move right
@@ -129,21 +133,17 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             if total_step % 1000 == 0:
 
                 print()
-
                 print('e_rand', agent._epsilon_random, 
                     'step_size', agent._step_size)
-
-                print(str.upper(approximator))
                 for key in timing_arr:
                     print(key, round(timing_dict[key], 3))
 
-                if ax_qmax_wf is not None or ax_qmax_im is not None \
-                    or ax_policy is not None or ax_trajectory is not None \
-                    or ax_stats is not None or ax_q_series is not None:
-
-                    plot_mountain_car(logger, total_step, ax_qmax_wf, ax_qmax_im, 
-                        ax_policy, ax_trajectory, ax_stats, ax_q_series)
+            if plotter is not None:
+                plotter.process(logger, total_step)
+                res = plotter.conditional_plot(logger, total_step)
+                if res:
                     plt.pause(0.001)
+
             timing_dict['main_plot'] += time.time() - time_start
             
 
@@ -201,29 +201,33 @@ def test_single(logger):
     timing_arr = []
     timing_dict = {}
 
-    plotting_on = False
-
-    if plotting_on:
+    plotting_enabled = True
+    if plotting_enabled:
         fig = plt.figure()
-        axb = None # fig.add_subplot(171, projection='3d')
-        axs = None # fig.add_subplot(172, projection='3d')
-        axf = None # fig.add_subplot(173, projection='3d')
-        ax_qmax_wf = fig.add_subplot(161, projection='3d')
-        ax_qmax_im = fig.add_subplot(162)
-        ax_policy = fig.add_subplot(163)
-        ax_trajectory = fig.add_subplot(164)
+        ax_qmax_wf = fig.add_subplot(151, projection='3d')
+        ax_qmax_im = fig.add_subplot(152)
+        ax_policy = fig.add_subplot(153)
+        ax_trajectory = fig.add_subplot(154)
         ax_stats = None # fig.add_subplot(165)
-        ax_q_series = fig.add_subplot(166)
+        ax_q_series = fig.add_subplot(155)
     else:
-        axb = None
-        axs = None
-        axf = None
         ax_qmax_wf = None
         ax_qmax_im = None
         ax_policy = None
         ax_trajectory = None
         ax_stats = None
         ax_q_series = None
+
+    plotter = Plotter(plotting_enabled=plotting_enabled,
+                      plot_every=1000,
+                      disp_len=1000,
+                      ax_qmax_wf=ax_qmax_wf,
+                      ax_qmax_im=ax_qmax_im,
+                      ax_policy=ax_policy,
+                      ax_trajectory=ax_trajectory,
+                      ax_stats=ax_stats,
+                      ax_q_series=ax_q_series)
+
 
     approximator='keras'
 
@@ -243,12 +247,8 @@ def test_single(logger):
             approximator=approximator,
             step_size=0.001,
             batch_size=64,
-            ax_qmax_wf=ax_qmax_wf, 
-            ax_qmax_im=ax_qmax_im,
-            ax_policy=ax_policy,
-            ax_trajectory=ax_trajectory, 
-            ax_stats=ax_stats,
-            ax_q_series=ax_q_series,
+            
+            plotter=plotter,
             logger=logger,
             timing_arr=timing_arr,
             timing_dict=timing_dict)
@@ -258,7 +258,7 @@ def test_single(logger):
     for key in timing_arr:
         print(key, round(timing_dict[key], 3))
 
-    if plotting_on:
+    if plotting_enabled:
         plt.show()
 
 
@@ -283,7 +283,12 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
 
 
 def main():
-    logger = Logger()
+    curr_datetime = str(datetime.datetime.now())  # date and time
+    hostname = socket.gethostname()  # name of PC where script is run
+    res = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE)
+    git_hash = res.stdout.decode('utf-8')  # git revision if any
+
+    logger = Logger(curr_datetime, hostname, git_hash)
     try:
         test_single(logger)
     finally:

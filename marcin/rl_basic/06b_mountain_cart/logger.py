@@ -89,8 +89,16 @@ class Log():
             self.data[key].append(val)
 
 class Logger():
-    def __init__(self):
-        pass
+    def __init__(self, datetime=None, hostname=None, git_hash=None):
+        self.datetime = datetime
+        self.hostname = hostname
+        self.git_hash = git_hash
+
+    def __str__(self):
+        res = 'Date time: ' + self.datetime + '\n' + \
+              'Hostname:' + self.hostname + '\n' + \
+              'GIT Hash:' + self.git_hash
+        return res
 
     def save(self, filename):
         with open(filename, 'wb') as f:

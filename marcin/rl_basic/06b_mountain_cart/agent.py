@@ -735,7 +735,11 @@ class Agent:
         #
         #   Log Q series
         #
-        est = self.Q.estimate_all(np.array([[0.4, 0.035]]))
+        if total_step % 100 == 0:
+            est = self.Q.estimate_all(np.array([[0.4, 0.035]]))
+        else:
+            est = np.array([[None, None, None]])
+
         self.log_q_val.append(episode, step, total_step,
             q_val=q_val,
             series_E0=est[0, 0], series_E1=est[0, 1], series_E2=est[0, 2])

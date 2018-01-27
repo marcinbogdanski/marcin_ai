@@ -17,6 +17,8 @@ def main():
     logger = Logger()
     logger.load(args.filename)
 
+    print()
+    print(logger)
     print(logger.env)
     print(logger.agent)
     print(logger.q_val)
@@ -24,94 +26,145 @@ def main():
     print(logger.approx)
 
     fig = plt.figure()
-    ax_q_max_wr = fig.add_subplot(151, projection='3d')
-    ax_q_max_im = fig.add_subplot(152)
+    ax_qmax_wf = fig.add_subplot(151, projection='3d')
+    ax_qmax_im = fig.add_subplot(152)
     ax_policy = fig.add_subplot(153)
     ax_trajectory = fig.add_subplot(154)
     ax_stats = None # fig.add_subplot(165)
     ax_q_series = fig.add_subplot(155)
 
 
-    skip = 1000
+    plotter = Plotter(plotting_enabled=True,
+                      plot_every=5000,
+                      disp_len=1000,
+                      ax_qmax_wf=ax_qmax_wf,
+                      ax_qmax_im=ax_qmax_im,
+                      ax_policy=ax_policy,
+                      ax_trajectory=ax_trajectory,
+                      ax_stats=ax_stats,
+                      ax_q_series=ax_q_series)
 
-    for total_step in range(0, len(logger.mem.total_steps), skip):
+    for total_step in range(0, len(logger.mem.total_steps)):
         print(total_step)
 
-        plot_mountain_car(logger, total_step,
-            ax_q_max_wr, ax_q_max_im, ax_policy, ax_trajectory,
-            ax_stats, ax_q_series)
-
-        plt.pause(0.1)
+        plotter.process(logger, total_step)
+        res = plotter.conditional_plot(logger, total_step)
+        if res:
+            plt.pause(0.1)
 
     plt.show()
 
-def plot_mountain_car(logger, current_total_step, 
-    ax_qmax_wf, ax_qmax_im, ax_policy, ax_trajectory, ax_stats, ax_q_series):
-    extent = (-1, 0.5, -0.07, 0.07)
+class Plotter():
+    def __init__(self, plotting_enabled, plot_every, disp_len, 
+        ax_qmax_wf, ax_qmax_im, ax_policy,
+        ax_trajectory, ax_stats, ax_q_series):
 
-    if logger.q_val.data['q_val'][current_total_step] is not None:
-        q_val = logger.q_val.data['q_val'][current_total_step]
-        q_max = np.max(q_val, axis=2)
+        self.plotting_enabled = plotting_enabled
+        self.plot_every = plot_every
+        self.disp_len = disp_len
 
-        if ax_qmax_wf is not None:
-            ax_qmax_wf.clear()
-            plot_q_val_wireframe(ax_qmax_wf, q_max,
-                extent, ('pos', 'vel', 'q_max'))
+        self.ax_qmax_wf = ax_qmax_wf
+        self.ax_qmax_im = ax_qmax_im
+        self.ax_policy = ax_policy
+        self.ax_trajectory = ax_trajectory
+        self.ax_stats = ax_stats
+        self.ax_q_series = ax_q_series
 
-        if ax_qmax_im is not None:
-            ax_qmax_im.clear()
-            plot_q_val_imshow(ax_qmax_im, q_max,
-                extent, h_line=0.0, v_line=-0.5)
+        self.q_val = None
+        self.ser_X =  []
+        self.ser_E0 = []
+        self.ser_E1 = []
+        self.ser_E2 = []
         
-        if ax_policy is not None:
-            ax_policy.clear()
-            plot_policy(ax_policy, q_val,
-                extent, h_line=0.0, v_line=-0.5)
 
-    if ax_trajectory is not None:
-        Rt_arr = logger.mem.data['Rt']
-        St_pos_arr = logger.mem.data['St_pos']
-        St_vel_arr = logger.mem.data['St_vel']
-        At_arr = logger.mem.data['At']
-        done = logger.mem.data['done']
+    def process(self, logger, current_total_step):
+        """Call this every step to track data"""
 
-        disp_len = 1000
+        if logger.q_val.data['q_val'][current_total_step] is not None:
+            self.q_val = logger.q_val.data['q_val'][current_total_step]
 
-        i = current_total_step
-        Rt = Rt_arr[ max(0, i-disp_len) : i + 1 ]
-        St_pos = St_pos_arr[ max(0, i-disp_len) : i + 1 ]
-        St_vel = St_vel_arr[ max(0, i-disp_len) : i + 1 ]
-        At = At_arr[ max(0, i-disp_len) : i + 1 ]
 
-        ax_trajectory.clear()
-        plot_trajectory_2d(ax_trajectory, 
-            St_pos, St_vel, At, extent, h_line=0.0, v_line=-0.5)
+        if logger.q_val.data['series_E0'][current_total_step] is not None:
+            self.ser_X.append(current_total_step)
+            self.ser_E0.append(logger.q_val.data['series_E0'][current_total_step])
+            self.ser_E1.append(logger.q_val.data['series_E1'][current_total_step])
+            self.ser_E2.append(logger.q_val.data['series_E2'][current_total_step])
 
-    if ax_stats is not None:
-        ax_stats.clear()
-        i = current_total_step
+    def conditional_plot(self, logger, current_total_step):
+        if current_total_step % self.plot_every == 0 and self.plotting_enabled:
+            self.plot(logger, current_total_step)
+            return True
+        else:
+            return False
 
-        t_steps = logger.agent.total_steps[0:i:1]
-        ser_e_rand = logger.agent.data['e_rand'][0:i:1]
-        ser_rand_act = logger.agent.data['rand_act'][0:i:1]
-        ser_mem_size = logger.agent.data['mem_size'][0:i:1]
+    def plot(self, logger, current_total_step):
+        if not self.plotting_enabled:
+            return
 
-        arr = logger.agent.data['rand_act'][max(0, i-1000):i]
-        nz = np.count_nonzero(arr)
-        print('RAND: ', nz, ' / ', len(arr))
+        extent = (-1, 0.5, -0.07, 0.07)
 
-        # ax_stats.plot(t_steps, ser_e_rand, label='e_rand', color='red')
-        ax_stats.plot(t_steps, ser_rand_act, label='rand_act', color='blue')
-        ax_stats.legend()
+        # print('---')
+        # print(current_total_step % step_span == 0)
+        # print(q_val is not None)
 
-    if ax_q_series is not None:
-        ax_q_series.clear()
-        i = current_total_step
-        t_steps = logger.q_val.total_steps[0:i:100]
-        ser_E0 = logger.q_val.data['series_E0'][0:i:100]
-        ser_E1 = logger.q_val.data['series_E1'][0:i:100]
-        ser_E2 = logger.q_val.data['series_E2'][0:i:100]
-        plot_q_series(ax_q_series, t_steps, ser_E0, ser_E1, ser_E2)
+        if self.q_val is not None:
+            q_max = np.max(self.q_val, axis=2)
+
+            if self.ax_qmax_wf is not None:
+                self.ax_qmax_wf.clear()
+                plot_q_val_wireframe(self.ax_qmax_wf, q_max,
+                    extent, ('pos', 'vel', 'q_max'))
+
+            if self.ax_qmax_im is not None:
+                self.ax_qmax_im.clear()
+                plot_q_val_imshow(self.ax_qmax_im, q_max,
+                    extent, h_line=0.0, v_line=-0.5)
+            
+            if self.ax_policy is not None:
+                self.ax_policy.clear()
+                plot_policy(self.ax_policy, self.q_val,
+                    extent, h_line=0.0, v_line=-0.5)
+
+
+        if self.ax_trajectory is not None:
+            Rt_arr = logger.mem.data['Rt']
+            St_pos_arr = logger.mem.data['St_pos']
+            St_vel_arr = logger.mem.data['St_vel']
+            At_arr = logger.mem.data['At']
+            done = logger.mem.data['done']
+
+            i = current_total_step
+            Rt = Rt_arr[ max(0, i-self.disp_len) : i + 1 ]
+            St_pos = St_pos_arr[ max(0, i-self.disp_len) : i + 1 ]
+            St_vel = St_vel_arr[ max(0, i-self.disp_len) : i + 1 ]
+            At = At_arr[ max(0, i-self.disp_len) : i + 1 ]
+
+            self.ax_trajectory.clear()
+            plot_trajectory_2d(self.ax_trajectory, 
+                St_pos, St_vel, At, extent, h_line=0.0, v_line=-0.5)
+
+        # if ax_stats is not None:
+        #     ax_stats.clear()
+        #     i = current_total_step
+
+        #     t_steps = logger.agent.total_steps[0:i:1]
+        #     ser_e_rand = logger.agent.data['e_rand'][0:i:1]
+        #     ser_rand_act = logger.agent.data['rand_act'][0:i:1]
+        #     ser_mem_size = logger.agent.data['mem_size'][0:i:1]
+
+        #     arr = logger.agent.data['rand_act'][max(0, i-1000):i]
+        #     nz = np.count_nonzero(arr)
+        #     print('RAND: ', nz, ' / ', len(arr))
+
+        #     # ax_stats.plot(t_steps, ser_e_rand, label='e_rand', color='red')
+        #     ax_stats.plot(t_steps, ser_rand_act, label='rand_act', color='blue')
+        #     ax_stats.legend()
+
+        if self.ax_q_series is not None:
+
+            self.ax_q_series.clear()
+            plot_q_series(self.ax_q_series,
+                self.ser_X, self.ser_E0, self.ser_E1, self.ser_E2)
 
 
 def plot_q_val_wireframe(ax, q_val, extent, labels):
