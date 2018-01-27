@@ -6,6 +6,7 @@ import pdb
 
 import tile_coding
 import neural_mini
+import memory
 
 # from keras import Sequential
 # from keras.layers import Dense
@@ -500,35 +501,41 @@ class KerasApproximator:
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update_train_on_batch'] += time.time() - time_start
 
-    def update2(self, batch, timing_dict):
-        assert isinstance(batch, list)
-        assert len(batch) > 0
-        assert len(batch[0]) == 5
+    def update2(self, states, actions, rewards_n, states_n, dones, timing_dict):
+        # assert isinstance(batch, list)
+        # assert len(batch) > 0
+        # assert len(batch[0]) == 5
+
+        # time_start = time.time()
+        # inputs = np.zeros([len(batch), 2], dtype=np.float32)
+        # actions = np.zeros([len(batch)], dtype=np.int8)
+        # rewards_n = np.zeros([len(batch), 1], dtype=np.float32)
+        # inputs_n = np.zeros([len(batch), 2], dtype=np.float32)
+        # not_dones = np.zeros([len(batch), 1], dtype=np.bool)
+        # timing_dict['    update2_create_arr'] += time.time() - time_start
 
         time_start = time.time()
-        inputs = np.zeros([len(batch), 2], dtype=np.float32)
-        actions = np.zeros([len(batch)], dtype=np.int8)
-        rewards_n = np.zeros([len(batch), 1], dtype=np.float32)
-        inputs_n = np.zeros([len(batch), 2], dtype=np.float32)
-        not_dones = np.zeros([len(batch), 1], dtype=np.bool)
+        inputs = np.array(states)
+        inputs_n = np.array(states_n)
+        not_dones = np.logical_not(dones)
         timing_dict['    update2_create_arr'] += time.time() - time_start
 
-        time_start = time.time()
-        for i, tup in enumerate(batch):
-            St = tup[0]
-            At = tup[1]
-            Rt_1 = tup[2]
-            St_1 = tup[3]
-            done = tup[4]
+        # time_start = time.time()
+        # for i, tup in enumerate(batch):
+        #     St = tup[0]
+        #     At = tup[1]
+        #     Rt_1 = tup[2]
+        #     St_1 = tup[3]
+        #     done = tup[4]
 
-            inputs[i] = St
-            actions[i] = At
-            rewards_n[i] = Rt_1
-            inputs_n[i] = St_1
-            not_dones[i] = not done
+        #     inputs[i] = St
+        #     actions[i] = At
+        #     rewards_n[i] = Rt_1
+        #     inputs_n[i] = St_1
+        #     not_dones[i] = not done
 
-            assert At in [0, 1, 2]
-        timing_dict['    update2_loop'] += time.time() - time_start
+        #     assert At in [0, 1, 2]
+        # timing_dict['    update2_loop'] += time.time() - time_start
 
         time_start = time.time()
         inputs[:,0] += self._pos_offset
@@ -556,61 +563,7 @@ class KerasApproximator:
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
-class Memory:
-    def __init__(self, max_len):
-        self.max_len = max_len
-        self._hist_St = collections.deque(maxlen=max_len)
-        self._hist_At = collections.deque(maxlen=max_len)
-        self._hist_Rt_1 = collections.deque(maxlen=max_len)
-        self._hist_St_1 = collections.deque(maxlen=max_len)
-        self._hist_done = collections.deque(maxlen=max_len)
 
-    def append(self, St, At, Rt_1, St_1, done):
-        assert isinstance(St, np.ndarray)
-        assert isinstance(St[0], float)
-        assert isinstance(St[1], float)
-        assert isinstance(At, int) or isinstance(At, np.int64)
-        assert isinstance(Rt_1, int)
-        assert isinstance(St_1, np.ndarray)
-        assert isinstance(St_1[0], float)
-        assert isinstance(St_1[1], float)
-        assert isinstance(done, bool)
-
-        pos, vel = St[0], St[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        assert At in [0, 1, 2]
-
-        assert Rt_1 in [-1]
-
-        pos, vel = St_1[0], St_1[1]
-        assert -1.2 <= pos and pos <= 0.5
-        assert -0.07 <= vel and vel <= 0.07
-
-        self._hist_St.append(St)
-        self._hist_At.append(At)
-        self._hist_Rt_1.append(Rt_1)
-        self._hist_St_1.append(St_1)
-        self._hist_done.append(done)
-
-    def length(self):
-        return len(self._hist_St)
-
-    def get_batch(self, batch_len):
-        indices = np.random.choice(range(len(self._hist_St)), batch_len)
-        indices[batch_len-1] = len(self._hist_St) - 1
-
-        batch = []
-        for idx in indices:
-            tup = (self._hist_St[idx],
-                   self._hist_At[idx],
-                   self._hist_Rt_1[idx],
-                   self._hist_St_1[idx],
-                   self._hist_done[idx])
-            batch.append(tup)
-
-        return batch
 
 class HistoryData:
     """One piece of agent trajectory"""
@@ -670,7 +623,11 @@ class Agent:
         else:
             raise ValueError('Unknown approximator')
 
-        self._memory = Memory(max_len=mem_size_max)
+        self._memory = memory.Memory(
+            state_shape=(2, ),
+            act_shape=(1, ),
+            dtypes=(float, int, float, float, bool),
+            max_len=mem_size_max)
 
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
@@ -907,11 +864,12 @@ class Agent:
             isinstance(self.Q, KerasApproximator):
 
             time_start = time.time()
-            batch = self._memory.get_batch(self._batch_size)
+            states, actions, rewards_1, states_1, dones = \
+                self._memory.get_batch(self._batch_size)
             timing_dict['  eval_td_get_batch'] += time.time() - time_start
 
             time_start = time.time()
-            self.Q.update2(batch, timing_dict)
+            self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict)
             timing_dict['  eval_td_update'] += time.time() - time_start
 
         else:
