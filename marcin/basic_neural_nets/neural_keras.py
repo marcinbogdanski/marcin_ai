@@ -1,8 +1,10 @@
 import numpy as np
 
-from keras import Sequential
-from keras.layers import Dense
-from keras.optimizers import sgd
+# from keras import Sequential
+# from keras.layers import Dense
+# from keras.optimizers import sgd
+
+import tensorflow as tf
 
 import pdb
 
@@ -21,21 +23,21 @@ class NeuralKeras:
         self.nb_hidden = shape[1]
         self.nb_outputs = shape[2]
 
-        self.layer_hid = Dense(
+        self.layer_hid = tf.keras.layers.Dense(
             shape[1], 
             input_shape=(shape[0], ), 
             activation='sigmoid')
 
-        self.layer_out = Dense(
+        self.layer_out = tf.keras.layers.Dense(
             shape[2], 
             activation='sigmoid'
             )
         
         
-        self.model = Sequential()
+        self.model = tf.keras.models.Sequential()
         self.model.add(self.layer_hid)
         self.model.add(self.layer_out)
-        self.model.compile(sgd(lr=0.3), "mse")
+        self.model.compile(tf.keras.optimizers.SGD(lr=0.3), "mse")
 
     def get_weights(self, layer):
         if layer == 0:

@@ -286,9 +286,9 @@ class NeuralTest(unittest.TestCase):
 
     def test_speed(self):
 
-        inputs = 10
+        inputs = 2
         hidden = 256
-        outputs = 10
+        outputs = 3
 
         dims = (inputs, hidden, outputs)
 
@@ -317,8 +317,8 @@ class NeuralTest(unittest.TestCase):
 
         dtype = np.float32
 
-        data = np.random.uniform(-1.0, 1.0, size=(1000000, 10)).astype(dtype)
-        labels = np.random.randint(0, 2, size=(1000000, 10)).astype(dtype)
+        data = np.random.uniform(-1.0, 1.0, size=(1000000, 2)).astype(dtype)
+        labels = np.random.randint(0, 2, size=(1000000, 3)).astype(dtype)
 
         print(data.dtype)
         print(labels.dtype)
@@ -327,7 +327,7 @@ class NeuralTest(unittest.TestCase):
 
         ts = time.time()
 
-        for i in range(100):
+        for i in range(1000):
             chunk_start = i*1000
             chunk_end = i*1000 + 1000
             self.nn.forward(data[chunk_start:chunk_end])
@@ -340,7 +340,7 @@ class NeuralTest(unittest.TestCase):
 
         ts = time.time()
 
-        for i in range(100):
+        for i in range(1000):
             chunk_start = i*1000
             chunk_end = i*1000 + 1000
             self.nn.train_batch(data[chunk_start:chunk_end], 
