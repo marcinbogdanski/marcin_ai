@@ -88,7 +88,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     while True:
         
         episode += 1
-        if nb_episodes is not None and episode > nb_episodes:
+        if nb_episodes is not None and episode >= nb_episodes:
             break
 
         if nb_total_steps is not None and total_step >= nb_total_steps:
@@ -133,12 +133,25 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             if total_step % 1000 == 0:
 
                 print()
-                print('e_rand', agent._epsilon_random, 
+                print('total_step', total_step,
+                    'e_rand', agent._epsilon_random, 
                     'step_size', agent._step_size)
-                for key in timing_arr:
-                    print(key, round(timing_dict[key], 3))
 
-            if plotter is not None:
+                # PRINT TIMING STATS
+                # for key in timing_arr:
+                #     print(key, round(timing_dict[key], 3))
+
+                # PRINT (RAND)
+                # i = total_step
+                # t_steps = logger.agent.total_steps[0:i:1]
+                # ser_e_rand = logger.agent.data['e_rand'][0:i:1]
+                # ser_rand_act = logger.agent.data['rand_act'][0:i:1]
+                # ser_mem_size = logger.agent.data['mem_size'][0:i:1]
+                # arr = logger.agent.data['rand_act'][max(0, i-1000):i]
+                # nz = np.count_nonzero(arr)
+                # print('RAND: ', nz, ' / ', len(arr))
+
+            if plotter is not None: #  and total_step >= agent_nb_rand_steps:
                 plotter.process(logger, total_step)
                 res = plotter.conditional_plot(logger, total_step)
                 if res:
