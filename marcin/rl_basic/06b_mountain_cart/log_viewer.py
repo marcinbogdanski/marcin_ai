@@ -101,7 +101,7 @@ class Plotter():
         if not self.plotting_enabled:
             return
 
-        extent = (-1, 0.5, -0.07, 0.07)
+        extent = (-1.2, 0.5, -0.07, 0.07)
 
         # print('---')
         # print(current_total_step % step_span == 0)
