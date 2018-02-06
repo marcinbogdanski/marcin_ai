@@ -222,6 +222,8 @@ def plot_policy(ax, q_val, extent, h_line, v_line):
     x_space = np.linspace(x_min, x_max, x_size)
     y_space = np.linspace(y_min, y_max, y_size)
 
+    data_draw_x = []
+    data_draw_y = []
     data_a0_x = []
     data_a0_y = []
     data_a1_x = []
@@ -237,7 +239,11 @@ def plot_policy(ax, q_val, extent, h_line, v_line):
             x = x_space[xi]
             y = y_space[yi]
 
-            if max_act[xi, yi] == 0:
+            if q_val[xi, yi, 0] == q_val[xi, yi, 1] == q_val[xi, yi, 2] == -100.0:
+                data_draw_x.append(x)
+                data_draw_y.append(y)
+
+            elif max_act[xi, yi] == 0:
                 data_a0_x.append(x)
                 data_a0_y.append(y)
             elif max_act[xi, yi] == 1:
@@ -249,6 +255,7 @@ def plot_policy(ax, q_val, extent, h_line, v_line):
             else:
                 raise ValueError('bad')
 
+    ax.scatter(data_draw_x, data_draw_y, color='gray', marker='.')
     ax.scatter(data_a0_x, data_a0_y, color='red', marker='.')
     ax.scatter(data_a1_x, data_a1_y, color='blue', marker='.')
     ax.scatter(data_a2_x, data_a2_y, color='green', marker='.')
