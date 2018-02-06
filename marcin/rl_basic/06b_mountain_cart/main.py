@@ -116,9 +116,10 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
         while True:
 
-            time_start = time.time()
-            action = agent.pick_action(obs)
-            timing_dict['main_agent_pick_action'] += time.time() - time_start
+            if step % 3 == 0:
+                time_start = time.time()
+                action = agent.pick_action(obs)
+                timing_dict['main_agent_pick_action'] += time.time() - time_start
 
             time_start = time.time()
             agent.append_action(action=action)
@@ -186,7 +187,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             agent.eval_td_online(timing_dict)
             timing_dict['main_agent_td_online'] += time.time() - time_start
             
-            if done or step >= 200:
+            if done or step >= 10000:
                 print('espiode finished after iteration', step)
                 time_start = time.time()
                 agent.log(episode, step, total_step)
@@ -246,20 +247,20 @@ def test_single(logger):
 
     test_run(
             nb_episodes=None,
-            nb_total_steps=300000,
+            nb_total_steps=1000000,
             expl_start=False,
 
             agent_discount=0.99,
             agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
-            agent_e_rand_decay=1.0/5000,
+            agent_e_rand_decay=1.0/500000,
 
             mem_size_max=100000,
 
             approximator=approximator,
-            step_size=0.001,
-            batch_size=64,
+            step_size=0.3,
+            batch_size=1024,
             
             plotter=plotter,
             logger=logger,

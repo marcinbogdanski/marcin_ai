@@ -36,7 +36,7 @@ def main():
 
     plotter = Plotter(plotting_enabled=True,
                       plot_every=5000,
-                      disp_len=1000,
+                      disp_len=5000,
                       ax_qmax_wf=ax_qmax_wf,
                       ax_qmax_im=ax_qmax_im,
                       ax_policy=ax_policy,
