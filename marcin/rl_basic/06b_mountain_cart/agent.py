@@ -15,9 +15,15 @@ import tensorflow as tf
 tf.set_random_seed(0)
 
 
+def _rand_argmax(vector):
+    """ Argmax that chooses randomly among eligible maximum indices. """
+    vmax = np.max(vector)
+    indices = np.nonzero(vector == vmax)[0]
+    return np.random.choice(indices)
+
 
 class AggregateApproximator:
-    def __init__(self, step_size, action_space, log=None):
+    def __init__(self, step_size, action_space, init_val=0, log=None):
         self._step_size = step_size
         self._action_space = action_space
         
@@ -32,7 +38,7 @@ class AggregateApproximator:
         self._action_nb = 3
 
         self._states = np.zeros([self._pos_bin_nb,
-            self._vel_bin_nb, self._action_nb])
+            self._vel_bin_nb, self._action_nb]) + init_val
 
     def _to_idx(self, state, action):
         assert isinstance(state, np.ndarray)
@@ -93,10 +99,35 @@ class AggregateApproximator:
         self._states[pos_idx, vel_idx, act_idx] += \
             self._step_size * (target - est)
 
+    def update2(self, states, actions, rewards_n, states_n, dones, timing_dict):
+
+        # pdb.set_trace()
+        # print('hop')
+
+        est_arr = self.estimate_all(states)
+
+        for i in range(len(states)):
+            St = states[i]
+            At = actions[i, 0]
+            Rt_1 = rewards_n[i, 0]
+            St_1 = states_n[i]
+            done = dones[i, 0]
+
+            est = est_arr[i]
+            At_1 = _rand_argmax(est)
+
+            if done:
+                Tt = Rt_1
+            else:
+                Tt = Rt_1 + 0.99 * self.estimate(St_1, At_1)
+
+            self.update(St, At, Tt)
+        
+
 
 class TileApproximator:
 
-    def __init__(self, step_size, action_space, log=None):
+    def __init__(self, step_size, action_space, init_val=0, log=None):
         self._num_of_tillings = 8
         self._step_size = step_size / self._num_of_tillings
 
@@ -106,7 +137,7 @@ class TileApproximator:
         self._vel_scale = self._num_of_tillings / (0.07 + 0.07)
 
         self._hashtable = tile_coding.IHT(2048)
-        self._weights = np.zeros(2048)
+        self._weights = np.zeros(2048) + init_val / self._num_of_tillings
         
         max_len = 2000
 
@@ -169,6 +200,30 @@ class TileApproximator:
 
         for tile in active_tiles:
             self._weights[tile] += delta
+
+    def update2(self, states, actions, rewards_n, states_n, dones, timing_dict):
+
+        # pdb.set_trace()
+        # print('hop')
+
+        est_arr = self.estimate_all(states)
+
+        for i in range(len(states)):
+            St = states[i]
+            At = actions[i, 0]
+            Rt_1 = rewards_n[i, 0]
+            St_1 = states_n[i]
+            done = dones[i, 0]
+
+            est = est_arr[i]
+            At_1 = _rand_argmax(est)
+
+            if done:
+                Tt = Rt_1
+            else:
+                Tt = Rt_1 + 0.99 * self.estimate(St_1, At_1)
+
+            self.update(St, At, Tt)
 
 
 class NeuralApproximator:
@@ -612,10 +667,10 @@ class Agent:
 
         if approximator == 'aggregate':
             self.Q = AggregateApproximator(
-                step_size, action_space, log=log_approx)
+                step_size, action_space, init_val=-100, log=log_approx)
         elif approximator == 'tile':
             self.Q = TileApproximator(
-                step_size, action_space, log=log_approx)
+                step_size, action_space, init_val=-100, log=log_approx)
         elif approximator == 'neural':
             self.Q = NeuralApproximator(
                 step_size, discount, batch_size, log=log_approx)
@@ -660,7 +715,6 @@ class Agent:
             log_agent.add_data_item('e_rand')
             log_agent.add_data_item('rand_act')
             log_agent.add_data_item('mem_size')
-            
 
         self.log_q_val = log_q_val
         if log_q_val is not None:
@@ -755,12 +809,6 @@ class Agent:
             if self._epsilon_random < self._epsilon_random_target:
                 self._epsilon_random = self._epsilon_random_target
 
-    def _rand_argmax(self, vector):
-        """ Argmax that chooses randomly among eligible maximum indices. """
-        vmax = np.max(vector)
-        indices = np.nonzero(vector == vmax)[0]
-        return np.random.choice(indices)
-
     def pick_action(self, obs):
         assert isinstance(obs, np.ndarray)
         assert obs.shape == (2, )
@@ -798,7 +846,7 @@ class Agent:
 
             obs = obs.reshape([1, 2])
             q_arr = self.Q.estimate_all(obs).flatten()
-            index = self._rand_argmax(q_arr)
+            index = _rand_argmax(q_arr)
             res = self._action_space[index]
 
 
@@ -867,7 +915,9 @@ class Agent:
 
 
         if isinstance(self.Q, NeuralApproximator) or \
-            isinstance(self.Q, KerasApproximator):
+            isinstance(self.Q, KerasApproximator) or \
+            isinstance(self.Q, AggregateApproximator) or \
+            isinstance(self.Q, TileApproximator):
 
             time_start = time.time()
             states, actions, rewards_1, states_1, dones = \
