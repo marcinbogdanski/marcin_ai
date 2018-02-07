@@ -209,13 +209,13 @@ def test_single(logger):
     logger.agent = Log('Agent')
     logger.q_val = Log('Q_Val')
     logger.env = Log('Environment', 'Mountain Car')
-    logger.mem = Log('Memory', 'Replay buffer for DQN')
+    logger.mem = Log('Memory', 'Memory of all states visited')
     logger.approx = Log('Approx', 'Approximator')
 
     timing_arr = []
     timing_dict = {}
 
-    plotting_enabled = True
+    plotting_enabled = False
     if plotting_enabled:
         fig = plt.figure()
         ax_qmax_wf = fig.add_subplot(151, projection='3d')

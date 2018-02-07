@@ -48,6 +48,58 @@ class Memory:
         self._hist_St_1[self._curr_insert_ptr] = St_1
         self._hist_done[self._curr_insert_ptr] = done
 
+
+
+
+        # if self._curr_len == self._max_len:
+        #     import matplotlib.pyplot as plt
+        #     import log_viewer
+
+        #     fig = plt.figure()
+        #     ax = fig.add_subplot(111)
+
+        #     indices = np.where(self._hist_done[:,0])[0]
+            
+        #     x_arr = self._hist_St[:,0]
+        #     y_arr = self._hist_St[:,1]
+        #     act_arr = self._hist_At[:,0]
+        #     extent = (-1.2, 0.5, -0.07, 0.07)
+
+        #     # plot full history
+        #     # log_viewer.plot_trajectory_2d(
+        #     #     ax, x_arr, y_arr, act_arr, extent, 0, -0.5)
+            
+        #     for idx in indices:
+        #         log_viewer.plot_trajectory_2d(
+        #             ax,
+        #             x_arr[idx-100:idx+1],
+        #             y_arr[idx-100:idx+1],
+        #             act_arr[idx-100:idx+1], extent, 0, -0.5)
+
+        #     np.savez('memory.npz',
+        #         states=self._hist_St,
+        #         actions=self._hist_At,
+        #         rewards_1=self._hist_Rt_1,
+        #         states_1=self._hist_St_1,
+        #         dones=self._hist_done,
+        #         )
+
+        #     plt.pause(0.1)
+        #     pdb.set_trace()
+
+
+
+
+        # if done:
+        #     # done samples are very important
+        #     # so make sure we multiply them a bit
+        #     idx = np.random.randint(0, self._curr_len, size=5)
+        #     self._hist_St[idx] = St
+        #     self._hist_At[idx] = At
+        #     self._hist_Rt_1[idx] = Rt_1
+        #     self._hist_St_1[idx] = St_1
+        #     self._hist_done[idx] = done
+
         if self._curr_len < self._max_len:
             self._curr_len += 1
 

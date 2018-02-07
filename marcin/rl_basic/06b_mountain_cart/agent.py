@@ -105,6 +105,9 @@ class AggregateApproximator:
         # print('hop')
 
         est_arr = self.estimate_all(states)
+        est_arr_1 = self.estimate_all(states_n)
+
+        errors = np.zeros([len(states)])
 
         for i in range(len(states)):
             St = states[i]
@@ -113,7 +116,7 @@ class AggregateApproximator:
             St_1 = states_n[i]
             done = dones[i, 0]
 
-            est = est_arr[i]
+            est = est_arr_1[i]
             At_1 = _rand_argmax(est)
 
             if done:
@@ -121,7 +124,11 @@ class AggregateApproximator:
             else:
                 Tt = Rt_1 + 0.99 * self.estimate(St_1, At_1)
 
+            errors[i] = Tt - est_arr[i, At]
+
             self.update(St, At, Tt)
+
+        return errors
         
 
 
@@ -207,6 +214,9 @@ class TileApproximator:
         # print('hop')
 
         est_arr = self.estimate_all(states)
+        est_arr_1 = self.estimate_all(states_n)
+
+        errors = np.zeros([len(states)])
 
         for i in range(len(states)):
             St = states[i]
@@ -215,7 +225,7 @@ class TileApproximator:
             St_1 = states_n[i]
             done = dones[i, 0]
 
-            est = est_arr[i]
+            est = est_arr_1[i]
             At_1 = _rand_argmax(est)
 
             if done:
@@ -223,7 +233,11 @@ class TileApproximator:
             else:
                 Tt = Rt_1 + 0.99 * self.estimate(St_1, At_1)
 
+            errors[i] = Tt - est_arr[i, At]
+
             self.update(St, At, Tt)
+
+        return errors
 
 
 class NeuralApproximator:
