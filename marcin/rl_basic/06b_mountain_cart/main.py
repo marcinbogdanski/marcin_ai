@@ -49,7 +49,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 batch_size=batch_size,
                 log_agent=logger.agent,
                 log_q_val=logger.q_val,
-                log_mem=logger.mem,
+                log_hist=logger.hist,
                 log_approx=logger.approx)
 
     timing_arr.append('total')
@@ -209,13 +209,13 @@ def test_single(logger):
     logger.agent = Log('Agent')
     logger.q_val = Log('Q_Val')
     logger.env = Log('Environment', 'Mountain Car')
-    logger.mem = Log('Memory', 'Memory of all states visited')
+    logger.hist = Log('History', 'Memory of all states visited')
     logger.approx = Log('Approx', 'Approximator')
 
     timing_arr = []
     timing_dict = {}
 
-    plotting_enabled = False
+    plotting_enabled = True
     if plotting_enabled:
         fig = plt.figure()
         ax_qmax_wf = fig.add_subplot(151, projection='3d')
@@ -223,7 +223,8 @@ def test_single(logger):
         ax_policy = fig.add_subplot(153)
         ax_trajectory = fig.add_subplot(154)
         ax_stats = None # fig.add_subplot(165)
-        ax_q_series = fig.add_subplot(155)
+        ax_memory = fig.add_subplot(155)
+        ax_q_series = None # fig.add_subplot(155)
     else:
         ax_qmax_wf = None
         ax_qmax_im = None
@@ -240,6 +241,7 @@ def test_single(logger):
                       ax_policy=ax_policy,
                       ax_trajectory=ax_trajectory,
                       ax_stats=ax_stats,
+                      ax_memory=ax_memory,
                       ax_q_series=ax_q_series)
 
 
@@ -251,7 +253,7 @@ def test_single(logger):
             expl_start=False,
 
             agent_discount=0.99,
-            agent_nb_rand_steps=100000,
+            agent_nb_rand_steps=1000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1.0/500000,

@@ -22,7 +22,7 @@ def main():
     print(logger.env)
     print(logger.agent)
     print(logger.q_val)
-    print(logger.mem)
+    print(logger.hist)
     print(logger.approx)
 
     fig = plt.figure()
@@ -31,20 +31,22 @@ def main():
     ax_policy = fig.add_subplot(153)
     ax_trajectory = fig.add_subplot(154)
     ax_stats = None # fig.add_subplot(165)
-    ax_q_series = fig.add_subplot(155)
+    ax_memory = fig.add_subplot(155)
+    ax_q_series = None # fig.add_subplot(155)
 
 
     plotter = Plotter(plotting_enabled=True,
-                      plot_every=5000,
-                      disp_len=5000,
+                      plot_every=1000,
+                      disp_len=1000,
                       ax_qmax_wf=ax_qmax_wf,
                       ax_qmax_im=ax_qmax_im,
                       ax_policy=ax_policy,
                       ax_trajectory=ax_trajectory,
                       ax_stats=ax_stats,
+                      ax_memory=ax_memory,
                       ax_q_series=ax_q_series)
 
-    for total_step in range(0, len(logger.mem.total_steps)):
+    for total_step in range(0, len(logger.hist.total_steps)):
         print(total_step)
 
         plotter.process(logger, total_step)
@@ -57,7 +59,7 @@ def main():
 class Plotter():
     def __init__(self, plotting_enabled, plot_every, disp_len, 
         ax_qmax_wf, ax_qmax_im, ax_policy,
-        ax_trajectory, ax_stats, ax_q_series):
+        ax_trajectory, ax_stats, ax_memory, ax_q_series):
 
         self.plotting_enabled = plotting_enabled
         self.plot_every = plot_every
@@ -68,6 +70,7 @@ class Plotter():
         self.ax_policy = ax_policy
         self.ax_trajectory = ax_trajectory
         self.ax_stats = ax_stats
+        self.ax_memory = ax_memory
         self.ax_q_series = ax_q_series
 
         self.q_val = None
@@ -127,11 +130,11 @@ class Plotter():
 
 
         if self.ax_trajectory is not None:
-            Rt_arr = logger.mem.data['Rt']
-            St_pos_arr = logger.mem.data['St_pos']
-            St_vel_arr = logger.mem.data['St_vel']
-            At_arr = logger.mem.data['At']
-            done = logger.mem.data['done']
+            Rt_arr = logger.hist.data['Rt']
+            St_pos_arr = logger.hist.data['St_pos']
+            St_vel_arr = logger.hist.data['St_vel']
+            At_arr = logger.hist.data['At']
+            done = logger.hist.data['done']
 
             i = current_total_step
             Rt = Rt_arr[ max(0, i-self.disp_len) : i + 1 ]
@@ -164,7 +167,10 @@ class Plotter():
 
             self.ax_q_series.clear()
             plot_q_series(self.ax_q_series,
-                self.ser_X, self.ser_E0, self.ser_E1, self.ser_E2)
+                self.ser_X[-50:],
+                self.ser_E0[-50:],
+                self.ser_E1[-50:],
+                self.ser_E2[-50:])
 
 
 def plot_q_val_wireframe(ax, q_val, extent, labels):

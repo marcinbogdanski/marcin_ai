@@ -665,7 +665,7 @@ class Agent:
         approximator,
         step_size,
         batch_size,
-        log_agent=None, log_q_val=None, log_mem=None, log_approx=None):
+        log_agent=None, log_q_val=None, log_hist=None, log_approx=None):
 
         # usually gamma in literature
         self._discount = discount
@@ -739,14 +739,14 @@ class Agent:
             log_q_val.add_data_item('series_E1')
             log_q_val.add_data_item('series_E2')
 
-        self.log_mem = log_mem
-        if log_mem is not None:
-            log_mem.add_param('max_size', mem_size_max)
-            log_mem.add_data_item('Rt')
-            log_mem.add_data_item('St_pos')
-            log_mem.add_data_item('St_vel')
-            log_mem.add_data_item('At')
-            log_mem.add_data_item('done')
+        self.log_hist = log_hist
+        if log_hist is not None:
+            log_hist.add_param('max_size', mem_size_max)
+            log_hist.add_data_item('Rt')
+            log_hist.add_data_item('St_pos')
+            log_hist.add_data_item('St_vel')
+            log_hist.add_data_item('At')
+            log_hist.add_data_item('done')
 
     def reset(self, expl_start=False):
         self._episode += 1
@@ -765,9 +765,9 @@ class Agent:
             mem_size=self._memory.length())
 
         #
-        #   Log memory
+        #   Log history
         #
-        self.log_mem.append(episode, step, total_step,
+        self.log_hist.append(episode, step, total_step,
             Rt=self._trajectory[-1].reward,
             St_pos=self._trajectory[-1].observation[0],
             St_vel=self._trajectory[-1].observation[1],
