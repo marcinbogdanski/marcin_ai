@@ -627,6 +627,7 @@ class KerasApproximator:
         time_start = time.time()
         q_n = np.max(est_n, axis=1, keepdims=True)
         tt = rewards_n + (not_dones * self._discount * q_n)
+        errors = tt.flatten() - targets[np.arange(len(targets)), actions.flatten()]
         targets[np.arange(len(targets)), actions] = tt.flatten()
         timing_dict['    update2_post'] += time.time() - time_start
 
@@ -634,6 +635,7 @@ class KerasApproximator:
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
+        return errors
 
 
 class HistoryData:

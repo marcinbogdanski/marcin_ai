@@ -71,14 +71,14 @@ def plot_error(ax, ka, states, actions, rewards_1, states_1, dones):
 def test_train():
 
     mem = np.load('memory.npz')
-    states_all = mem['states'][0:2000]
-    actions_all = mem['actions'][0:2000]
-    rewards_1_all = mem['rewards_1'][0:2000]
-    states_1_all = mem['states_1'][0:2000]
-    dones_all = mem['dones'][0:2000]
-    errors_all = np.zeros([len(states_all)])  # arbitrary large error
-    indices = np.where(dones_all)[0]
-    errors_all[indices] = 99
+    states_all = mem['states'] #[0:2000]
+    actions_all = mem['actions'] #[0:2000]
+    rewards_1_all = mem['rewards_1'] #[0:2000]
+    states_1_all = mem['states_1'] #[0:2000]
+    dones_all = mem['dones'] #[0:2000]
+    errors_all = np.zeros([len(states_all)]) + 1000 # arbitrary large error
+    # indices = np.where(dones_all)[0]
+    # errors_all[indices] = 99
 
     timing_dict = {}
     timing_dict['    update2_create_arr'] = 0
@@ -88,8 +88,8 @@ def test_train():
     timing_dict['    update2_train_on_batch'] = 0
 
     # ka = agent.AggregateApproximator(0.3, [0, 1, 2], init_val=-100)
-    ka = agent.TileApproximator(0.3, [0, 1, 2], init_val=-100)
-    # ka = agent.KerasApproximator(0.1, 0.99, 1024)
+    # ka = agent.TileApproximator(0.3, [0, 1, 2], init_val=-100)
+    ka = agent.KerasApproximator(0.1, 0.99, 1024)
 
     fig = plt.figure()
     
@@ -102,20 +102,20 @@ def test_train():
     while True:
         total_step += 1
 
-        batch_len = 4
+        batch_len = 1024
         #
         #   Get batch
         #
-        indices = np.random.randint(
-            low=0, high=len(states_all), size=batch_len, dtype=int)
+        # indices = np.random.randint(
+        #     low=0, high=len(states_all), size=batch_len, dtype=int)
 
         #
         #   Get batch priority
         #
-        # cdf = np.cumsum(errors_all+0.001)
-        # cdf = cdf / cdf[-1]
-        # values = np.random.rand(batch_len)
-        # indices = np.searchsorted(cdf, values)
+        cdf = np.cumsum(errors_all+0.001)
+        cdf = cdf / cdf[-1]
+        values = np.random.rand(batch_len)
+        indices = np.searchsorted(cdf, values)
 
         states = np.take(states_all, indices, axis=0)
         actions = np.take(actions_all, indices, axis=0)

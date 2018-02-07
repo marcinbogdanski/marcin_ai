@@ -251,7 +251,7 @@ def test_single(logger):
             expl_start=False,
 
             agent_discount=0.99,
-            agent_nb_rand_steps=100000,
+            agent_nb_rand_steps=00,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1.0/500000,
