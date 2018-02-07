@@ -444,10 +444,10 @@ class KerasApproximator:
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.01))
 
         self._model = tf.keras.models.Sequential()
-        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=128))
-        self._model.add(tf.keras.layers.Dense(activation='relu', units=128))
+        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=64))
+        self._model.add(tf.keras.layers.Dense(activation='relu', units=32))
         self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
-        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
+        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0003))
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=0.00025))
         
 

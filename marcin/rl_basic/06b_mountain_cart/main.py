@@ -251,7 +251,7 @@ def test_single(logger):
             expl_start=False,
 
             agent_discount=0.99,
-            agent_nb_rand_steps=200000,
+            agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1.0/500000,
@@ -260,7 +260,7 @@ def test_single(logger):
 
             approximator=approximator,
             step_size=0.3,
-            batch_size=1024,
+            batch_size=32,
             
             plotter=plotter,
             logger=logger,

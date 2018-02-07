@@ -105,7 +105,7 @@ def test_train(mem_filename):
     while True:
         total_step += 1
 
-        batch_len = 1024
+        batch_len = 32
         #
         #   Get batch
         #
@@ -115,7 +115,7 @@ def test_train(mem_filename):
         #
         #   Get batch priority
         #
-        cdf = np.cumsum(errors_all+0.001)
+        cdf = np.cumsum(errors_all+1.001)
         cdf = cdf / cdf[-1]
         values = np.random.rand(batch_len)
         indices = np.searchsorted(cdf, values)
@@ -144,7 +144,7 @@ def test_train(mem_filename):
         #   Plot
         #
         if total_step % 1000 == 0:
-            print('total_step', total_step, indices)
+            print('total_step', total_step)
             positions = np.linspace(-1.2, 0.5, 64)
             velocities = np.linspace(-0.07, 0.07, 64)
             actions = np.array([0, 1, 2])
