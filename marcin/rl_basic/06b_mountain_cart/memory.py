@@ -52,6 +52,19 @@ class Memory:
 
 
         # if self._curr_len == self._max_len:
+        #     np.savez('memory_3.npz',
+        #         states=self._hist_St,
+        #         actions=self._hist_At,
+        #         rewards_1=self._hist_Rt_1,
+        #         states_1=self._hist_St_1,
+        #         dones=self._hist_done,
+        #         )
+        #     pdb.set_trace()
+
+
+
+
+        # if self._curr_len == self._max_len:
         #     import matplotlib.pyplot as plt
         #     import log_viewer
 
@@ -75,14 +88,6 @@ class Memory:
         #             x_arr[idx-100:idx+1],
         #             y_arr[idx-100:idx+1],
         #             act_arr[idx-100:idx+1], extent, 0, -0.5)
-
-        #     np.savez('memory.npz',
-        #         states=self._hist_St,
-        #         actions=self._hist_At,
-        #         rewards_1=self._hist_Rt_1,
-        #         states_1=self._hist_St_1,
-        #         dones=self._hist_done,
-        #         )
 
         #     plt.pause(0.1)
         #     pdb.set_trace()
