@@ -4,19 +4,21 @@ import pdb
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 
+import argparse
+
 import log_viewer
 import agent
 
 import tensorflow as tf
 
-np.random.seed(0)
-tf.set_random_seed(0)
+# np.random.seed(0)
+# tf.set_random_seed(0)
 
 
 
-def print_memory():
+def print_memory(mem_filename):
 
-    mem = np.load('memory.npz')
+    mem = np.load(mem_filename)
     states_all = mem['states']
     actions_all = mem['actions']
     rewards_1_all = mem['rewards_1']
@@ -30,10 +32,10 @@ def print_memory():
 
 
     # plot_full_mem(ax, states_all, actions_all)
-    # plot_tails(ax, states_all, actions_all)
+    plot_tails(ax, states_all, actions_all, dones_all)
 
-    ka = agent.AggregateApproximator(0.3, [0, 1, 2], init_val=-100)
-    plot_error(ax, ka, states_all, actions_all, rewards_1_all, states_1_all, dones_all)
+    #ka = agent.AggregateApproximator(0.3, [0, 1, 2], init_val=-100)
+    #plot_error(ax, ka, states_all, actions_all, rewards_1_all, states_1_all, dones_all)
 
     plt.show()
 
@@ -68,9 +70,10 @@ def plot_error(ax, ka, states, actions, rewards_1, states_1, dones):
 
 
 
-def test_train():
+def test_train(mem_filename):
+    assert isinstance(mem_filename, str)
 
-    mem = np.load('memory.npz')
+    mem = np.load(mem_filename)
     states_all = mem['states'] #[0:2000]
     actions_all = mem['actions'] #[0:2000]
     rewards_1_all = mem['rewards_1'] #[0:2000]
@@ -140,7 +143,7 @@ def test_train():
         #
         #   Plot
         #
-        if total_step % 10 == 0:
+        if total_step % 1000 == 0:
             print('total_step', total_step, indices)
             positions = np.linspace(-1.2, 0.5, 64)
             velocities = np.linspace(-0.07, 0.07, 64)
@@ -183,13 +186,17 @@ def test_train():
 
 
 
-if __name__ == '__main__':
-    # print_memory()
-    test_train()
 
 
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mem_file', type=str, help='Input memory file mem.npz')
+    args = parser.parse_args()
+
+    # print_memory(args.mem_file)
+    test_train(args.mem_file)
 
 
 
@@ -207,20 +214,20 @@ def plot_full_mem(ax, states, actions):
         actions - 2d numpy array
     """
 
-    x_arr = states_all[:,0]
-    y_arr = states_all[:,1]
-    act_arr = actions_all[:,0]
+    x_arr = states[:,0]
+    y_arr = states[:,1]
+    act_arr = actions[:,0]
 
     extent = (-1.2, 0.5, -0.07, 0.07)
     log_viewer.plot_trajectory_2d(
         ax, x_arr, y_arr, act_arr, extent, 0, -0.5)
 
-def plot_tails(ax, states, actions):
+def plot_tails(ax, states, actions, dones):
 
-    indices = np.where(dones_all[:,0])[0]
-    x_arr = states_all[:,0]
-    y_arr = states_all[:,1]
-    act_arr = actions_all[:,0]
+    indices = np.where(dones[:,0])[0]
+    x_arr = states[:,0]
+    y_arr = states[:,1]
+    act_arr = actions[:,0]
 
     extent = (-1.2, 0.5, -0.07, 0.07)
 
@@ -230,3 +237,8 @@ def plot_tails(ax, states, actions):
             x_arr[idx-100:idx+1],
             y_arr[idx-100:idx+1],
             act_arr[idx-100:idx+1], extent, 0, -0.5)
+
+
+if __name__ == '__main__':
+    main()
+
