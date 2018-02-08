@@ -12,7 +12,7 @@ import memory
 # from keras.layers import Dense
 # from keras.optimizers import RMSprop, sgd
 import tensorflow as tf
-tf.set_random_seed(0)
+
 
 
 def _rand_argmax(vector):
@@ -447,7 +447,7 @@ class KerasApproximator:
         self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=64))
         self._model.add(tf.keras.layers.Dense(activation='relu', units=32))
         self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
-        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0003))
+        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=0.00025))
         
 
@@ -817,7 +817,7 @@ class Agent:
         #
         #   Log Memory
         #
-        if total_step % 1000 == 0:
+        if total_step % 10000 == 0:
             ptr = self._memory._curr_insert_ptr
             # print('ptr', ptr)
             # aa = self._memory._hist_St[ptr:]
@@ -974,13 +974,15 @@ class Agent:
             isinstance(self.Q, TileApproximator):
 
             time_start = time.time()
-            states, actions, rewards_1, states_1, dones = \
+            states, actions, rewards_1, states_1, dones, indices = \
                 self._memory.get_batch(self._batch_size)
             timing_dict['  eval_td_get_batch'] += time.time() - time_start
 
             time_start = time.time()
-            self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict)
+            errors = self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict)
             timing_dict['  eval_td_update'] += time.time() - time_start
+
+            self._memory.update_errors(indices, errors)
 
         else:
             if done:

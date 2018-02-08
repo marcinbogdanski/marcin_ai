@@ -1,6 +1,14 @@
+import argparse
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
+
+import tensorflow as tf
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction=0.2
+# config.gpu_options.allow_growth = True
+sess = tf.Session(config=config)
 
 import subprocess
 import socket
@@ -188,7 +196,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             agent.eval_td_online(timing_dict)
             timing_dict['main_agent_td_online'] += time.time() - time_start
             
-            if done or step >= 10000:
+            if done or step >= 1000:
                 print('espiode finished after iteration', step)
                 time_start = time.time()
                 agent.log(episode, step, total_step)
@@ -202,10 +210,6 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
 
 def test_single(logger):
-
-    # NOTE: there is another seed initialized to 0 on tensorflow import
-    np.random.seed(0)
-
     
     logger.agent = Log('Agent')
     logger.q_val = Log('Q_Val')
@@ -220,12 +224,12 @@ def test_single(logger):
     plotting_enabled = True
     if plotting_enabled:
         fig = plt.figure()
-        ax_qmax_wf = fig.add_subplot(151, projection='3d')
-        ax_qmax_im = fig.add_subplot(152)
-        ax_policy = fig.add_subplot(153)
-        ax_trajectory = fig.add_subplot(154)
+        ax_qmax_wf = fig.add_subplot(2,5,1, projection='3d')
+        ax_qmax_im = fig.add_subplot(2,5,2)
+        ax_policy = fig.add_subplot(2,5,3)
+        ax_trajectory = fig.add_subplot(2,5,4)
         ax_stats = None # fig.add_subplot(165)
-        ax_memory = fig.add_subplot(155)
+        ax_memory = fig.add_subplot(2,1,2)
         ax_q_series = None # fig.add_subplot(155)
     else:
         ax_qmax_wf = None
@@ -233,6 +237,7 @@ def test_single(logger):
         ax_policy = None
         ax_trajectory = None
         ax_stats = None
+        ax_memory = None
         ax_q_series = None
 
     plotter = Plotter(plotting_enabled=plotting_enabled,
@@ -255,10 +260,10 @@ def test_single(logger):
             expl_start=False,
 
             agent_discount=0.99,
-            agent_nb_rand_steps=1000,
+            agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
-            agent_e_rand_decay=1.0/500000,
+            agent_e_rand_decay=1.0/300000,
 
             mem_size_max=100000,
 
@@ -301,6 +306,20 @@ def plot_history_3d(ax, hpos, hvel, hact, htar):
 
 
 def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--seed', type=int, help='Random number generators seeds. Randomised by default.')
+    args = parser.parse_args()
+
+    print(args.seed)
+
+    if args.seed is not None:
+        print('Using random seed:', args.seed)
+        np.random.seed(args.seed)
+        tf.set_random_seed(args.seed)
+
+
+
     curr_datetime = str(datetime.datetime.now())  # date and time
     hostname = socket.gethostname()  # name of PC where script is run
     res = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE)

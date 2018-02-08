@@ -178,7 +178,11 @@ class Plotter():
             #     self.hist_St[-1000:,1],
             #     self.hist_At[-1000:,0],
             #     extent, h_line=0.0, v_line=-0.5)
-            self.ax_memory.plot(self.hist_error)
+
+            self.ax_memory.plot(self.hist_done * 100, color='green')
+            self.ax_memory.plot(self.hist_error, color='blue')
+            
+            self.ax_memory.set_ylim([0, 100])
 
 
         if self.ax_q_series is not None:

@@ -147,9 +147,16 @@ class Memory:
         assert self._curr_len > 0
         assert batch_len > 0
 
-        #indices = np.random.choice(range(self._curr_len), batch_len)
-        indices = np.random.randint(
-            low=0, high=self._curr_len, size=batch_len, dtype=int)
+        # indices = np.random.randint(
+        #     low=0, high=self._curr_len, size=batch_len, dtype=int)
+
+        cdf = np.cumsum(self._hist_error+0.01)
+        cdf = cdf / cdf[-1]
+        values = np.random.rand(batch_len)
+        indices = np.searchsorted(cdf, values)
+
+
+
 
         # states = self._hist_St[indices]
         # actions = self._hist_At[indices]
@@ -180,9 +187,17 @@ class Memory:
         #     assert (tup[3] == states_1[i]).all()
         #     assert (tup[4] == dones[i]).all()
 
-        return states, actions, rewards_1, states_1, dones
+        return states, actions, rewards_1, states_1, dones, indices
 
+    def update_errors(self, indices, errors):
+        assert isinstance(indices, np.ndarray)
+        assert indices.ndim == 1
+        assert len(indices) > 0
+        assert isinstance(errors, np.ndarray)
+        assert errors.ndim == 1
+        assert len(indices) == len(errors)
 
+        self._hist_error[indices, 0] = np.abs(errors)
 
 if __name__ == '__main__':
 
