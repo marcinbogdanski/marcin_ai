@@ -3,7 +3,9 @@ import pdb
 
 class Memory:
     def __init__(self, state_shape, act_shape, 
-                 dtypes, max_len, initial_error=1000.0):
+                 dtypes, max_len,
+                 enable_pmr=False,
+                 initial_pmr_error=1000.0):
         assert isinstance(state_shape, tuple)
         assert isinstance(act_shape, tuple)
         assert isinstance(dtypes, tuple)
@@ -13,7 +15,8 @@ class Memory:
         assert max_len > 0
 
         self._max_len = max_len
-        self._initial_error = initial_error
+        self._enable_pmr = enable_pmr
+        self._initial_pmr_error = initial_pmr_error
         self._curr_insert_ptr = 0
         self._curr_len = 0
 
@@ -53,7 +56,7 @@ class Memory:
         self._hist_St_1[self._curr_insert_ptr] = St_1
         self._hist_done[self._curr_insert_ptr] = done
         # arbitrary high def error
-        self._hist_error[self._curr_insert_ptr] = self._initial_error
+        self._hist_error[self._curr_insert_ptr] = self._initial_pmr_error
 
 
 
@@ -147,13 +150,14 @@ class Memory:
         assert self._curr_len > 0
         assert batch_len > 0
 
-        # indices = np.random.randint(
-        #     low=0, high=self._curr_len, size=batch_len, dtype=int)
-
-        cdf = np.cumsum(self._hist_error+0.01)
-        cdf = cdf / cdf[-1]
-        values = np.random.rand(batch_len)
-        indices = np.searchsorted(cdf, values)
+        if not self._enable_pmr:
+            indices = np.random.randint(
+                low=0, high=self._curr_len, size=batch_len, dtype=int)
+        else:
+            cdf = np.cumsum(self._hist_error+0.01)
+            cdf = cdf / cdf[-1]
+            values = np.random.rand(batch_len)
+            indices = np.searchsorted(cdf, values)
 
 
 

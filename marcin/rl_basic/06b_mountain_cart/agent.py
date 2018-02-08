@@ -444,11 +444,11 @@ class KerasApproximator:
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.01))
 
         self._model = tf.keras.models.Sequential()
-        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=64))
-        self._model.add(tf.keras.layers.Dense(activation='relu', units=32))
+        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=256))
+        self._model.add(tf.keras.layers.Dense(activation='relu', units=256))
         self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
-        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
-        # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=0.00025))
+        # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
+        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=0.00025))
         
 
         self._pos_offset = 0.35
@@ -661,6 +661,7 @@ class Agent:
         e_rand_decay,
 
         mem_size_max,
+        mem_enable_pmr,
 
         approximator,
         step_size,
@@ -702,7 +703,8 @@ class Agent:
             act_shape=(1, ),
             dtypes=(float, int, float, float, bool, float),
             max_len=mem_size_max,
-            initial_error=1000.0)
+            enable_pmr=mem_enable_pmr,
+            initial_pmr_error=1000.0)
 
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
@@ -751,6 +753,7 @@ class Agent:
         self.log_memory = log_memory
         if log_memory is not None:
             log_memory.add_param('max_size', mem_size_max)
+            log_memory.add_param('enable_pmr', mem_enable_pmr)
             log_memory.add_data_item('curr_size')
             log_memory.add_data_item('hist_St')
             log_memory.add_data_item('hist_At')

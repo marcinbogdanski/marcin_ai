@@ -35,6 +35,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     agent_e_rand_decay,
 
     mem_size_max,
+    mem_enable_pmr,
 
     approximator, step_size, batch_size,
     plotter=None,
@@ -52,6 +53,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 e_rand_target=agent_e_rand_target,
                 e_rand_decay=agent_e_rand_decay,
                 mem_size_max=mem_size_max,
+                mem_enable_pmr=mem_enable_pmr,
                 approximator=approximator,
                 step_size=step_size,
                 batch_size=batch_size,
@@ -196,7 +198,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             agent.eval_td_online(timing_dict)
             timing_dict['main_agent_td_online'] += time.time() - time_start
             
-            if done or step >= 1000:
+            if done or step >= 100000:
                 print('espiode finished after iteration', step)
                 time_start = time.time()
                 agent.log(episode, step, total_step)
@@ -263,13 +265,14 @@ def test_single(logger):
             agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
-            agent_e_rand_decay=1.0/300000,
+            agent_e_rand_decay=1.0/5000,
 
             mem_size_max=100000,
+            mem_enable_pmr=True,
 
             approximator=approximator,
             step_size=0.3,
-            batch_size=32,
+            batch_size=64,
             
             plotter=plotter,
             logger=logger,
