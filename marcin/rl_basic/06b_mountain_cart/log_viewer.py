@@ -93,6 +93,14 @@ class Plotter():
             self.ser_E1.append(logger.q_val.data['series_E1'][current_total_step])
             self.ser_E2.append(logger.q_val.data['series_E2'][current_total_step])
 
+        if logger.memory.data['hist_St'][current_total_step] is not None:
+            self.hist_St = logger.memory.data['hist_St'][current_total_step]
+            self.hist_At = logger.memory.data['hist_At'][current_total_step]
+            self.hist_Rt_1 = logger.memory.data['hist_Rt_1'][current_total_step]
+            self.hist_St_1 = logger.memory.data['hist_St_1'][current_total_step]
+            self.hist_done = logger.memory.data['hist_done'][current_total_step]
+            self.hist_error = logger.memory.data['hist_error'][current_total_step]
+
     def conditional_plot(self, logger, current_total_step):
         if current_total_step % self.plot_every == 0 and self.plotting_enabled:
             self.plot(logger, current_total_step)
@@ -163,8 +171,17 @@ class Plotter():
         #     ax_stats.plot(t_steps, ser_rand_act, label='rand_act', color='blue')
         #     ax_stats.legend()
 
-        if self.ax_q_series is not None:
+        if self.ax_memory is not None:
+            self.ax_memory.clear()
+            # plot_trajectory_2d(self.ax_memory,
+            #     self.hist_St[-1000:,0],
+            #     self.hist_St[-1000:,1],
+            #     self.hist_At[-1000:,0],
+            #     extent, h_line=0.0, v_line=-0.5)
+            self.ax_memory.plot(self.hist_error)
 
+
+        if self.ax_q_series is not None:
             self.ax_q_series.clear()
             plot_q_series(self.ax_q_series,
                 self.ser_X[-50:],

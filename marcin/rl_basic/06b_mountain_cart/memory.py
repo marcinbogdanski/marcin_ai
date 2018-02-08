@@ -2,16 +2,18 @@ import numpy as np
 import pdb
 
 class Memory:
-    def __init__(self, state_shape, act_shape, dtypes, max_len):
+    def __init__(self, state_shape, act_shape, 
+                 dtypes, max_len, initial_error=1000.0):
         assert isinstance(state_shape, tuple)
         assert isinstance(act_shape, tuple)
         assert isinstance(dtypes, tuple)
-        assert len(dtypes) == 5
-        assert dtypes[-1] == bool
+        assert len(dtypes) == 6
+        assert dtypes[-2] == bool
         assert isinstance(max_len, int)
         assert max_len > 0
 
         self._max_len = max_len
+        self._initial_error = initial_error
         self._curr_insert_ptr = 0
         self._curr_len = 0
 
@@ -23,13 +25,16 @@ class Memory:
         Rt_1_shape = [max_len] + [1]
         St_1_shape = [max_len] + list(state_shape)
         done_shape = [max_len] + [1]
-        St_dtype, At_dtype, Rt_1_dtype, St_1_dtype, done_dtype = dtypes
+        error_shape = [max_len] + [1]
+        St_dtype, At_dtype, Rt_1_dtype, St_1_dtype, done_dtype, error_dtype \
+            = dtypes
 
         self._hist_St = np.zeros(St_shape, dtype=St_dtype)
         self._hist_At = np.zeros(At_shape, dtype=At_dtype)
         self._hist_Rt_1 = np.zeros(Rt_1_shape, dtype=Rt_1_dtype)
         self._hist_St_1 = np.zeros(St_1_shape, dtype=St_1_dtype)
         self._hist_done = np.zeros(done_shape, dtype=done_dtype)
+        self._hist_error = np.zeros(error_shape, dtype=error_dtype)
 
     def append(self, St, At, Rt_1, St_1, done):
         assert isinstance(St, np.ndarray)
@@ -47,6 +52,8 @@ class Memory:
         self._hist_Rt_1[self._curr_insert_ptr] = Rt_1
         self._hist_St_1[self._curr_insert_ptr] = St_1
         self._hist_done[self._curr_insert_ptr] = done
+        # arbitrary high def error
+        self._hist_error[self._curr_insert_ptr] = self._initial_error
 
 
 

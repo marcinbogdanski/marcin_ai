@@ -665,7 +665,8 @@ class Agent:
         approximator,
         step_size,
         batch_size,
-        log_agent=None, log_q_val=None, log_hist=None, log_approx=None):
+        log_agent=None, log_q_val=None, log_hist=None, 
+        log_memory=None, log_approx=None):
 
         # usually gamma in literature
         self._discount = discount
@@ -699,8 +700,9 @@ class Agent:
         self._memory = memory.Memory(
             state_shape=(2, ),
             act_shape=(1, ),
-            dtypes=(float, int, float, float, bool),
-            max_len=mem_size_max)
+            dtypes=(float, int, float, float, bool, float),
+            max_len=mem_size_max,
+            initial_error=1000.0)
 
         self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
@@ -730,7 +732,6 @@ class Agent:
 
             log_agent.add_data_item('e_rand')
             log_agent.add_data_item('rand_act')
-            log_agent.add_data_item('mem_size')
 
         self.log_q_val = log_q_val
         if log_q_val is not None:
@@ -741,12 +742,23 @@ class Agent:
 
         self.log_hist = log_hist
         if log_hist is not None:
-            log_hist.add_param('max_size', mem_size_max)
             log_hist.add_data_item('Rt')
             log_hist.add_data_item('St_pos')
             log_hist.add_data_item('St_vel')
             log_hist.add_data_item('At')
             log_hist.add_data_item('done')
+
+        self.log_memory = log_memory
+        if log_memory is not None:
+            log_memory.add_param('max_size', mem_size_max)
+            log_memory.add_data_item('curr_size')
+            log_memory.add_data_item('hist_St')
+            log_memory.add_data_item('hist_At')
+            log_memory.add_data_item('hist_Rt_1')
+            log_memory.add_data_item('hist_St_1')
+            log_memory.add_data_item('hist_done')
+            log_memory.add_data_item('hist_error')
+
 
     def reset(self, expl_start=False):
         self._episode += 1
@@ -761,8 +773,7 @@ class Agent:
         #
         self.log_agent.append(episode, step, total_step,
             e_rand=self._epsilon_random,
-            rand_act=self._this_step_rand_act,
-            mem_size=self._memory.length())
+            rand_act=self._this_step_rand_act)
 
         #
         #   Log history
@@ -799,10 +810,37 @@ class Agent:
                 vi = si %pi_skip
                 q_val[pi, vi] = q_list[si]
 
-
         else:
             q_val=None
 
+
+        #
+        #   Log Memory
+        #
+        if total_step % 1000 == 0:
+            ptr = self._memory._curr_insert_ptr
+            # print('ptr', ptr)
+            # aa = self._memory._hist_St[ptr:]
+            # bb = self._memory._hist_St[0:ptr]
+            # cc = np.concatenate((aa, bb))
+            self.log_memory.append(episode, step, total_step,
+                curr_size=self._memory.length(),
+                hist_St=np.concatenate((self._memory._hist_St[ptr:], self._memory._hist_St[0:ptr])),
+                hist_At=np.concatenate((self._memory._hist_At[ptr:], self._memory._hist_At[0:ptr])),
+                hist_Rt_1=np.concatenate((self._memory._hist_Rt_1[ptr:], self._memory._hist_Rt_1[0:ptr])),
+                hist_St_1=np.concatenate((self._memory._hist_St_1[ptr:], self._memory._hist_St_1[0:ptr])),
+                hist_done=np.concatenate((self._memory._hist_done[ptr:], self._memory._hist_done[0:ptr])),
+                hist_error=np.concatenate((self._memory._hist_error[ptr:], self._memory._hist_error[0:ptr])) )
+        else:
+            self.log_memory.append(episode, step, total_step,
+                curr_size=None,
+                hist_St=None,
+                hist_At=None,
+                hist_Rt_1=None,
+                hist_St_1=None,
+                hist_done=None,
+                hist_error=None
+                )
         
         #
         #   Log Q series

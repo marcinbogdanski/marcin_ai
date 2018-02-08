@@ -50,6 +50,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 log_agent=logger.agent,
                 log_q_val=logger.q_val,
                 log_hist=logger.hist,
+                log_memory=logger.memory,
                 log_approx=logger.approx)
 
     timing_arr.append('total')
@@ -209,7 +210,8 @@ def test_single(logger):
     logger.agent = Log('Agent')
     logger.q_val = Log('Q_Val')
     logger.env = Log('Environment', 'Mountain Car')
-    logger.hist = Log('History', 'Memory of all states visited')
+    logger.hist = Log('History', 'History of all states visited')
+    logger.memory = Log('Memory', 'Agent full memory dump on given timestep')
     logger.approx = Log('Approx', 'Approximator')
 
     timing_arr = []
