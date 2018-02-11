@@ -35,7 +35,7 @@ def printQ(agent):
     for o in pred:
         sys.stdout.write(str(o[1])+" ")
 
-    print(";")
+    print(";", agent.steps)
     sys.stdout.flush()
 
 def mapBrain(brain, res):
@@ -52,26 +52,36 @@ def mapBrain(brain, res):
 
     return (mapV, mapA)
 
+fig = None
+ax1 = None
+ax2 = None
 def displayBrain(brain, res=50):    
+    global fig, ax1, ax2
     mapV, mapA = mapBrain(brain, res)
 
-    plt.close()
-    plt.show()  
+    # plt.close()
+    # plt.show()  
 
-    fig = plt.figure(figsize=(5,7))
-    fig.add_subplot(211)
+    if fig is None:
+        fig = plt.figure(figsize=(5,7))
+        ax1 = fig.add_subplot(211)
+        ax2 = fig.add_subplot(212)
+    else:
+        ax1.clear()
+        ax2.clear()
+        # plt.colorbar(orientation='vertical')
 
-    plt.imshow(mapV)
-    plt.colorbar(orientation='vertical')
+    ax1.imshow(mapV)
 
-    fig.add_subplot(212)
+
+    #  fig.add_subplot(212)
 
     cmap = colors.ListedColormap(['blue', 'red'])
     bounds=[-0.5,0.5,1.5]
     norm = colors.BoundaryNorm(bounds, cmap.N)
 
-    plt.imshow(mapA, cmap=cmap, norm=norm)        
-    cb = plt.colorbar(orientation='vertical', ticks=[0,1])
+    ax2.imshow(mapA, cmap=cmap, norm=norm)        
+    # cb = plt.colorbar(orientation='vertical', ticks=[0,1])
 
     plt.pause(0.001)
 
@@ -91,7 +101,8 @@ class Brain:
     def _createModel(self):
         model = Sequential()
 
-        model.add(Dense(output_dim=64, activation='relu', input_dim=stateCnt))
+        model.add(Dense(output_dim=256, activation='relu', input_dim=stateCnt))
+        model.add(Dense(output_dim=256, activation='relu'))
         model.add(Dense(output_dim=actionCnt, activation='linear'))
 
         opt = RMSprop(lr=0.00025)
@@ -162,7 +173,7 @@ class Agent:
         if self.steps % 1000 == 0:
             printQ(self)
 
-        if self.steps % 10000 == 0:
+        if self.steps % 1000 == 0:
             displayBrain(self.brain)
 
         # slowly decrease Epsilon based on our eperience
@@ -234,6 +245,7 @@ class Environment:
         s = self.normalize(s)
         R = 0 
 
+        steps = 0
         while True:            
             # self.env.render()
 
@@ -255,7 +267,9 @@ class Environment:
             s = s_
             R += r
 
+            steps += 1
             if done:
+                print('terminated after:', steps)
                 break
 
         # print("Total reward:", R)
