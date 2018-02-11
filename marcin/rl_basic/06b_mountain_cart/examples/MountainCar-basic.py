@@ -21,6 +21,12 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import sys
 
+import tensorflow as tf
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction=0.2
+# config.gpu_options.allow_growth = True
+sess = tf.Session(config=config)
+
 def printQ(agent):
     P = [
         [-0.15955113,  0.        ], # s_start
@@ -86,9 +92,6 @@ def displayBrain(brain, res=50):
     plt.pause(0.001)
 
 #-------------------- BRAIN ---------------------------
-from keras.models import Sequential
-from keras.layers import *
-from keras.optimizers import *
 
 class Brain:
     def __init__(self, stateCnt, actionCnt):
@@ -99,19 +102,19 @@ class Brain:
         # self.model.load_weights("MountainCar-basic.h5")
 
     def _createModel(self):
-        model = Sequential()
+        model = tf.keras.models.Sequential()
 
-        model.add(Dense(output_dim=256, activation='relu', input_dim=stateCnt))
-        model.add(Dense(output_dim=256, activation='relu'))
-        model.add(Dense(output_dim=actionCnt, activation='linear'))
+        model.add(tf.keras.layers.Dense(units=256, activation='relu', input_dim=stateCnt))
+        model.add(tf.keras.layers.Dense(units=256, activation='relu'))
+        model.add(tf.keras.layers.Dense(units=actionCnt, activation='linear'))
 
-        opt = RMSprop(lr=0.00025)
+        opt = tf.keras.optimizers.RMSprop(lr=0.00025)
         model.compile(loss='mse', optimizer=opt)
 
         return model
 
     def train(self, x, y, epoch=1, verbose=0):
-        self.model.fit(x, y, batch_size=64, nb_epoch=epoch, verbose=verbose)
+        self.model.fit(x, y, batch_size=64, epochs=epoch, verbose=verbose)
 
     def predict(self, s):
         return self.model.predict(s)
