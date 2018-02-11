@@ -130,6 +130,8 @@ class Plotter():
                 self.ax_qmax_im.clear()
                 plot_q_val_imshow(self.ax_qmax_im, q_max,
                     extent, h_line=0.0, v_line=-0.5)
+                self.ax_qmax_im.set_yticklabels([])
+                self.ax_qmax_im.set_xticklabels([])
             
             if self.ax_policy is not None:
                 self.ax_policy.clear()
@@ -266,7 +268,7 @@ def plot_policy(ax, q_val, extent, h_line, v_line):
             x = x_space[xi]
             y = y_space[yi]
 
-            if q_val[xi, yi, 0] == q_val[xi, yi, 1] == q_val[xi, yi, 2] == -100.0:
+            if q_val[xi, yi, 0] == q_val[xi, yi, 1] == -100.0:
                 data_draw_x.append(x)
                 data_draw_y.append(y)
 

@@ -28,6 +28,7 @@ from log_viewer import Plotter
 
 def test_run(nb_episodes, nb_total_steps, expl_start,
 
+    agent_nb_actions,
     agent_discount,
     agent_nb_rand_steps,
     agent_e_rand_start,
@@ -42,11 +43,9 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     logger=None, 
     timing_arr=None, timing_dict=None):
 
-    action_space = [0, 1, 2]  # move left, do nothing, move right
-
     # env = gym.make('MountainCar-v0')
     env = MountainCarEnv(log=logger.env)
-    agent = Agent(action_space=action_space,
+    agent = Agent(nb_actions=agent_nb_actions,
                 discount=agent_discount,
                 nb_rand_steps=agent_nb_rand_steps,
                 e_rand_start=agent_e_rand_start,
@@ -127,10 +126,10 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
         while True:
 
-            if step % 3 == 0:
-                time_start = time.time()
-                action = agent.pick_action(obs)
-                timing_dict['main_agent_pick_action'] += time.time() - time_start
+            # if step % 3 == 0:
+            time_start = time.time()
+            action = agent.pick_action(obs)
+            timing_dict['main_agent_pick_action'] += time.time() - time_start
 
             time_start = time.time()
             agent.append_action(action=action)
@@ -163,7 +162,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 # nz = np.count_nonzero(arr)
                 # print('RAND: ', nz, ' / ', len(arr))
 
-            if plotter is not None: #  and total_step >= agent_nb_rand_steps:
+            if plotter is not None and total_step >= agent_nb_rand_steps:
                 plotter.process(logger, total_step)
                 res = plotter.conditional_plot(logger, total_step)
                 if res:
@@ -184,7 +183,11 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             total_step += 1
 
             time_start = time.time()
-            obs, reward, done, _ = env.step(action)
+            if agent_nb_actions == 2 and action == 1:
+                action_p = 2
+            else:
+                action_p = action
+            obs, reward, done, _ = env.step(action_p)
             timing_dict['main_env_step'] += time.time() - time_start
 
             time_start = time.time()
@@ -226,10 +229,10 @@ def test_single(logger):
     plotting_enabled = True
     if plotting_enabled:
         fig = plt.figure()
-        ax_qmax_wf = fig.add_subplot(2,5,1, projection='3d')
-        ax_qmax_im = fig.add_subplot(2,5,2)
-        ax_policy = fig.add_subplot(2,5,3)
-        ax_trajectory = fig.add_subplot(2,5,4)
+        ax_qmax_wf = fig.add_subplot(2,4,1, projection='3d')
+        ax_qmax_im = fig.add_subplot(2,4,2)
+        ax_policy = fig.add_subplot(2,4,3)
+        ax_trajectory = fig.add_subplot(2,4,4)
         ax_stats = None # fig.add_subplot(165)
         ax_memory = fig.add_subplot(2,1,2)
         ax_q_series = None # fig.add_subplot(155)
@@ -261,6 +264,7 @@ def test_single(logger):
             nb_total_steps=1000000,
             expl_start=False,
 
+            agent_nb_actions=2,
             agent_discount=0.99,
             agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
@@ -268,10 +272,10 @@ def test_single(logger):
             agent_e_rand_decay=1.0/5000,
 
             mem_size_max=100000,
-            mem_enable_pmr=True,
+            mem_enable_pmr=False,
 
             approximator=approximator,
-            step_size=0.3,
+            step_size=0.00025,
             batch_size=64,
             
             plotter=plotter,

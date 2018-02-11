@@ -424,7 +424,10 @@ class NeuralApproximator:
 
 class KerasApproximator:
 
-    def __init__(self, step_size, discount, batch_size, log=None):
+    def __init__(self, input_count, output_count, step_size, 
+            discount, batch_size, log=None):
+        self._input_count = input_count
+        self._output_count = output_count
         self._step_size = step_size
         self._discount = discount
         self._batch_size = batch_size
@@ -444,11 +447,11 @@ class KerasApproximator:
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.01))
 
         self._model = tf.keras.models.Sequential()
-        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=2, units=256))
+        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=input_count, units=256))
         self._model.add(tf.keras.layers.Dense(activation='relu', units=256))
-        self._model.add(tf.keras.layers.Dense(activation='linear', units=3))
+        self._model.add(tf.keras.layers.Dense(activation='linear', units=output_count))
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
-        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=0.00025))
+        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=step_size))
         
 
         self._pos_offset = 0.35
@@ -457,10 +460,10 @@ class KerasApproximator:
 
         if log is not None:
             log.add_param('type', 'keras sequential')
-            log.add_param('nb_inputs', 2)
-            log.add_param('hid_1_size', 128)
-            log.add_param('hid_1_act', 'sigmoid')
-            log.add_param('out_size', 3)
+            log.add_param('input_count', input_count)
+            #log.add_param('hid_1_size', 128)
+            #log.add_param('hid_1_act', 'sigmoid')
+            log.add_param('output_count', output_count)
             log.add_param('out_act', 'linear')
 
 
@@ -472,7 +475,7 @@ class KerasApproximator:
         pos, vel = state[0], state[1]
         assert -1.2 <= pos and pos <= 0.5
         assert -0.07 <= vel and vel <= 0.07
-        assert action in [0, 1, 2]
+        assert action in list(range(self._output_count))
 
         return pos, vel, action
 
@@ -486,7 +489,7 @@ class KerasApproximator:
 
         est = self._model.predict(np.array([[pos, vel]]))
 
-        assert action in [0, 1, 2]
+        assert action in list(range(self._output_count))
 
         return est[0, action]
 
@@ -632,7 +635,8 @@ class KerasApproximator:
         timing_dict['    update2_post'] += time.time() - time_start
 
         time_start = time.time()
-        self._model.train_on_batch(inputs, targets)
+        #self._model.train_on_batch(inputs, targets)
+        self._model.fit(inputs, targets, batch_size=self._batch_size, epochs=1)
         timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
         return errors
@@ -653,7 +657,8 @@ class HistoryData:
 
 
 class Agent:
-    def __init__(self, action_space,
+    def __init__(self,
+        nb_actions,
         discount,
         nb_rand_steps,
         e_rand_start,
@@ -668,6 +673,9 @@ class Agent:
         batch_size,
         log_agent=None, log_q_val=None, log_hist=None, 
         log_memory=None, log_approx=None):
+
+        self._nb_actions = nb_actions
+        self._action_space = list(range(nb_actions))
 
         # usually gamma in literature
         self._discount = discount
@@ -685,15 +693,15 @@ class Agent:
 
         if approximator == 'aggregate':
             self.Q = AggregateApproximator(
-                step_size, action_space, init_val=-100, log=log_approx)
+                step_size, self._action_space, init_val=-100, log=log_approx)
         elif approximator == 'tile':
             self.Q = TileApproximator(
-                step_size, action_space, init_val=-100, log=log_approx)
+                step_size, self._action_space, init_val=-100, log=log_approx)
         elif approximator == 'neural':
             self.Q = NeuralApproximator(
                 step_size, discount, batch_size, log=log_approx)
         elif approximator == 'keras':
-            self.Q = KerasApproximator(
+            self.Q = KerasApproximator( 2, nb_actions,
                 step_size, discount, batch_size, log=log_approx)
         else:
             raise ValueError('Unknown approximator')
@@ -706,7 +714,6 @@ class Agent:
             enable_pmr=mem_enable_pmr,
             initial_pmr_error=1000.0)
 
-        self._action_space = action_space
         self._step_size = step_size  # usually noted as alpha in literature
         self._batch_size = batch_size
 
@@ -794,7 +801,6 @@ class Agent:
         if total_step % 1000 == 0:
             positions = np.linspace(-1.2, 0.5, 64)
             velocities = np.linspace(-0.07, 0.07, 64)
-            actions = np.array([0, 1, 2])
 
             num_tests = len(positions) * len(velocities)
             pi_skip = len(velocities)
@@ -806,7 +812,7 @@ class Agent:
 
 
             q_list = self.Q.estimate_all(states)
-            q_val = np.zeros([len(positions), len(velocities), len(actions)])
+            q_val = np.zeros([len(positions), len(velocities), self._nb_actions])
             
             for si in range(len(states)):    
                 pi = si//pi_skip
@@ -855,7 +861,7 @@ class Agent:
 
         self.log_q_val.append(episode, step, total_step,
             q_val=q_val,
-            series_E0=est[0, 0], series_E1=est[0, 1], series_E2=est[0, 2])
+            series_E0=est[0, 0], series_E1=est[0, 1], series_E2=None)#est[0, 2])
 
     def advance_one_step(self):
         self._curr_total_step += 1
