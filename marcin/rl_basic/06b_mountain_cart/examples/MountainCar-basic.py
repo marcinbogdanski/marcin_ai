@@ -20,6 +20,7 @@ import random, numpy, math, gym
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import sys
+import pdb
 
 import tensorflow as tf
 config = tf.ConfigProto()
@@ -160,14 +161,17 @@ class Agent:
         self.stateCnt = stateCnt
         self.actionCnt = actionCnt
 
+        self._random = random.Random()
+
         self.brain = Brain(stateCnt, actionCnt)
         self.memory = Memory(MEMORY_CAPACITY)
         
     def act(self, s):
-        if random.random() < self.epsilon:
-            return random.randint(0, self.actionCnt-1)
+        if self._random.random() < self.epsilon:
+            res = self._random.randint(0, self.actionCnt-1)
         else:
-            return numpy.argmax(self.brain.predictOne(s))
+            res = numpy.argmax(self.brain.predictOne(s))
+        return res
 
     def observe(self, sample):  # in (s, a, r, s_) format
         self.memory.add(sample)        
@@ -218,9 +222,12 @@ class RandomAgent:
 
     def __init__(self, actionCnt):
         self.actionCnt = actionCnt
+        self._random = random.Random()
+        self._random.seed(0)
 
     def act(self, s):
-        return random.randint(0, self.actionCnt-1)
+        result = self._random.randint(0, self.actionCnt-1)
+        return result
 
     def observe(self, sample):  # in (s, a, r, s_) format
         self.memory.add(sample)
@@ -233,6 +240,7 @@ class Environment:
     def __init__(self, problem):
         self.problem = problem
         self.env = gym.make(problem).env
+        self.env.seed(0)
 
         high = self.env.observation_space.high
         low = self.env.observation_space.low
@@ -240,25 +248,44 @@ class Environment:
         self.mean = (high + low) / 2
         self.spread = abs(high - low) / 2
 
+        self.total_step = -1
+
     def normalize(self, s):
         return (s - self.mean) / self.spread
 
     def run(self, agent):
+
+        self.total_step += 1
+        print('  -----------------------    total_step', self.total_step)
         s = self.env.reset()
+        print('STEP', s)
         s = self.normalize(s)
         R = 0 
 
         steps = 0
         while True:            
+
             # self.env.render()
 
-            a = agent.act(s)    # map actions; 0 = left, 2 = right                      
+            a = agent.act(s)    # map actions; 0 = left, 2 = right              
+            print('ACTION', a)
             if a == 0: 
                 a_ = 0
             elif a == 1: 
                 a_ = 2
 
+
+            if self.total_step >= 100010:
+                exit(0)
+
+            # time step roll here
+
+            steps += 1
+            self.total_step += 1
+            print('  ------------------------    total_step', self.total_step)
+
             s_, r, done, info = self.env.step(a_)
+            print('STEP', s_)
             s_ = self.normalize(s_)
 
             if done: # terminal state
@@ -270,9 +297,14 @@ class Environment:
             s = s_
             R += r
 
-            steps += 1
+            
+
+            
             if done:
                 print('terminated after:', steps)
+                break
+            if isinstance(agent, RandomAgent) and agent.memory.isFull():
+                print('   MEMORY FULL   ')
                 break
 
         # print("Total reward:", R)

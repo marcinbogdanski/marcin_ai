@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import collections
 import time
 import pdb
+import random
 
 import tile_coding
 import neural_mini
@@ -636,7 +637,7 @@ class KerasApproximator:
 
         time_start = time.time()
         #self._model.train_on_batch(inputs, targets)
-        self._model.fit(inputs, targets, batch_size=self._batch_size, epochs=1)
+        self._model.fit(inputs, targets, batch_size=self._batch_size, epochs=1, verbose=False)
         timing_dict['    update2_train_on_batch'] += time.time() - time_start
 
         return errors
@@ -673,6 +674,9 @@ class Agent:
         batch_size,
         log_agent=None, log_q_val=None, log_hist=None, 
         log_memory=None, log_approx=None):
+
+        self._random = random.Random()
+        self._random.seed(0)
 
         self._nb_actions = nb_actions
         self._action_space = list(range(nb_actions))
@@ -878,17 +882,21 @@ class Agent:
 
         if self._curr_total_step < self._nb_rand_steps:
             self._this_step_rand_act = True
-            return np.random.choice(self._action_space)
+            # return np.random.choice(self._action_space)
+            result = self._random.randint(0, self._nb_actions-1)
+            return result
 
         if self._force_random_action:
             self._force_random_action = False
             self._this_step_rand_act = True
             return np.random.choice(self._action_space)
 
-        if np.random.rand() < self._epsilon_random:
+        #if np.random.rand() < self._epsilon_random:
+        if self._random.random() < self._epsilon_random:
             # pick random action
             self._this_step_rand_act = True
-            res = np.random.choice(self._action_space)
+            # res = np.random.choice(self._action_space)
+            res = self._random.randint(0, self._nb_actions-1)
 
         else:
             self._this_step_rand_act = False
@@ -911,7 +919,6 @@ class Agent:
             q_arr = self.Q.estimate_all(obs).flatten()
             index = _rand_argmax(q_arr)
             res = self._action_space[index]
-
 
         return res
 

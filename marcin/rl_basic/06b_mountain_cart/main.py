@@ -43,8 +43,9 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     logger=None, 
     timing_arr=None, timing_dict=None):
 
-    # env = gym.make('MountainCar-v0')
-    env = MountainCarEnv(log=logger.env)
+    env = gym.make('MountainCar-v0').env
+    env.seed(0)
+    #env = MountainCarEnv(log=logger.env)
     agent = Agent(nb_actions=agent_nb_actions,
                 discount=agent_discount,
                 nb_rand_steps=agent_nb_rand_steps,
@@ -114,8 +115,11 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
         time_start = time.time()
 
-        # obs = env.reset()
-        obs = env.reset(expl_start=expl_start)
+        print('-------------------------- total step -- ', total_step)
+
+        obs = env.reset()
+        print('STEP', obs)
+        # obs = env.reset(expl_start=expl_start)
         agent.reset(expl_start=expl_start)
 
         agent.append_trajectory(observation=obs,
@@ -129,6 +133,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             # if step % 3 == 0:
             time_start = time.time()
             action = agent.pick_action(obs)
+            print('ACTION', action)
             timing_dict['main_agent_pick_action'] += time.time() - time_start
 
             time_start = time.time()
@@ -138,7 +143,6 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             time_start = time.time()
             agent.log(episode, step, total_step)
             timing_dict['main_agent_log'] += time.time() - time_start
-
 
             time_start = time.time()
             if total_step % 1000 == 0:
@@ -171,16 +175,21 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             timing_dict['main_plot'] += time.time() - time_start
             
 
-            if nb_total_steps is not None and total_step >= nb_total_steps:
-                break
-
             time_start = time.time()
             agent.advance_one_step()
             timing_dict['main_agent_advance_step'] += time.time() - time_start
 
+
+            if nb_total_steps is not None and total_step >= nb_total_steps:
+                break
+
+            if total_step >= 100010:
+                exit(0)
+
             #   ---   time step rolls here   ---
             step += 1
             total_step += 1
+            print('------------------------------ total step -- ', total_step)
 
             time_start = time.time()
             if agent_nb_actions == 2 and action == 1:
@@ -188,6 +197,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             else:
                 action_p = action
             obs, reward, done, _ = env.step(action_p)
+            print('STEP', obs)
+            reward = round(reward)
             timing_dict['main_env_step'] += time.time() - time_start
 
             time_start = time.time()
