@@ -220,10 +220,11 @@ class Agent:
 class RandomAgent:
     memory = Memory(MEMORY_CAPACITY)
 
-    def __init__(self, actionCnt):
+    def __init__(self, actionCnt, seed=None):
         self.actionCnt = actionCnt
         self._random = random.Random()
-        self._random.seed(0)
+        if seed is not None:
+            self._random.seed(None)
 
     def act(self, s):
         result = self._random.randint(0, self.actionCnt-1)
@@ -235,12 +236,14 @@ class RandomAgent:
     def replay(self):
         pass
 
+PRINT_FROM = 990000
 #-------------------- ENVIRONMENT ---------------------
 class Environment:
-    def __init__(self, problem):
+    def __init__(self, problem, seed=None):
         self.problem = problem
         self.env = gym.make(problem).env
-        self.env.seed(0)
+        if seed is not None:
+            self.env.seed(seed)
 
         high = self.env.observation_space.high
         low = self.env.observation_space.low
@@ -256,9 +259,12 @@ class Environment:
     def run(self, agent):
 
         self.total_step += 1
-        print('  -----------------------    total_step', self.total_step)
+        if self.total_step >= PRINT_FROM:
+            print('  -----------------------    total_step', self.total_step)
         s = self.env.reset()
-        print('STEP', s)
+
+        if self.total_step >= PRINT_FROM:
+            print('STEP', s)
         s = self.normalize(s)
         R = 0 
 
@@ -267,8 +273,9 @@ class Environment:
 
             # self.env.render()
 
-            a = agent.act(s)    # map actions; 0 = left, 2 = right              
-            print('ACTION', a)
+            a = agent.act(s)    # map actions; 0 = left, 2 = right   
+            if self.total_step >= PRINT_FROM:           
+                print('ACTION', a)
             if a == 0: 
                 a_ = 0
             elif a == 1: 
@@ -282,10 +289,12 @@ class Environment:
 
             steps += 1
             self.total_step += 1
-            print('  ------------------------    total_step', self.total_step)
+            if self.total_step >= PRINT_FROM:
+                print('  ------------------------    total_step', self.total_step)
 
             s_, r, done, info = self.env.step(a_)
-            print('STEP', s_)
+            if self.total_step >= PRINT_FROM:
+                print('STEP', s_)
             s_ = self.normalize(s_)
 
             if done: # terminal state
@@ -310,6 +319,13 @@ class Environment:
         # print("Total reward:", R)
 
 #-------------------- MAIN ----------------------------
+
+seed = None
+if len(sys.argv) > 1:
+    seed = int(sys.argv[1])
+print('SEED IS:', seed)
+
+
 PROBLEM = 'MountainCar-v0'
 env = Environment(PROBLEM)
 
