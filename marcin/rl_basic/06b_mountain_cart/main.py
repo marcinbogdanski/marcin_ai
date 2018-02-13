@@ -101,7 +101,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     total_step = -1
     while True:
 
-        PRINT_FROM = 111000
+        PRINT_FROM = 1110000
         
         episode += 1
         if nb_episodes is not None and episode >= nb_episodes:
@@ -174,11 +174,11 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 # nz = np.count_nonzero(arr)
                 # print('RAND: ', nz, ' / ', len(arr))
 
-            if plotter is not None and False: # and total_step >= agent_nb_rand_steps:
+            if plotter is not None: # and total_step >= agent_nb_rand_steps:
                 plotter.process(logger, total_step)
                 res = plotter.conditional_plot(logger, total_step)
                 if res:
-                    # plt.pause(0.001)
+                    plt.pause(0.001)
                     pass
 
             timing_dict['main_plot'] += time.time() - time_start
@@ -192,10 +192,10 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             if nb_total_steps is not None and total_step >= nb_total_steps:
                 break
 
-            if total_step >= 111280+8:
+            #if total_step >= 111280+8:
             # if total_step >= 5:
-                pdb.set_trace()
-                exit(0)
+            #    pdb.set_trace()
+            #    exit(0)
 
             #   ---   time step rolls here   ---
             step += 1
@@ -253,7 +253,7 @@ def test_single(logger, seed=None):
     timing_arr = []
     timing_dict = {}
 
-    plotting_enabled = False
+    plotting_enabled = True
     if plotting_enabled:
         fig = plt.figure()
         ax_qmax_wf = fig.add_subplot(2,4,1, projection='3d')

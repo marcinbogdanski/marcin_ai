@@ -584,7 +584,6 @@ class KerasApproximator:
         assert states.shape[1] == self._input_count
 
         assert isinstance(actions, np.ndarray)
-        print(actions.dtype)
         assert actions.dtype == int
         assert actions.ndim == 2
         assert actions.shape[0] >= 1
@@ -668,10 +667,10 @@ class KerasApproximator:
         timing_dict['    update2_post'] += time.time() - time_start
 
 
-        print('TRAIN:')
-        for i in range(len(states)):
-            print(i, states[i], actions[i], rewards_n[i], states_n[i])
-            print(i, inputs[i], targets[i])
+        # print('TRAIN:')
+        # for i in range(len(states)):
+        #     print(i, states[i], actions[i], rewards_n[i], states_n[i])
+        #     print(i, inputs[i], targets[i])
 
         time_start = time.time()
         #self._model.train_on_batch(inputs, targets)
@@ -824,7 +823,6 @@ class Agent:
         self._force_random_action = expl_start
 
     def log(self, episode, step, total_step):
-        return
 
         #
         #   Log agent
@@ -942,14 +940,12 @@ class Agent:
 
         #if np.random.rand() < self._epsilon_random:
         if self._random.random() < self._epsilon_random:
-            print('ACTION RANDOM')
             # pick random action
             self._this_step_rand_act = True
             # res = np.random.choice(self._action_space)
             res = self._random.randint(0, self._nb_actions-1)
 
         else:
-            print('ACTION NEURAL NET')
             self._this_step_rand_act = False
             # act greedy
             
