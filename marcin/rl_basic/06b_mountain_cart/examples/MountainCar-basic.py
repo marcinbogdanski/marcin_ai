@@ -46,16 +46,16 @@ def printQ(agent):
     sys.stdout.flush()
 
 def mapBrain(brain, res):
-    s = numpy.zeros( (res * res, 2) )
+    st = numpy.zeros( (res * res, 2) )
     i = 0
 
     for i1 in range(res):
         for i2 in range(res):            
-            s[i] = numpy.array( [ 2 * (i1 - res / 2) / res, 2 * (i2 - res / 2) / res ] )
+            st[i] = numpy.array( [ 2 * (i1 - res / 2) / res, 2 * (i2 - res / 2) / res ] )
             i += 1
 
-    mapV = numpy.amax(brain.predict(s), axis=1).reshape( (res, res) )
-    mapA = numpy.argmax(brain.predict(s), axis=1).reshape( (res, res) )
+    mapV = numpy.amax(brain.predict(st), axis=1).reshape( (res, res) )
+    mapA = numpy.argmax(brain.predict(st), axis=1).reshape( (res, res) )
 
     return (mapV, mapA)
 
@@ -117,11 +117,11 @@ class Brain:
     def train(self, x, y, epoch=1, verbose=0):
         self.model.fit(x, y, batch_size=64, epochs=epoch, verbose=verbose)
 
-    def predict(self, s):
-        return self.model.predict(s)
+    def predict(self, st):
+        return self.model.predict(st)
 
-    def predictOne(self, s):
-        return self.predict(s.reshape(1, self.stateCnt)).flatten()
+    def predictOne(self, st):
+        return self.predict(st.reshape(1, self.stateCnt)).flatten()
 
 SPREAD = None
 MEAN = None
@@ -183,11 +183,13 @@ class Agent:
         self.brain = Brain(stateCnt, actionCnt)
         self.memory = Memory(MEMORY_CAPACITY, seed)
         
-    def act(self, s):
+    def act(self, st):
         if self._random.random() < self.epsilon:
+            print('ACTION RANDOM')
             res = self._random.randint(0, self.actionCnt-1)
         else:
-            res = numpy.argmax(self.brain.predictOne(s))
+            print('ACTION NEURAL NET')
+            res = numpy.argmax(self.brain.predictOne(st))
         return res
 
     def observe(self, sample):  # in (s, a, r, s_) format
@@ -195,10 +197,12 @@ class Agent:
 
         # ----- debug
         if self.steps % 1000 == 0:
-            printQ(self)
+            # printQ(self)
+            pass
 
         if self.steps % 1000 == 0:
-            displayBrain(self.brain)
+            # displayBrain(self.brain)
+            pass
 
         # slowly decrease Epsilon based on our eperience
         self.steps += 1
@@ -231,6 +235,15 @@ class Agent:
 
             x[i] = s
             y[i] = t
+
+        print('TRAIN: ')
+        for i in range(len(batch)):
+            s = batch[i][0]
+            s_denorm = (s * SPREAD) + MEAN
+            sp = batch[i][3]
+            sp_denorm = (sp * SPREAD) + MEAN
+            print(i, s_denorm, batch[i][1], batch[i][2], sp_denorm)
+            print(i, x[i], y[i])
 
         self.brain.train(x, y)
 
@@ -310,7 +323,7 @@ class Environment:
                 a_ = 2
 
 
-            if self.total_step >= 111280+11:
+            if self.total_step >= 111280+8:
             # if self.total_step >= 5:
                 pdb.set_trace()
                 exit(0)
@@ -354,6 +367,7 @@ if len(sys.argv) > 1:
     seed = int(sys.argv[1])
 print('SEED IS:', seed)
 
+tf.set_random_seed(seed)
 
 PROBLEM = 'MountainCar-v0'
 env = Environment(PROBLEM, seed=seed)

@@ -449,16 +449,16 @@ class KerasApproximator:
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.01))
 
         self._model = tf.keras.models.Sequential()
-        self._model.add(tf.keras.layers.Dense(activation='relu', input_dim=input_count, units=256))
-        self._model.add(tf.keras.layers.Dense(activation='relu', units=256))
-        self._model.add(tf.keras.layers.Dense(activation='linear', units=output_count))
+        self._model.add(tf.keras.layers.Dense(units=256, activation='relu', input_dim=input_count))
+        self._model.add(tf.keras.layers.Dense(units=256, activation='relu'))
+        self._model.add(tf.keras.layers.Dense(units=output_count, activation='linear'))
         # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
-        self._model.compile(loss='mse', optimizer=tf.keras.optimizers.RMSprop(lr=step_size))
-        
+        opt = tf.keras.optimizers.RMSprop(lr=step_size)
+        self._model.compile(loss='mse', optimizer=opt)
 
-        self._pos_offset = 0.35
-        self._pos_scale = 2 / 1.7  # -1.2 to 0.5 should be for NN
-        self._vel_scale = 2 / 0.14  # maps vel to -1..1
+        self._pos_offset = 0.3 # 0.35
+        self._pos_scale = 1 / 0.9  # 2 / 1.7  # -1.2 to 0.5 should be for NN
+        self._vel_scale = 1 / 0.07 # 2 / 0.14  # maps vel to -1..1
 
         if log is not None:
             log.add_param('type', 'keras sequential')
@@ -480,7 +480,6 @@ class KerasApproximator:
         assert action in list(range(self._output_count))
 
         return pos, vel, action
-
 
     def estimate(self, state, action):
         pos, vel, action = self._test_input(state, action)
@@ -578,7 +577,39 @@ class KerasApproximator:
         timing_dict['    update_train_on_batch'] += time.time() - time_start
 
     def update2(self, states, actions, rewards_n, states_n, dones, timing_dict):
-        # assert isinstance(batch, list)
+        assert isinstance(states, np.ndarray)
+        assert states.dtype == float
+        assert states.ndim == 2
+        assert states.shape[0] >= 1
+        assert states.shape[1] == self._input_count
+
+        assert isinstance(actions, np.ndarray)
+        print(actions.dtype)
+        assert actions.dtype == int
+        assert actions.ndim == 2
+        assert actions.shape[0] >= 1
+        assert actions.shape[1] == 1
+
+        assert isinstance(rewards_n, np.ndarray)
+        assert rewards_n.dtype == float
+        assert rewards_n.ndim == 2
+        assert rewards_n.shape[0] >= 1
+        assert rewards_n.shape[1] == 1
+
+        assert isinstance(states_n, np.ndarray)
+        assert states_n.dtype == float
+        assert states_n.ndim == 2
+        assert states_n.shape[0] >= 1
+        assert states_n.shape[1] == self._input_count
+
+        assert isinstance(dones, np.ndarray)
+        assert dones.dtype == bool
+        assert dones.ndim == 2
+        assert dones.shape[0] >= 1
+        assert dones.shape[1] == 1
+
+
+
         # assert len(batch) > 0
         # assert len(batch[0]) == 5
 
@@ -633,8 +664,14 @@ class KerasApproximator:
         q_n = np.max(est_n, axis=1, keepdims=True)
         tt = rewards_n + (not_dones * self._discount * q_n)
         errors = tt.flatten() - targets[np.arange(len(targets)), actions.flatten()]
-        targets[np.arange(len(targets)), actions] = tt.flatten()
+        targets[np.arange(len(targets)), actions.flatten()] = tt.flatten()
         timing_dict['    update2_post'] += time.time() - time_start
+
+
+        print('TRAIN:')
+        for i in range(len(states)):
+            print(i, states[i], actions[i], rewards_n[i], states_n[i])
+            print(i, inputs[i], targets[i])
 
         time_start = time.time()
         #self._model.train_on_batch(inputs, targets)
@@ -787,6 +824,7 @@ class Agent:
         self._force_random_action = expl_start
 
     def log(self, episode, step, total_step):
+        return
 
         #
         #   Log agent
@@ -904,12 +942,14 @@ class Agent:
 
         #if np.random.rand() < self._epsilon_random:
         if self._random.random() < self._epsilon_random:
+            print('ACTION RANDOM')
             # pick random action
             self._this_step_rand_act = True
             # res = np.random.choice(self._action_space)
             res = self._random.randint(0, self._nb_actions-1)
 
         else:
+            print('ACTION NEURAL NET')
             self._this_step_rand_act = False
             # act greedy
             

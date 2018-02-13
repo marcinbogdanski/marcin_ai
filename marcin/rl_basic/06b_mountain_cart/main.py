@@ -174,7 +174,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 # nz = np.count_nonzero(arr)
                 # print('RAND: ', nz, ' / ', len(arr))
 
-            if plotter is not None: # and total_step >= agent_nb_rand_steps:
+            if plotter is not None and False: # and total_step >= agent_nb_rand_steps:
                 plotter.process(logger, total_step)
                 res = plotter.conditional_plot(logger, total_step)
                 if res:
@@ -192,7 +192,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             if nb_total_steps is not None and total_step >= nb_total_steps:
                 break
 
-            if total_step >= 111280+11:
+            if total_step >= 111280+8:
             # if total_step >= 5:
                 pdb.set_trace()
                 exit(0)
