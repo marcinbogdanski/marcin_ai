@@ -90,7 +90,7 @@ def displayBrain(brain, res=50):
     ax2.imshow(mapA, cmap=cmap, norm=norm)        
     # cb = plt.colorbar(orientation='vertical', ticks=[0,1])
 
-    plt.pause(0.001)
+    # plt.pause(0.001)
 
 #-------------------- BRAIN ---------------------------
 
@@ -123,11 +123,13 @@ class Brain:
     def predictOne(self, s):
         return self.predict(s.reshape(1, self.stateCnt)).flatten()
 
+SPREAD = None
+MEAN = None
 #-------------------- MEMORY --------------------------
 class Memory:   # stored as ( s, a, r, s_ )
-    
     def __init__(self, capacity, seed=None):
         self.samples = []
+        self.index_range = list(range(capacity))
         self.capacity = capacity
 
         self._random = random.Random()
@@ -141,10 +143,18 @@ class Memory:   # stored as ( s, a, r, s_ )
             self.samples.pop(0)
 
     def sample(self, n):
+        global SPREAD, MEAN
         n = min(n, len(self.samples))
-        result = random.sample(self.samples, n)
-        #print('BATCH: ', self._random.sample(list(range(100)), 10))
-        #pdb.set_trace()
+
+        indices = self._random.sample(self.index_range, n)
+        result = [self.samples[i] for i in indices]
+
+        #result = self._random.sample(self.samples, n)
+        #print('BATCH: ')
+        #for i in range(len(result)):
+        #    s = result[i][0]
+        #    s_denorm = (s * SPREAD) + MEAN
+        #    print(indices[i], s_denorm)
         return result
 
     def isFull(self):
@@ -245,10 +255,11 @@ class RandomAgent:
     def replay(self):
         pass
 
-PRINT_FROM = 1110000
+PRINT_FROM = 111000
 #-------------------- ENVIRONMENT ---------------------
 class Environment:
     def __init__(self, problem, seed=None):
+        global SPREAD, MEAN
         self.problem = problem
         self.env = gym.make(problem).env
         if seed is not None:
@@ -259,6 +270,8 @@ class Environment:
 
         self.mean = (high + low) / 2
         self.spread = abs(high - low) / 2
+        MEAN = self.mean
+        SPREAD = self.spread
 
         self.total_step = -1
 
@@ -297,10 +310,10 @@ class Environment:
                 a_ = 2
 
 
-            #if self.total_step >= 111280+10:
+            if self.total_step >= 111280+11:
             # if self.total_step >= 5:
-            #    pdb.set_trace()
-            #    exit(0)
+                pdb.set_trace()
+                exit(0)
 
             # time step roll here
 

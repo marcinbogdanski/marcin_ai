@@ -720,7 +720,8 @@ class Agent:
             dtypes=(float, int, float, float, bool, float),
             max_len=mem_size_max,
             enable_pmr=mem_enable_pmr,
-            initial_pmr_error=1000.0)
+            initial_pmr_error=1000.0,
+            seed=seed)
 
         self._step_size = step_size  # usually noted as alpha in literature
         self._batch_size = batch_size
