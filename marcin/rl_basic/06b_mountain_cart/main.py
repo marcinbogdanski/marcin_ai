@@ -174,7 +174,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 # nz = np.count_nonzero(arr)
                 # print('RAND: ', nz, ' / ', len(arr))
 
-            if plotter is not None: # and total_step >= agent_nb_rand_steps:
+            if plotter is not None and total_step >= agent_nb_rand_steps:
                 plotter.process(logger, total_step)
                 res = plotter.conditional_plot(logger, total_step)
                 if res:
@@ -293,10 +293,10 @@ def test_single(logger, seed=None):
 
             agent_nb_actions=2,
             agent_discount=0.99,
-            agent_nb_rand_steps=111281,
+            agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
-            agent_e_rand_decay=0.001,
+            agent_e_rand_decay=1 / 10000,
 
             mem_size_max=100000,
             mem_enable_pmr=False,

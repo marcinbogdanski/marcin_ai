@@ -914,14 +914,22 @@ class Agent:
 
         if self._curr_total_step > self._nb_rand_steps:
             self._curr_non_rand_step += 1
-            # if self._epsilon_random > self._epsilon_random_target:
-            #     self._epsilon_random -= self._epsilon_random_decay
-            # if self._epsilon_random < self._epsilon_random_target:
-            #     self._epsilon_random = self._epsilon_random_target
-            self._epsilon_random = \
-                self._epsilon_random_target \
-                + (self._epsilon_random_start - self._epsilon_random_target) \
-                * math.exp(-self._epsilon_random_decay * self._curr_non_rand_step)
+
+            #
+            #   Decrease linearly
+            #
+            if self._epsilon_random > self._epsilon_random_target:
+                self._epsilon_random -= self._epsilon_random_decay
+            if self._epsilon_random < self._epsilon_random_target:
+                self._epsilon_random = self._epsilon_random_target
+            
+            #
+            #   Decrease exponentially
+            #
+            # self._epsilon_random = \
+            #     self._epsilon_random_target \
+            #     + (self._epsilon_random_start - self._epsilon_random_target) \
+            #     * math.exp(-self._epsilon_random_decay * self._curr_non_rand_step)
 
     def pick_action(self, obs):
         assert isinstance(obs, np.ndarray)
