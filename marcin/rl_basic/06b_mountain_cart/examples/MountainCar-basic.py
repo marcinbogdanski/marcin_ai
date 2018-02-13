@@ -90,7 +90,7 @@ def displayBrain(brain, res=50):
     ax2.imshow(mapA, cmap=cmap, norm=norm)        
     # cb = plt.colorbar(orientation='vertical', ticks=[0,1])
 
-    # plt.pause(0.001)
+    plt.pause(0.001)
 
 #-------------------- BRAIN ---------------------------
 
@@ -125,10 +125,14 @@ class Brain:
 
 #-------------------- MEMORY --------------------------
 class Memory:   # stored as ( s, a, r, s_ )
-    samples = []
-
-    def __init__(self, capacity):
+    
+    def __init__(self, capacity, seed=None):
+        self.samples = []
         self.capacity = capacity
+
+        self._random = random.Random()
+        if seed is not None:
+            self._random.seed(seed)
 
     def add(self, sample):
         self.samples.append(sample)        
@@ -138,7 +142,10 @@ class Memory:   # stored as ( s, a, r, s_ )
 
     def sample(self, n):
         n = min(n, len(self.samples))
-        return random.sample(self.samples, n)
+        result = random.sample(self.samples, n)
+        #print('BATCH: ', self._random.sample(list(range(100)), 10))
+        #pdb.set_trace()
+        return result
 
     def isFull(self):
         return len(self.samples) >= self.capacity
@@ -157,14 +164,14 @@ class Agent:
     steps = 0
     epsilon = MAX_EPSILON
 
-    def __init__(self, stateCnt, actionCnt):
+    def __init__(self, stateCnt, actionCnt, seed=None):
         self.stateCnt = stateCnt
         self.actionCnt = actionCnt
 
         self._random = random.Random()
 
         self.brain = Brain(stateCnt, actionCnt)
-        self.memory = Memory(MEMORY_CAPACITY)
+        self.memory = Memory(MEMORY_CAPACITY, seed)
         
     def act(self, s):
         if self._random.random() < self.epsilon:
@@ -218,13 +225,15 @@ class Agent:
         self.brain.train(x, y)
 
 class RandomAgent:
-    memory = Memory(MEMORY_CAPACITY)
+    
 
     def __init__(self, actionCnt, seed=None):
         self.actionCnt = actionCnt
         self._random = random.Random()
         if seed is not None:
             self._random.seed(seed)
+
+        self.memory = Memory(MEMORY_CAPACITY, seed=seed)
 
     def act(self, s):
         result = self._random.randint(0, self.actionCnt-1)
@@ -236,7 +245,7 @@ class RandomAgent:
     def replay(self):
         pass
 
-PRINT_FROM = 100000
+PRINT_FROM = 1110000
 #-------------------- ENVIRONMENT ---------------------
 class Environment:
     def __init__(self, problem, seed=None):
@@ -255,6 +264,9 @@ class Environment:
 
     def normalize(self, s):
         return (s - self.mean) / self.spread
+
+    def denormalize(self, s):
+        return (s * self.spread) + self.mean
 
     def run(self, agent):
 
@@ -285,9 +297,10 @@ class Environment:
                 a_ = 2
 
 
-            if self.total_step >= 111280+10:
-                pdb.set_trace()
-                exit(0)
+            #if self.total_step >= 111280+10:
+            # if self.total_step >= 5:
+            #    pdb.set_trace()
+            #    exit(0)
 
             # time step roll here
 
@@ -316,8 +329,8 @@ class Environment:
             if done:
                 print('terminated after:', steps)
                 break
-            if isinstance(agent, RandomAgent) and agent.memory.isFull():
-                print('   MEMORY FULL   ')
+            # if isinstance(agent, RandomAgent) and agent.memory.isFull():
+            #     print('   MEMORY FULL   ')
 
         # print("Total reward:", R)
 
@@ -335,7 +348,7 @@ env = Environment(PROBLEM, seed=seed)
 stateCnt  = env.env.observation_space.shape[0]
 actionCnt = 2 #env.env.action_space.n
 
-agent = Agent(stateCnt, actionCnt)
+agent = Agent(stateCnt, actionCnt, seed)
 randomAgent = RandomAgent(actionCnt, seed=seed)
 
 try:
