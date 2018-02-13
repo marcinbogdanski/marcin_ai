@@ -4,6 +4,7 @@ import collections
 import time
 import pdb
 import random
+import math
 
 import tile_coding
 import neural_mini
@@ -673,10 +674,13 @@ class Agent:
         step_size,
         batch_size,
         log_agent=None, log_q_val=None, log_hist=None, 
-        log_memory=None, log_approx=None):
+        log_memory=None, log_approx=None,
+
+        seed=None):
 
         self._random = random.Random()
-        self._random.seed(0)
+        if seed is not None:
+            self._random.seed(seed)
 
         self._nb_actions = nb_actions
         self._action_space = list(range(nb_actions))
@@ -730,6 +734,7 @@ class Agent:
         self._force_random_action = False
 
         self._curr_total_step = 0
+        self._curr_non_rand_step = 0
 
         self.log_agent = log_agent
         if log_agent is not None:
@@ -871,10 +876,15 @@ class Agent:
         self._curr_total_step += 1
 
         if self._curr_total_step > self._nb_rand_steps:
-            if self._epsilon_random > self._epsilon_random_target:
-                self._epsilon_random -= self._epsilon_random_decay
-            if self._epsilon_random < self._epsilon_random_target:
-                self._epsilon_random = self._epsilon_random_target
+            self._curr_non_rand_step += 1
+            # if self._epsilon_random > self._epsilon_random_target:
+            #     self._epsilon_random -= self._epsilon_random_decay
+            # if self._epsilon_random < self._epsilon_random_target:
+            #     self._epsilon_random = self._epsilon_random_target
+            self._epsilon_random = \
+                self._epsilon_random_target \
+                + (self._epsilon_random_start - self._epsilon_random_target) \
+                * math.exp(-self._epsilon_random_decay * self._curr_non_rand_step)
 
     def pick_action(self, obs):
         assert isinstance(obs, np.ndarray)

@@ -90,7 +90,7 @@ def displayBrain(brain, res=50):
     ax2.imshow(mapA, cmap=cmap, norm=norm)        
     # cb = plt.colorbar(orientation='vertical', ticks=[0,1])
 
-    plt.pause(0.001)
+    # plt.pause(0.001)
 
 #-------------------- BRAIN ---------------------------
 
@@ -224,7 +224,7 @@ class RandomAgent:
         self.actionCnt = actionCnt
         self._random = random.Random()
         if seed is not None:
-            self._random.seed(None)
+            self._random.seed(seed)
 
     def act(self, s):
         result = self._random.randint(0, self.actionCnt-1)
@@ -236,7 +236,7 @@ class RandomAgent:
     def replay(self):
         pass
 
-PRINT_FROM = 990000
+PRINT_FROM = 100000
 #-------------------- ENVIRONMENT ---------------------
 class Environment:
     def __init__(self, problem, seed=None):
@@ -276,13 +276,17 @@ class Environment:
             a = agent.act(s)    # map actions; 0 = left, 2 = right   
             if self.total_step >= PRINT_FROM:           
                 print('ACTION', a)
+                print('MEM_LEN', len(agent.memory.samples))
+                if hasattr(agent, 'epsilon'):
+                    print('EPSILON', agent.epsilon)
             if a == 0: 
                 a_ = 0
             elif a == 1: 
                 a_ = 2
 
 
-            if self.total_step >= 100010:
+            if self.total_step >= 111280+10:
+                pdb.set_trace()
                 exit(0)
 
             # time step roll here
@@ -314,7 +318,6 @@ class Environment:
                 break
             if isinstance(agent, RandomAgent) and agent.memory.isFull():
                 print('   MEMORY FULL   ')
-                break
 
         # print("Total reward:", R)
 
@@ -327,19 +330,20 @@ print('SEED IS:', seed)
 
 
 PROBLEM = 'MountainCar-v0'
-env = Environment(PROBLEM)
+env = Environment(PROBLEM, seed=seed)
 
 stateCnt  = env.env.observation_space.shape[0]
 actionCnt = 2 #env.env.action_space.n
 
 agent = Agent(stateCnt, actionCnt)
-randomAgent = RandomAgent(actionCnt)
+randomAgent = RandomAgent(actionCnt, seed=seed)
 
 try:
     while randomAgent.memory.isFull() == False:
         env.run(randomAgent)
 
     agent.memory = randomAgent.memory
+    agent._random = randomAgent._random
     randomAgent = None
 
     while True:

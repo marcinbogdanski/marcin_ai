@@ -41,10 +41,12 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     approximator, step_size, batch_size,
     plotter=None,
     logger=None, 
-    timing_arr=None, timing_dict=None):
+    timing_arr=None, timing_dict=None, 
+    seed=None):
 
     env = gym.make('MountainCar-v0').env
-    env.seed(0)
+    if seed is not None:
+        env.seed(seed)
     #env = MountainCarEnv(log=logger.env)
     agent = Agent(nb_actions=agent_nb_actions,
                 discount=agent_discount,
@@ -61,7 +63,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 log_q_val=logger.q_val,
                 log_hist=logger.hist,
                 log_memory=logger.memory,
-                log_approx=logger.approx)
+                log_approx=logger.approx,
+                seed=seed)
 
     timing_arr.append('total')
     timing_arr.append('main_reset')
@@ -97,6 +100,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     episode = -1
     total_step = -1
     while True:
+
+        PRINT_FROM = 100000
         
         episode += 1
         if nb_episodes is not None and episode >= nb_episodes:
@@ -133,7 +138,10 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             # if step % 3 == 0:
             time_start = time.time()
             action = agent.pick_action(obs)
-            print('ACTION', action)
+            if total_step >= PRINT_FROM:
+                print('ACTION', action)
+                print('MEM_LEN', agent._memory._curr_len)
+                print('EPSILON', agent._epsilon_random)
             timing_dict['main_agent_pick_action'] += time.time() - time_start
 
             time_start = time.time()
@@ -170,7 +178,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 plotter.process(logger, total_step)
                 res = plotter.conditional_plot(logger, total_step)
                 if res:
-                    plt.pause(0.001)
+                    # plt.pause(0.001)
+                    pass
 
             timing_dict['main_plot'] += time.time() - time_start
             
@@ -183,13 +192,15 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             if nb_total_steps is not None and total_step >= nb_total_steps:
                 break
 
-            if total_step >= 100010:
+            if total_step >= 111280+10:
+                pdb.set_trace()
                 exit(0)
 
             #   ---   time step rolls here   ---
             step += 1
             total_step += 1
-            print('------------------------------ total step -- ', total_step)
+            if total_step >= PRINT_FROM:
+                print('------------------------------ total step -- ', total_step)
 
             time_start = time.time()
             if agent_nb_actions == 2 and action == 1:
@@ -197,7 +208,8 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             else:
                 action_p = action
             obs, reward, done, _ = env.step(action_p)
-            print('STEP', obs)
+            if total_step >= PRINT_FROM:
+                print('STEP', obs)
             reward = round(reward)
             timing_dict['main_env_step'] += time.time() - time_start
 
@@ -217,6 +229,9 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
                 time_start = time.time()
                 agent.log(episode, step, total_step)
                 timing_dict['main_agent_log'] += time.time() - time_start
+                time_start = time.time()
+                agent.advance_one_step()
+                timing_dict['main_agent_advance_step'] += time.time() - time_start
                 break
 
         timing_dict['total'] += time.time() - time_total_start
@@ -225,7 +240,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
 
 
-def test_single(logger):
+def test_single(logger, seed=None):
     
     logger.agent = Log('Agent')
     logger.q_val = Log('Q_Val')
@@ -277,10 +292,10 @@ def test_single(logger):
 
             agent_nb_actions=2,
             agent_discount=0.99,
-            agent_nb_rand_steps=100000,
+            agent_nb_rand_steps=111281,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
-            agent_e_rand_decay=1.0/5000,
+            agent_e_rand_decay=0.001,
 
             mem_size_max=100000,
             mem_enable_pmr=False,
@@ -292,7 +307,8 @@ def test_single(logger):
             plotter=plotter,
             logger=logger,
             timing_arr=timing_arr,
-            timing_dict=timing_dict)
+            timing_dict=timing_dict,
+            seed=seed)
 
     print()
     print(str.upper(approximator))
@@ -345,7 +361,7 @@ def main():
 
     logger = Logger(curr_datetime, hostname, git_hash)
     try:
-        test_single(logger)
+        test_single(logger, args.seed)
     finally:
         logger.save('data.log')
         print('log saved')
