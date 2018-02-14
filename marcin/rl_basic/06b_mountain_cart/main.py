@@ -291,19 +291,19 @@ def test_single(logger, seed=None):
             nb_total_steps=1000000,
             expl_start=False,
 
-            agent_nb_actions=2,
+            agent_nb_actions=3,
             agent_discount=0.99,
             agent_nb_rand_steps=100000,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
-            agent_e_rand_decay=1 / 10000,
+            agent_e_rand_decay=1/10000,
 
             mem_size_max=100000,
             mem_enable_pmr=False,
 
             approximator=approximator,
             step_size=0.00025,
-            batch_size=64,
+            batch_size=1024,
             
             plotter=plotter,
             logger=logger,
