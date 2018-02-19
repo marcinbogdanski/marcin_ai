@@ -6,6 +6,8 @@ from mpl_toolkits.mplot3d import axes3d
 
 import tensorflow as tf
 config = tf.ConfigProto()
+# config.intra_op_parallelism_threads=1
+# config.inter_op_parallelism_threads=1
 config.gpu_options.per_process_gpu_memory_fraction=0.2
 # config.gpu_options.allow_growth = True
 sess = tf.Session(config=config)
@@ -227,9 +229,16 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             
             if done or step >= 100000:
                 print('espiode finished after iteration', step)
+                
                 time_start = time.time()
                 agent.log(episode, step, total_step)
                 timing_dict['main_agent_log'] += time.time() - time_start
+
+                time_start = time.time()
+                if plotter is not None: # and total_step >= agent_nb_rand_steps:
+                    plotter.process(logger, total_step)
+                timing_dict['main_plot'] += time.time() - time_start
+
                 time_start = time.time()
                 agent.advance_one_step()
                 timing_dict['main_agent_advance_step'] += time.time() - time_start
@@ -261,8 +270,9 @@ def test_single(logger, seed=None):
         ax_policy = fig.add_subplot(2,4,3)
         ax_trajectory = fig.add_subplot(2,4,4)
         ax_stats = None # fig.add_subplot(165)
-        ax_memory = fig.add_subplot(2,1,2)
+        ax_memory = None # fig.add_subplot(2,1,2)
         ax_q_series = None # fig.add_subplot(155)
+        ax_avg_reward = fig.add_subplot(2,1,2)
     else:
         ax_qmax_wf = None
         ax_qmax_im = None
@@ -271,6 +281,7 @@ def test_single(logger, seed=None):
         ax_stats = None
         ax_memory = None
         ax_q_series = None
+        ax_avg_reward = None
 
     plotter = Plotter(plotting_enabled=plotting_enabled,
                       plot_every=1000,
@@ -281,7 +292,8 @@ def test_single(logger, seed=None):
                       ax_trajectory=ax_trajectory,
                       ax_stats=ax_stats,
                       ax_memory=ax_memory,
-                      ax_q_series=ax_q_series)
+                      ax_q_series=ax_q_series,
+                      ax_avg_reward=ax_avg_reward)
 
 
     approximator='keras'

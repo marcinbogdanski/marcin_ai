@@ -44,7 +44,8 @@ def main():
                       ax_trajectory=ax_trajectory,
                       ax_stats=ax_stats,
                       ax_memory=ax_memory,
-                      ax_q_series=ax_q_series)
+                      ax_q_series=ax_q_series,
+                      ax_avg_reward=None)
 
     for total_step in range(0, len(logger.hist.total_steps)):
         print(total_step)
@@ -59,7 +60,7 @@ def main():
 class Plotter():
     def __init__(self, plotting_enabled, plot_every, disp_len, 
         ax_qmax_wf, ax_qmax_im, ax_policy,
-        ax_trajectory, ax_stats, ax_memory, ax_q_series):
+        ax_trajectory, ax_stats, ax_memory, ax_q_series, ax_avg_reward):
 
         self.plotting_enabled = plotting_enabled
         self.plot_every = plot_every
@@ -72,12 +73,15 @@ class Plotter():
         self.ax_stats = ax_stats
         self.ax_memory = ax_memory
         self.ax_q_series = ax_q_series
+        self.ax_avg_reward = ax_avg_reward
 
         self.q_val = None
         self.ser_X =  []
         self.ser_E0 = []
         self.ser_E1 = []
         self.ser_E2 = []
+        self.avg_X = []
+        self.avg_rew = []
         
 
     def process(self, logger, current_total_step):
@@ -100,6 +104,26 @@ class Plotter():
             self.hist_St_1 = logger.memory.data['hist_St_1'][current_total_step]
             self.hist_done = logger.memory.data['hist_done'][current_total_step]
             self.hist_error = logger.memory.data['hist_error'][current_total_step]
+
+        if logger.hist.data['done'][current_total_step] == True:
+
+            done = logger.hist.data['done']
+            idx_end_steps = np.where(done)[0]
+
+            sum_ = 0
+            num_ = 0
+            for i, idx in enumerate(reversed(idx_end_steps)):
+                if i >= 50:
+                    break
+
+                num_ += 1
+                sum_ += logger.hist.steps[idx]
+
+            self.avg_X.append(current_total_step)
+            self.avg_rew.append(sum_ / num_)
+
+
+
 
     def conditional_plot(self, logger, current_total_step):
         if current_total_step % self.plot_every == 0 and self.plotting_enabled:
@@ -195,6 +219,9 @@ class Plotter():
                 self.ser_E1[-50:],
                 self.ser_E2[-50:])
 
+        if self.ax_avg_reward is not None:
+            self.ax_avg_reward.clear()
+            self.ax_avg_reward.plot(self.avg_X, self.avg_rew)
 
 def plot_q_val_wireframe(ax, q_val, extent, labels):
     """Plot 2d q_val array on 3d wireframe plot.

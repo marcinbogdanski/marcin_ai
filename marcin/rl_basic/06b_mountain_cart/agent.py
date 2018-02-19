@@ -452,7 +452,7 @@ class KerasApproximator:
         self._model.add(tf.keras.layers.Dense(units=256, activation='relu', input_dim=input_count))
         self._model.add(tf.keras.layers.Dense(units=256, activation='relu'))
         self._model.add(tf.keras.layers.Dense(units=output_count, activation='linear'))
-        # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.0001))
+        # self._model.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(lr=0.001))
         opt = tf.keras.optimizers.RMSprop(lr=step_size)
         self._model.compile(loss='mse', optimizer=opt)
 
@@ -576,7 +576,7 @@ class KerasApproximator:
         self._model.train_on_batch(inputs, targets)
         timing_dict['    update_train_on_batch'] += time.time() - time_start
 
-    def update2(self, states, actions, rewards_n, states_n, dones, timing_dict):
+    def update2(self, states, actions, rewards_n, states_n, dones, timing_dict, debug=False):
         assert isinstance(states, np.ndarray)
         assert states.dtype == float
         assert states.ndim == 2
@@ -666,11 +666,17 @@ class KerasApproximator:
         targets[np.arange(len(targets)), actions.flatten()] = tt.flatten()
         timing_dict['    update2_post'] += time.time() - time_start
 
-
-        # print('TRAIN:')
-        # for i in range(len(states)):
-        #     print(i, states[i], actions[i], rewards_n[i], states_n[i])
-        #     print(i, inputs[i], targets[i])
+        if debug:
+            print('inputs')
+            print(inputs[0:10])
+            print(targets[0:10])
+            print(self._model.layers[0].get_weights()[0][:,0:10])
+            print(np.sum(np.sum(self._model.layers[0].get_weights())))
+            exit()
+            # print('TRAIN:')
+            # for i in range(len(states)):
+            #     print(i, states[i], actions[i], rewards_n[i], states_n[i])
+            #     print(i, inputs[i], targets[i])
 
         time_start = time.time()
         #self._model.train_on_batch(inputs, targets)
@@ -1050,7 +1056,8 @@ class Agent:
             timing_dict['  eval_td_get_batch'] += time.time() - time_start
 
             time_start = time.time()
-            errors = self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict)
+            debug = False # self._curr_total_step == 10300
+            errors = self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict, debug)
             timing_dict['  eval_td_update'] += time.time() - time_start
 
             self._memory.update_errors(indices, errors)
