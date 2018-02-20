@@ -21,14 +21,8 @@ class AgentPG:
         step_size=0.1, lmbda=None):
         
         self.V = np.zeros([world_size])
-        self.V[0] = 0   # initialise state-values of terminal states to zero!
-        self.V[-1] = 0
 
         self.Q = np.zeros([world_size, action_space])
-        self.Q[0, 0] = 0   # initialise action-values of actions from
-        self.Q[0, 1] = 0   # terminal state to zero
-        self.Q[-1, 0] = 0
-        self.Q[-1, 1] = 0
 
         self._step_size = step_size  # usually noted as alpha in literature
         self._discount = 1.0         # usually noted as gamma in literature
@@ -86,11 +80,9 @@ class AgentPG:
             t (int [t, T-1]) - time step in trajectory,
                     0 is initial state; T-1 is last non-terminal state
 
-            V (float arr) - optional,
-                    if passed, funciton will operate on this array
-                    if None, then function will operate on self.V
         """
 
+        assert not self._trajectory[t].done
 
         V = self.V    # State values array, shape: [world_size]
         Q = self.Q    # Action value array, shape: [world_size, action_space]
@@ -100,17 +92,24 @@ class AgentPG:
         St = self._trajectory[t].observation      # evaluated state tuple (x, y)
         St_1 = self._trajectory[t+1].observation  # next state tuple (x, y)
         Rt_1 = self._trajectory[t+1].reward       # next step reward
+        done = self._trajectory[t+1].done
         step = self._step_size
         disc = self._discount
 
-        V[St] = V[St] + step * (Rt_1 + disc*V[St_1] - V[St])
+        if not done:
+            V[St] = V[St] + step * (Rt_1 + disc*V[St_1] - V[St])
+        else:
+            V[St] = V[St] + step * (Rt_1 - V[St])
 
         At = self._trajectory[t].action
         At_1 = self._trajectory[t+1].action
         if At_1 is None:
             At_1 = self.pick_action(St)
 
-        Q[St, At] = Q[St, At] + step * (Rt_1 + disc * Q[St_1, At_1] - Q[St, At])
+        if not done:
+            Q[St, At] = Q[St, At] + step*(Rt_1 + disc*Q[St_1, At_1] - Q[St, At])
+        else:
+            Q[St, At] = Q[St, At] + step * (Rt_1 - Q[St, At])
 
     def eval_td_online(self):
         self.eval_td_t(len(self._trajectory) - 2)  # Eval next-to last state
@@ -159,6 +158,8 @@ class AgentPG:
 
         """
 
+        assert not self._trajectory[t].done
+
         V = self.V    # State values array, shape: [world_size]
         Q = self.Q    # Action value array, shape: [world_size, action_space]
 
@@ -168,6 +169,7 @@ class AgentPG:
         St = self._trajectory[t].observation  # current state xy
         St_1 = self._trajectory[t+1].observation
         Rt_1 = self._trajectory[t+1].reward
+        done = self._trajectory[t+1].done
 
         #
         #   Handle V
@@ -177,7 +179,10 @@ class AgentPG:
         EV *= self._lmbda
         EV[St] += 1
 
-        ro_t = Rt_1 + self._discount * V[St_1] - V[St]
+        if not done:
+            ro_t = Rt_1 + self._discount * V[St_1] - V[St]
+        else:
+            ro_t = Rt_1 - V[St]
         V += self._step_size * ro_t * EV
 
         #
@@ -195,7 +200,10 @@ class AgentPG:
         EQ *= self._lmbda
         EQ[St, At] += 1
 
-        ro_t = Rt_1 + self._discount * Q[St_1, At_1] - Q[St, At]
+        if not done:
+            ro_t = Rt_1 + self._discount * Q[St_1, At_1] - Q[St, At]
+        else:
+            ro_t = Rt_1 - Q[St, At]
         Q += self._step_size * ro_t * EQ
 
     def eval_td_lambda_offline(self):
@@ -219,7 +227,7 @@ class AgentPG:
         for t in range(0, max_t+1):
             self.eval_td_lambda_t(t)
 
-    def eval_td_lambda_online(self, V=None):
+    def eval_td_lambda_online(self):
         t = len(self._trajectory) - 2   # Previous time step
         self.eval_td_lambda_t(t)
 
@@ -254,7 +262,7 @@ class AgentPG:
 
         return Gt
 
-    def eval_mc_t(self, t, V=None):
+    def eval_mc_t(self, t):
         """MC update for state-values for single state in trajectory
 
         Note:
@@ -270,10 +278,6 @@ class AgentPG:
         Params:
             t (int [t, T-1]) - time step in trajectory,
                     0 is initial state; T-1 is last non-terminal state
-
-            V (float arr) - optional,
-                    if passed, funciton will operate on this array
-                    if None, then function will operate on self.V
 
         """
 
