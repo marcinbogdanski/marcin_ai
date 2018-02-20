@@ -108,14 +108,8 @@ def test_single():
         'lmbda':     1.0,     # Monte-Carlo
         'color':     'red'
     }
-    td_lambda_offline = {
-        'method':    'td-lambda-offline',
-        'stepsize':  0.15,
-        'lmbda':     0.3,
-        'color':     'orange'
-    }
-    tests = [td_offline, mc_offline, td_lambda_offline]
-    tests = [td_lambda_offline]
+    tests = [td_offline, mc_offline]
+    #tests = [td_lambda_offline]
 
     for test in tests:
         np.random.seed(0)

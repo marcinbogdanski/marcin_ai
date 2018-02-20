@@ -21,7 +21,6 @@ class AgentPG:
         step_size=0.1, lmbda=None):
         
         self.V = np.zeros([world_size])
-
         self.Q = np.zeros([world_size, action_space])
 
         self._step_size = step_size  # usually noted as alpha in literature
@@ -31,14 +30,10 @@ class AgentPG:
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
-        self._eligibility_traces_V = np.zeros_like(self.V)  # for lambda funtions
-        self._eligibility_traces_Q = np.zeros_like(self.Q)   # for lambda funtions
 
     def reset(self):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
-        self._eligibility_traces_V.fill(0)
-        self._eligibility_traces_Q.fill(0)   # for lambda funtions
 
     def pick_action(self, obs):
         # Randomly go left or right (0 is left, 1 is right)
@@ -131,107 +126,6 @@ class AgentPG:
         for t in range(0, len(self._trajectory)-1):
             # Update state-value at time t
             self.eval_td_t(t)
-
-
-
-
-
-
-
-    def eval_td_lambda_t(self, t):
-        """TD(lambda) update for particular state.0
-
-        Note:
-            Becouse this function builds eligibility trace dictionary in order,
-            it MUST be called in correct sequence, from t=0 to T=T-1.
-            It can be called only once per t-step
-
-        For online updates:
-            Call with t equal to previous time step
-
-        For offline updates:
-            Iterate trajectory from t=0 to t=T-1 and call for every t
-
-        Params:
-            t (int [t, T-1]) - time step in trajectory,
-                    0 is initial state; T-1 is last non-terminal state
-
-        """
-
-        assert not self._trajectory[t].done
-
-        V = self.V    # State values array, shape: [world_size]
-        Q = self.Q    # Action value array, shape: [world_size, action_space]
-
-        EV = self._eligibility_traces_V   # eligibility trace dictionary
-        EQ = self._eligibility_traces_Q
-
-        St = self._trajectory[t].observation  # current state xy
-        St_1 = self._trajectory[t+1].observation
-        Rt_1 = self._trajectory[t+1].reward
-        done = self._trajectory[t+1].done
-
-        #
-        #   Handle V
-        #
-
-        # Update eligibility traces for V
-        EV *= self._lmbda
-        EV[St] += 1
-
-        if not done:
-            ro_t = Rt_1 + self._discount * V[St_1] - V[St]
-        else:
-            ro_t = Rt_1 - V[St]
-        V += self._step_size * ro_t * EV
-
-        #
-        #   Handle Q
-        #
-
-        At = self._trajectory[t].action
-        At_1 = self._trajectory[t+1].action
-
-        if At_1 is None:
-            At_1 = self.pick_action(St)
-
-
-        # Update eligibility traces for Q
-        EQ *= self._lmbda
-        EQ[St, At] += 1
-
-        if not done:
-            ro_t = Rt_1 + self._discount * Q[St_1, At_1] - Q[St, At]
-        else:
-            ro_t = Rt_1 - Q[St, At]
-        Q += self._step_size * ro_t * EQ
-
-    def eval_td_lambda_offline(self):
-        """TD(lambda) update for all states
-
-        Class Params:
-            self._lmbda (float, [0, 1]) - param. for weighted average of returns
-        """
-
-        if np.count_nonzero(self._eligibility_traces_V) != 0:
-            raise ValueError('TD-lambda offline: eligiblity traces not empty?')
-        if np.count_nonzero(self._eligibility_traces_Q) != 0:
-            raise ValueError('TD-lambda offline: eligiblity traces not empty?')
-
-        # Do offline update only if episode terminated
-        if not self._trajectory[-1].done:
-            raise ValueError('Cant do offline on non-terminated episode')
-
-        # Iterate all states apart from terminal state
-        max_t = len(self._trajectory)-2  # inclusive
-        for t in range(0, max_t+1):
-            self.eval_td_lambda_t(t)
-
-    def eval_td_lambda_online(self):
-        t = len(self._trajectory) - 2   # Previous time step
-        self.eval_td_lambda_t(t)
-
-
 
 
 
