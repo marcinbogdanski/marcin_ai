@@ -1,16 +1,13 @@
 import argparse
 
+import os
+import random
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 
 import tensorflow as tf
-config = tf.ConfigProto()
-# config.intra_op_parallelism_threads=1
-# config.inter_op_parallelism_threads=1
-config.gpu_options.per_process_gpu_memory_fraction=0.2
-# config.gpu_options.allow_growth = True
-sess = tf.Session(config=config)
 
 import subprocess
 import socket
@@ -356,23 +353,53 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--seed', type=int, help='Random number generators seeds. Randomised by default.')
+    parser.add_argument('-r', '--reproducible', action='store_true', help='If specified, will force execution on CPU within single thread for reproducible results')    
     args = parser.parse_args()
 
-    print(args.seed)
+    if args.reproducible and args.seed is None:
+        print('Error: --reproducible requires --seed to be specified as well.')
+        exit(0)
 
+    #
+    #   Environment variables
+    #
+    if args.reproducible:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU
+        os.environ['PYTHONHASHSEED'] = '0'         # force reproducible hasing
+
+    #
+    #   Random seeds
+    #
     if args.seed is not None:
         print('Using random seed:', args.seed)
+        random.seed(args.seed)
         np.random.seed(args.seed)
         tf.set_random_seed(args.seed)
 
+    #
+    #   Set TF session
+    #
+    config = tf.ConfigProto()    
+    if args.reproducible:
+        config.intra_op_parallelism_threads=1
+        config.inter_op_parallelism_threads=1
 
+    config.gpu_options.per_process_gpu_memory_fraction=0.2
+    # config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
 
+    #
+    #   Init logger
+    #
     curr_datetime = str(datetime.datetime.now())  # date and time
     hostname = socket.gethostname()  # name of PC where script is run
     res = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE)
     git_hash = res.stdout.decode('utf-8')  # git revision if any
-
     logger = Logger(curr_datetime, hostname, git_hash)
+
+    #
+    #   Run application
+    #
     try:
         test_single(logger, args.seed)
     finally:

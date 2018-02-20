@@ -1056,7 +1056,7 @@ class Agent:
             timing_dict['  eval_td_get_batch'] += time.time() - time_start
 
             time_start = time.time()
-            debug = False # self._curr_total_step == 10300
+            debug = self._curr_total_step == 110500
             errors = self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict, debug)
             timing_dict['  eval_td_update'] += time.time() - time_start
 
