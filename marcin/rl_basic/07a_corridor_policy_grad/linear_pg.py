@@ -26,9 +26,11 @@ class LinearEnvPG:
         self._start_state = (size // 2) + 1
         self.reset()
 
-    def reset(self):
+    def reset(self, expl_start=False):
         self.t_step = 0
         self._state = self._start_state
+        if expl_start:
+            self._state = np.random.randint(1, self._max_right+1)
         self._done = False
 
         return self._state

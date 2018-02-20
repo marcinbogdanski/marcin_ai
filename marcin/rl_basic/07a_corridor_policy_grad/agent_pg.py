@@ -24,20 +24,43 @@ class AgentPG:
         self.Q = np.zeros([world_size, action_space])
 
         self._step_size = step_size  # usually noted as alpha in literature
-        self._discount = 1.0         # usually noted as gamma in literature
+        self._discount = 0.9         # usually noted as gamma in literature
+        self._epsilon_random = 0.1
+        self._force_random_action = False
 
         self._lmbda = lmbda          # param for lambda functions
 
         self._episode = 0
         self._trajectory = []        # Agent saves history on it's way
 
-    def reset(self):
+    def reset(self, expl_start=False):
         self._episode += 1
         self._trajectory = []        # Agent saves history on it's way
 
+        self._force_random_action = expl_start
+
     def pick_action(self, obs):
+        assert isinstance(obs, int)
         # Randomly go left or right (0 is left, 1 is right)
-        return np.random.choice([0, 1])
+        #return np.random.choice([0, 1])
+
+        if self._force_random_action:
+            self._force_random_action = False
+            return np.random.choice([0, 1])
+
+        if np.random.rand() < self._epsilon_random:
+            return np.random.choice([0, 1])
+        else:
+            Ql = self.Q[obs][0]
+            Qr = self.Q[obs][1]
+
+            if Ql == Qr:
+                return np.random.choice([0, 1])
+            elif Ql > Qr:
+                return 0  # go left
+            else:
+                return 1  # go rigth
+
 
     def append_trajectory(self, t_step, prev_action, observation, reward, done):
         if len(self._trajectory) != 0:

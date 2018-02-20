@@ -5,21 +5,20 @@ import pdb
 from linear_pg import LinearEnvPG
 from agent_pg import AgentPG
 
-def test_run(nb_episodes, world_size, method,
-            step_size, lmbda=None):
+def test_run(nb_episodes, world_size, expl_start, method,
+            step_size, ax1=None, ax2=None):
     env = LinearEnvPG (world_size)  # 2x terminal states will be added internally
     agent = AgentPG(world_size=world_size+2,    # add 2x terminal states
                 action_space=2,
-                step_size=step_size,
-                lmbda=lmbda)  
+                step_size=step_size)  
 
     RMSE = []    # root mean-squared error
     for e in range(nb_episodes):
 
         # pdb.set_trace()
 
-        obs = env.reset()
-        agent.reset()
+        obs = env.reset(expl_start=expl_start)
+        agent.reset(expl_start=expl_start)
         agent.append_trajectory(t_step=0,
                                 prev_action=None,
                                 observation=obs,
@@ -62,24 +61,20 @@ def test_run(nb_episodes, world_size, method,
             LinearEnvPG.GROUND_TRUTH[world_size] - agent.V, 2)) / world_size)
         RMSE.append(rms)
 
+
+        print('episode:', e)
+        ax1.clear()
+        ax2.clear()
+        ax1.plot(LinearEnvPG.GROUND_TRUTH[world_size][1:-1], label='True V', color='black')
+        plot(ax1, ax2,
+            label=method,
+            color='red',
+            agent_V=agent.V,
+            agent_Q=agent.Q,
+            rmse=rms )
+        plt.pause(0.1)
+
     return RMSE, agent.V, agent.Q
-
-def multi_run(nb_runs, nb_episodes, world_size, method,
-            step_size, lmbda=None):
-    multi_RMSE = []
-    multi_final_V = []
-    multi_final_Q = []
-
-    for run in range(nb_runs):
-        RMSE, final_V, final_Q = test_run(nb_episodes, world_size, method, 
-                                 step_size, lmbda)
-
-        multi_RMSE.append(RMSE)
-        multi_final_V.append(final_V)
-        multi_final_Q.append(final_Q)
-
-    return multi_RMSE, multi_final_V, multi_final_Q
-
 
 
 class Data:
@@ -92,68 +87,71 @@ class Data:
 
 def test_single():
     nb_runs = 5
-    nb_episodes = 200
-    world_size = 19
+    nb_episodes = 2000
+    world_size = 5
 
     # Experiments tuned for world size 19
     td_offline = {
+        'expl_start': True,
         'method':    'td-offline',
         'stepsize':  0.15,
-        'lmbda':     None,
         'color':     'blue'
     }
     mc_offline = {
+        'expl_start': True,
         'method':    'mc-offline',
         'stepsize':  0.01,
-        'lmbda':     1.0,     # Monte-Carlo
         'color':     'red'
     }
     tests = [td_offline, mc_offline]
-    #tests = [td_lambda_offline]
-
-    for test in tests:
-        np.random.seed(0)
-        print(test['method'])
-        # test_A_RMSE, test_A_final_V = multi_run(
-        #     nb_runs=10, nb_episodes=100, world_size=world_size, 
-        #     method='N-step-offline', step_size=0.2, n_steps=1)
-        test['RMSE'], test['final_V'], test['final_Q'] = multi_run(
-            nb_runs=nb_runs, nb_episodes=nb_episodes, world_size=world_size, 
-            method=test['method'], step_size=test['stepsize'], lmbda=test['lmbda'])
-
+    tests = [mc_offline]
 
     fig = plt.figure()
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
+    for test in tests:
+        # np.random.seed(0)
+        print(test['method'])
+        test['RMSE'], test['final_V'], test['final_Q'] = test_run(
+            nb_episodes=nb_episodes, world_size=world_size, 
+            expl_start=test['expl_start'],
+            method=test['method'], step_size=test['stepsize'],
+            ax1=ax1, ax2=ax2)
+
+    ax1.clear()
+    ax2.clear()
     ax1.plot(LinearEnvPG.GROUND_TRUTH[world_size][1:-1], label='True V', color='black')
     
     for test in tests:
-
-        label = test['method']
-        for i in range(nb_runs):
-            ax1.plot(test['final_V'][i][1:-1], label=label, color=test['color'], alpha=0.3)
-
-            # for LEFT action (0) here -> ----v
-            #ax1.plot(test['final_Q'][i][1:-1, 0], label=label, color=test['color'], alpha=1.0)
-
-            # for RIGHT action (1) here -> ---v
-            #ax1.plot(test['final_Q'][i][1:-1, 1], label=label, color=test['color'], alpha=1.0)
-    
-            # average between two actions (should be the same as final_V above)
-            final_V_from_Q = np.mean(test['final_Q'][i], axis=1)
-            ax1.plot(final_V_from_Q[1:-1], label=label, color=test['color'], alpha=1.0)        
-
-            ax2.plot(test['RMSE'][i], label=label, color=test['color'], alpha=0.3)
-    
-            label = None
-
+        plot(ax1, ax2,
+            label=test['method'],
+            color=test['color'],
+            agent_V=test['final_V'],
+            agent_Q=test['final_Q'],
+            rmse=test['RMSE'] )
 
     plt.legend()
 
     plt.grid()
     plt.show()
 
+
+def plot(ax1, ax2, label, color, agent_V, agent_Q, rmse):
+    ax1.plot(agent_V[1:-1], label=label, color=color, alpha=0.3)
+
+    # for LEFT action (0) here -> ----v
+    ax1.plot(agent_Q[1:-1, 0], label=label, color=color, linestyle='--', alpha=1.0)
+
+    # for RIGHT action (1) here -> ---v
+    ax1.plot(agent_Q[1:-1, 1], label=label, color=color, linestyle=':', alpha=1.0)
+
+    # average between two actions (should be the same as final_V above)
+    final_V_from_Q = np.mean(agent_Q, axis=1)
+    ax1.plot(final_V_from_Q[1:-1], label=label, color=color, alpha=1.0)        
+
+    if rmse is not None:
+        ax2.plot(rmse, label=label, color=color, alpha=0.3)
 
 
 
