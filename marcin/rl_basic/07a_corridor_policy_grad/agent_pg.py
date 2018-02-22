@@ -23,6 +23,8 @@ class AgentPG:
         self.V = np.zeros([world_size])
         self.Q = np.zeros([world_size, action_space])
 
+        self.PG = np.random.randn(world_size, action_space) / 100.0
+
         self._step_size = step_size  # usually noted as alpha in literature
         self._discount = 0.9         # usually noted as gamma in literature
         self._epsilon_random = 0.1
@@ -39,6 +41,13 @@ class AgentPG:
 
         self._force_random_action = expl_start
 
+    def get_pg_prob(self):
+        return self.softmax(self.PG)
+
+    def softmax(self, x):
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=-1, keepdims=True)
+
     def pick_action(self, obs):
         assert isinstance(obs, int)
         # Randomly go left or right (0 is left, 1 is right)
@@ -48,18 +57,37 @@ class AgentPG:
             self._force_random_action = False
             return np.random.choice([0, 1])
 
-        if np.random.rand() < self._epsilon_random:
-            return np.random.choice([0, 1])
-        else:
-            Ql = self.Q[obs][0]
-            Qr = self.Q[obs][1]
+        # policy = 'e-greedy'
+        policy = 'policy_gradient'
 
-            if Ql == Qr:
+        if policy == 'e-greedy':
+            if np.random.rand() < self._epsilon_random:
                 return np.random.choice([0, 1])
-            elif Ql > Qr:
-                return 0  # go left
             else:
-                return 1  # go rigth
+                Ql = self.Q[obs][0]
+                Qr = self.Q[obs][1]
+
+                if Ql == Qr:
+                    return np.random.choice([0, 1])
+                elif Ql > Qr:
+                    return 0  # go left
+                else:
+                    return 1  # go rigth
+        elif policy == 'policy_gradient':
+            
+            obs_one_hot = np.zeros(len(self.PG))
+            obs_one_hot[obs] = 1
+
+            act_h = np.dot(obs_one_hot, self.PG)
+            prob = self.softmax(act_h)
+
+            act = np.random.choice(range(2), p=prob)
+
+            return act
+            
+
+        else:
+            raise ValueError('This should not happen')
 
 
     def append_trajectory(self, t_step, prev_action, observation, reward, done):
@@ -121,6 +149,7 @@ class AgentPG:
 
         At = self._trajectory[t].action
         At_1 = self._trajectory[t+1].action
+        
         if At_1 is None:
             At_1 = self.pick_action(St)
 
@@ -128,6 +157,46 @@ class AgentPG:
             Q[St, At] = Q[St, At] + step*(Rt_1 + disc*Q[St_1, At_1] - Q[St, At])
         else:
             Q[St, At] = Q[St, At] + step * (Rt_1 - Q[St, At])
+
+
+        # policy gradient calc
+
+        St_one_hot = np.zeros(len(self.PG))
+        St_one_hot[St] = 1
+
+        act_h = np.dot(St_one_hot, self.PG)
+        prob = self.softmax(act_h)
+
+        prob_deriv = np.copy(prob)
+        prob_deriv[At] -= 1
+        prob_deriv *= -1     # gradient ascent
+
+        grad = np.outer(St_one_hot, prob_deriv)
+
+        print('START')
+
+        print(prob)
+
+        # Monte Carlo
+        # update = self._step_size * Gt * grad / prob   # MC
+
+        # Actor-Critic
+        # update = self._step_size * Q[St, At] * grad / prob
+
+        # AC with advantage function (baseline)
+        Adv = Q[St, At] - V[St]
+        update = self._step_size * Adv * grad / prob     
+
+        # AC with TD error as target
+        #ro = Rt_1 + self._discount * V[St_1] - V[St]
+        #update = self._step_size * ro * grad / prob             
+
+        #print(Q[St, At])   
+        #print(Adv)
+
+        self.PG += update
+
+
 
     def eval_td_online(self):
         self.eval_td_t(len(self._trajectory) - 2)  # Eval next-to last state
@@ -211,6 +280,25 @@ class AgentPG:
 
         At = self._trajectory[t].action
         Q[St, At] = Q[St, At] + self._step_size * (Gt - Q[St, At])
+
+        # policy gradient calc
+
+        St_one_hot = np.zeros(len(self.PG))
+        St_one_hot[St] = 1
+
+        act_h = np.dot(St_one_hot, self.PG)
+        prob = self.softmax(act_h)
+
+        prob_deriv = np.copy(prob)
+        prob_deriv[At] -= 1
+        prob_deriv *= -1     # gradient ascent
+
+        grad = np.outer(St_one_hot, prob_deriv)
+
+        update = self._step_size * Gt * (grad / prob)
+
+        self.PG += update
+
 
     def eval_mc_offline(self):
         """MC update for all statates. Call after episode terminates
