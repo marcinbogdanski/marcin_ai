@@ -131,3 +131,46 @@ class TestMain(unittest.TestCase):
         self.assertEqual(act, 5073)
         self.assertEqual(rew, -4997)
         self.assertEqual(done, 3)
+
+
+    def test_30_run_aggregate_1(self):
+
+        timing_arr = []
+        timing_dict = {}
+
+        trained_agent = main.test_run(
+            nb_episodes=None,
+            nb_total_steps=25000,
+            expl_start=False,
+
+            agent_nb_actions=3,
+            agent_discount=0.99,
+            agent_nb_rand_steps=0,
+            agent_e_rand_start=0.1,
+            agent_e_rand_target=0.1,
+            agent_e_rand_decay=1/10000,
+
+            mem_size_max=10000,
+            mem_enable_pmr=False,
+
+            approximator='aggregate',
+            step_size=0.3,
+            batch_size=64,
+            
+            plotter=None,
+            logger=self.logger,
+            timing_arr=timing_arr,
+            timing_dict=timing_dict,
+            seed=self.seed)
+
+        fp, ws, st, act, rew, done = trained_agent.get_fingerprint()
+        print('FINGERPRINT:', fp)
+        print('  wegight sum:', ws)
+        print('  st, act, rew, done:', st, act, rew, done)
+
+        self.assertEqual(fp, -20561.460994556)
+        self.assertEqual(ws, -8042.498761462002)
+        self.assertEqual(st, -12583.962233094)
+        self.assertEqual(act, 25063)
+        self.assertEqual(rew, -24999)
+        self.assertEqual(done, 1)

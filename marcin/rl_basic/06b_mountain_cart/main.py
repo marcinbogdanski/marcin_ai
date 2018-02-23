@@ -295,17 +295,17 @@ def test_single(logger, seed=None):
                       ax_avg_reward=ax_avg_reward)
 
 
-    approximator='tile'
+    approximator='aggregate'
 
     trained_agent = test_run(
             nb_episodes=None,
-            nb_total_steps=5000,
+            nb_total_steps=25000,
             expl_start=False,
 
             agent_nb_actions=3,
             agent_discount=0.99,
             agent_nb_rand_steps=0,
-            agent_e_rand_start=1.0,
+            agent_e_rand_start=0.1,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1/10000,
 

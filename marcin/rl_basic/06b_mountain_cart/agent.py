@@ -756,7 +756,7 @@ class Agent:
 
         if approximator == 'aggregate':
             self.Q = AggregateApproximator(
-                step_size, self._action_space, init_val=-100, log=log_approx)
+                step_size, self._action_space, init_val=0, log=log_approx)
         elif approximator == 'tile':
             self.Q = TileApproximator(
                 step_size, self._action_space, init_val=0, log=log_approx)
@@ -1084,8 +1084,7 @@ class Agent:
 
 
         if isinstance(self.Q, NeuralApproximator) or \
-            isinstance(self.Q, KerasApproximator) or \
-            isinstance(self.Q, AggregateApproximator) :
+            isinstance(self.Q, KerasApproximator):
 
             time_start = time.time()
             states, actions, rewards_1, states_1, dones, indices = \
