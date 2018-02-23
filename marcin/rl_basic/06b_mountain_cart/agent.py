@@ -42,6 +42,9 @@ class AggregateApproximator:
         self._states = np.zeros([self._pos_bin_nb,
             self._vel_bin_nb, self._action_nb]) + init_val
 
+    def get_weights_fingerprint(self):
+        return np.sum(self._states)
+
     def _to_idx(self, state, action):
         assert isinstance(state, np.ndarray)
         assert isinstance(state[0], float)
@@ -149,6 +152,9 @@ class TileApproximator:
         self._weights = np.zeros(2048) + init_val / self._num_of_tillings
         
         max_len = 2000
+
+    def get_weights_fingerprint(self):
+        return np.sum(self._weights)
 
     def _test_input(self, state, action):
         assert isinstance(state, np.ndarray)
@@ -468,6 +474,13 @@ class KerasApproximator:
             log.add_param('output_count', output_count)
             log.add_param('out_act', 'linear')
 
+    def get_weights_fingerprint(self):
+        weights_sum = 0
+        for idx, layer in enumerate(self._model.layers):
+            list_weights = layer.get_weights()
+            layer_sum = np.sum(np.sum(ii) for ii in list_weights)
+            weights_sum += layer_sum
+        return weights_sum
 
     def _test_input(self, state, action):
         assert isinstance(state, np.ndarray)
@@ -746,7 +759,7 @@ class Agent:
                 step_size, self._action_space, init_val=-100, log=log_approx)
         elif approximator == 'tile':
             self.Q = TileApproximator(
-                step_size, self._action_space, init_val=-100, log=log_approx)
+                step_size, self._action_space, init_val=0, log=log_approx)
         elif approximator == 'neural':
             self.Q = NeuralApproximator(
                 step_size, discount, batch_size, log=log_approx)
@@ -828,11 +841,7 @@ class Agent:
             log_memory.add_data_item('hist_error')
 
     def get_fingerprint(self):
-        weights_sum = 0
-        for idx, layer in enumerate(self.Q._model.layers):
-            list_weights = layer.get_weights()
-            layer_sum = np.sum(np.sum(ii) for ii in list_weights)
-            weights_sum += layer_sum
+        weights_sum = self.Q.get_weights_fingerprint()
 
         fingerprint = weights_sum + self._debug_cum_state \
                       + self._debug_cum_action + self._debug_cum_reward \
@@ -1076,8 +1085,7 @@ class Agent:
 
         if isinstance(self.Q, NeuralApproximator) or \
             isinstance(self.Q, KerasApproximator) or \
-            isinstance(self.Q, AggregateApproximator) or \
-            isinstance(self.Q, TileApproximator):
+            isinstance(self.Q, AggregateApproximator) :
 
             time_start = time.time()
             states, actions, rewards_1, states_1, dones, indices = \
@@ -1086,7 +1094,7 @@ class Agent:
 
             time_start = time.time()
             debug = self._curr_total_step == 110500
-            errors = self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict, debug)
+            errors = self.Q.update2(states, actions, rewards_1, states_1, dones, timing_dict)
             timing_dict['  eval_td_update'] += time.time() - time_start
 
             self._memory.update_errors(indices, errors)

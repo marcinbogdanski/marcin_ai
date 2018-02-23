@@ -47,7 +47,7 @@ class TestMain(unittest.TestCase):
     def tearDown(self):
         print('teardown')
 
-    def test_run_keras_1(self):
+    def test_10_run_keras_1(self):
         print('test run 1')
 
         timing_arr = []
@@ -89,3 +89,45 @@ class TestMain(unittest.TestCase):
         self.assertEqual(act, 10988)
         self.assertEqual(rew, -10999)
         self.assertEqual(done, 1)
+
+    def test_20_run_tile_1(self):
+
+        timing_arr = []
+        timing_dict = {}
+
+        trained_agent = main.test_run(
+            nb_episodes=None,
+            nb_total_steps=5000,
+            expl_start=False,
+
+            agent_nb_actions=3,
+            agent_discount=0.99,
+            agent_nb_rand_steps=0,
+            agent_e_rand_start=1.0,
+            agent_e_rand_target=0.1,
+            agent_e_rand_decay=1/10000,
+
+            mem_size_max=10000,
+            mem_enable_pmr=False,
+
+            approximator='tile',
+            step_size=0.3,
+            batch_size=64,
+            
+            plotter=None,
+            logger=self.logger,
+            timing_arr=timing_arr,
+            timing_dict=timing_dict,
+            seed=self.seed)
+
+        fp, ws, st, act, rew, done = trained_agent.get_fingerprint()
+        print('FINGERPRINT:', fp)
+        print('  wegight sum:', ws)
+        print('  st, act, rew, done:', st, act, rew, done)
+
+        self.assertEqual(fp, -3685.9990078639967)
+        self.assertEqual(ws, -1293.1786010586354)
+        self.assertEqual(st, -2471.820406805361)
+        self.assertEqual(act, 5073)
+        self.assertEqual(rew, -4997)
+        self.assertEqual(done, 3)

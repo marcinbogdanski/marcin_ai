@@ -101,7 +101,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     total_step = -1
     while True:
 
-        PRINT_FROM = 1110000
+        PRINT_FROM = 100000
         
         episode += 1
         if nb_episodes is not None and episode >= nb_episodes:
@@ -203,6 +203,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
             if total_step >= PRINT_FROM:
                 print('------------------------------ total step -- ', total_step)
 
+
             time_start = time.time()
             if agent_nb_actions == 2 and action == 1:
                 action_p = 2
@@ -294,16 +295,16 @@ def test_single(logger, seed=None):
                       ax_avg_reward=ax_avg_reward)
 
 
-    approximator='keras'
+    approximator='tile'
 
-    test_run(
+    trained_agent = test_run(
             nb_episodes=None,
-            nb_total_steps=1000000,
+            nb_total_steps=5000,
             expl_start=False,
 
             agent_nb_actions=3,
             agent_discount=0.99,
-            agent_nb_rand_steps=100000,
+            agent_nb_rand_steps=0,
             agent_e_rand_start=1.0,
             agent_e_rand_target=0.1,
             agent_e_rand_decay=1/10000,
@@ -312,7 +313,7 @@ def test_single(logger, seed=None):
             mem_enable_pmr=False,
 
             approximator=approximator,
-            step_size=0.00025,
+            step_size=0.3,
             batch_size=1024,
             
             plotter=plotter,
@@ -325,6 +326,11 @@ def test_single(logger, seed=None):
     print(str.upper(approximator))
     for key in timing_arr:
         print(key, round(timing_dict[key], 3))
+
+    fp, ws, st, act, rew, done = trained_agent.get_fingerprint()
+    print('FINGERPRINT:', fp)
+    print('  wegight sum:', ws)
+    print('  st, act, rew, done:', st, act, rew, done)
 
     if plotting_enabled:
         plt.show()
