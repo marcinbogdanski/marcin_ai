@@ -47,6 +47,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
     if seed is not None:
         env.seed(seed)
     #env = MountainCarEnv(log=logger.env)
+
     agent = Agent(nb_actions=agent_nb_actions,
                 discount=agent_discount,
                 nb_rand_steps=agent_nb_rand_steps,
@@ -243,7 +244,7 @@ def test_run(nb_episodes, nb_total_steps, expl_start,
 
         timing_dict['total'] += time.time() - time_total_start
 
-    return
+    return agent
 
 
 

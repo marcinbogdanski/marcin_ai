@@ -779,6 +779,12 @@ class Agent:
         self._curr_total_step = 0
         self._curr_non_rand_step = 0
 
+        self._debug_cum_state = 0
+        self._debug_cum_action = 0
+        self._debug_cum_reward = 0
+        self._debug_cum_done = 0
+
+
         self.log_agent = log_agent
         if log_agent is not None:
             log_agent.add_param('discount', self._discount)
@@ -821,6 +827,20 @@ class Agent:
             log_memory.add_data_item('hist_done')
             log_memory.add_data_item('hist_error')
 
+    def get_fingerprint(self):
+        weights_sum = 0
+        for idx, layer in enumerate(self.Q._model.layers):
+            list_weights = layer.get_weights()
+            layer_sum = np.sum(np.sum(ii) for ii in list_weights)
+            weights_sum += layer_sum
+
+        fingerprint = weights_sum + self._debug_cum_state \
+                      + self._debug_cum_action + self._debug_cum_reward \
+                      + self._debug_cum_done
+
+        return fingerprint, weights_sum, self._debug_cum_state, \
+                self._debug_cum_action, self._debug_cum_reward, \
+                self._debug_cum_done
 
     def reset(self, expl_start=False):
         self._episode += 1
@@ -986,10 +1006,19 @@ class Agent:
 
 
     def append_trajectory(self, observation, reward, done):
+        self._debug_cum_state += np.sum(observation)
+
+        if reward is not None:
+            self._debug_cum_reward += reward
+        if done is not None:
+            self._debug_cum_done += int(done)
+
         self._trajectory.append(
             HistoryData(observation, reward, done))
 
     def append_action(self, action):
+        self._debug_cum_action += np.sum(action)
+
         if len(self._trajectory) != 0:
             self._trajectory[-1].action = action
 
