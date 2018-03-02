@@ -159,42 +159,40 @@ class AgentPG:
             Q[St, At] = Q[St, At] + step * (Rt_1 - Q[St, At])
 
 
-        # policy gradient calc
 
-        St_one_hot = np.zeros(len(self.PG))
-        St_one_hot[St] = 1
+        # policy gradient calc   # old
 
-        act_h = np.dot(St_one_hot, self.PG)
-        prob = self.softmax(act_h)
+        # state/action feature vector
+        X = np.zeros(self.PG.shape)
+        X[St, At] = 1
 
-        prob_deriv = np.copy(prob)
-        prob_deriv[At] -= 1
-        prob_deriv *= -1     # gradient ascent
+        h_all_act = self.PG[St]
+        assert h_all_act.ndim == 1
+        assert len(h_all_act) == 2
 
-        grad = np.outer(St_one_hot, prob_deriv)
+        prob_all_act = self.softmax(h_all_act)
+        assert prob_all_act.ndim == 1
+        assert len(prob_all_act) == 2
 
-        print('START')
-
-        print(prob)
+        ln_grad = np.copy(X)
+        ln_grad[St] -= prob_all_act
 
         # Monte Carlo
-        # update = self._step_size * Gt * grad / prob   # MC
+        # update = self._step_size * Gt * ln_grad
 
         # Actor-Critic
-        # update = self._step_size * Q[St, At] * grad / prob
+        #update = self._step_size * Q[St, At] * ln_grad
 
         # AC with advantage function (baseline)
-        Adv = Q[St, At] - V[St]
-        update = self._step_size * Adv * grad / prob     
+        # Adv = Q[St, At] - V[St]
+        # update = self._step_size * Adv * ln_grad
 
         # AC with TD error as target
-        #ro = Rt_1 + self._discount * V[St_1] - V[St]
-        #update = self._step_size * ro * grad / prob             
-
-        #print(Q[St, At])   
-        #print(Adv)
+        ro = Rt_1 + self._discount * V[St_1] - V[St]
+        update = self._step_size * ro * ln_grad
 
         self.PG += update
+
 
 
 
@@ -283,19 +281,24 @@ class AgentPG:
 
         # policy gradient calc
 
-        St_one_hot = np.zeros(len(self.PG))
-        St_one_hot[St] = 1
+        # state/action feature vector
+        X = np.zeros(self.PG.shape)
+        X[St, At] = 1
 
-        act_h = np.dot(St_one_hot, self.PG)
-        prob = self.softmax(act_h)
+        h_all_act = self.PG[St]
+        assert h_all_act.ndim == 1
+        assert len(h_all_act) == 2
 
-        prob_deriv = np.copy(prob)
-        prob_deriv[At] -= 1
-        prob_deriv *= -1     # gradient ascent
+        prob_all_act = self.softmax(h_all_act)
+        assert prob_all_act.ndim == 1
+        assert len(prob_all_act) == 2
 
-        grad = np.outer(St_one_hot, prob_deriv)
+        ln_grad = np.copy(X)
+        ln_grad[St] -= prob_all_act
 
-        update = self._step_size * Gt * (grad / prob)
+
+        # Monte Carlo
+        update = self._step_size * Gt * ln_grad
 
         self.PG += update
 
